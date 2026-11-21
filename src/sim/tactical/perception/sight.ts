@@ -12,7 +12,8 @@
 // @src and HandleSight with gfPlayerTeamSawCreatures and the first creature sighting's quote (2026-10-30); ManLooksForMan's
 // @src fMercAsleep (2026-10-31); ManSeesMan's SlideTo to an opponent turning visible in combat or in a virgin sector
 // @src (2026-11-03); ManLooksForMan's vehicle of ours, which never looks (2026-11-05); DecayPublicOpplist's FOR_EACH_MERC,
-// @src the helicopter's passengers over the loaded sector included (2026-11-08).
+// @src the helicopter's passengers over the loaded sector included (2026-11-08); RemoveManAsTarget, which clears
+// @src gbSeenOpponents by merc slot number (2026-11-20).
 
 import { pythSpacesAway } from '../../../content/world/grid.ts';
 import { idiv, u8 } from '../../../core/int.ts';
@@ -831,10 +832,11 @@ export function verifyPublicOpplistDueToDeath(t: TacticalState, s: Soldier): voi
 export function removeManAsTarget(t: TacticalState, s: Soldier): void {
   if (t.perception.lastMercToRadio[s.team] === s) t.perception.lastMercToRadio[s.team] = null;
   for (let team = 0; team < t.perception.publicOpp.length; team++) updatePublic(t, team, s, Opp.NOT_HEARD_OR_SEEN, -1, 0);
-  for (const opp of mercs(t)) {
+  t.mercSlots.forEach((opp, slot) => {
+    if (!opp?.placed) return;
     if (opp.oppList[s.id] === Opp.SEEN_CURRENTLY && !opp.neutral && hostile(opp, s)) removeOneOpponent(opp);
     updatePersonal(opp, s, Opp.NOT_HEARD_OR_SEEN, -1, 0);
-    t.turn.seenOpponents[opp.id * TOTAL_SOLDIERS + s.id] = 0;
-  }
+    t.turn.seenOpponents[slot * TOTAL_SOLDIERS + s.id] = 0;
+  });
   resetLastKnownLocs(t, s);
 }

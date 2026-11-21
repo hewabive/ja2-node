@@ -1342,7 +1342,7 @@ describe('the mercs seated in a vehicle in the loaded sector of an import (SOLDI
     const t = sim.state;
     const flying = soldierOf(sim, FLYING_ID);
     expect([flying.placed, flying.offMap, flying.gridNo, flying.structure]).toEqual([false, true, NOWHERE, null]);
-    expect(t.mercSlots.map((s) => s.id)).toEqual([DRIVER_ID, PASSENGER_ID, FLYING_ID, OUR_HUMMER_ID]);
+    expect(t.mercSlots.map((s) => s?.id)).toEqual([DRIVER_ID, PASSENGER_ID, FLYING_ID, OUR_HUMMER_ID]);
     expect(whoIsThere(t, gridNo(90, 90), 0)).toBeNull();
     const roster = new Roster({ state: createRosterState(), content, combat: () => t });
     addSavedMercsToRoster(roster, save, soldiers);
@@ -1439,7 +1439,7 @@ describe('a merc in transit whose arrival sector is the loaded one (UpdateMercIn
       ],
     });
     const t = importedSim(save).state;
-    expect(t.mercSlots.map((s) => s.id)).toEqual([WALKER_ID]);
+    expect(t.mercSlots.map((s) => s?.id)).toEqual([WALKER_ID]);
     expect(t.soldiers[ARRIVING_ID]).toBeUndefined();
   });
 });
@@ -1458,7 +1458,7 @@ describe('a dead merc of ours in the loaded sector (UpdateMercsInSector from Sav
       ],
     });
     const t = importedSim(save).state;
-    expect(t.mercSlots.map((s) => s.id)).toEqual([ALIVE_ID, DEAD_ID, LAST_ID]);
+    expect(t.mercSlots.map((s) => s?.id)).toEqual([ALIVE_ID, DEAD_ID, LAST_ID]);
     const dead = t.soldiers[DEAD_ID];
     expect([dead?.placed, dead?.dead]).toEqual([false, true]);
     expect(ourTeamInSectorWithTheDead(t).map((s) => s.id)).toEqual([ALIVE_ID, DEAD_ID, LAST_ID]);
@@ -1485,7 +1485,7 @@ describe('a merc still in the helicopter in a save made in mid-drop (original-bu
   it('is no soldier of the loaded map: he is seated in the helicopter again, in id order, as the load puts the chopper mercs back into the seats (UpdateMercInSector, StrategicMap.cc:1155)', () => {
     const sim = importedSim(midDropSave());
     const t = sim.state;
-    expect(t.mercSlots.map((s) => s.id)).toEqual([DROPPED_ID]);
+    expect(t.mercSlots.map((s) => s?.id)).toEqual([DROPPED_ID]);
     expect(SEATED_IDS.map((id) => t.soldiers[id])).toEqual([undefined, undefined]);
     expect([t.helicopterDrop.seats, t.helicopterDrop.running]).toEqual([SEATED_IDS, false]);
   });

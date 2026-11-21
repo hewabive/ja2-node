@@ -1,18 +1,18 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/Overhead.cc AddAwaySlot, RemoveAwaySlot, MoveSoldierFromMercToAwaySlot,
-// @src MoveSoldierFromAwayToMercSlot (the vectors of Stracciatella, 2026-11-02).
+// @src src/game/Tactical/Overhead.cc GetFreeAwaySlot, RecountAwaySlots, AddAwaySlot, RemoveAwaySlot,
+// @src MoveSoldierFromMercToAwaySlot, MoveSoldierFromAwayToMercSlot (the fixed array, 2026-11-20).
 
 import { removeMercStructure } from './person-structure.ts';
 import type { Soldier } from './soldier.ts';
-import { eraseFromSlots, registerSoldier, removeOccupant, type TacticalState, unregisterSoldier } from './state.ts';
+import { addToSlots, registerSoldier, removeFromSlots, removeOccupant, type TacticalState, unregisterSoldier } from './state.ts';
 
-function addAwaySlot(t: TacticalState, s: Soldier): void {
-  t.awaySlots.push(s);
+export function addAwaySlot(t: TacticalState, s: Soldier): void {
+  addToSlots(t.awaySlots, s);
 }
 
 function removeAwaySlot(t: TacticalState, s: Soldier): boolean {
-  return eraseFromSlots(t.awaySlots, s);
+  return removeFromSlots(t.awaySlots, s);
 }
 
 function leaveWorld(t: TacticalState, s: Soldier): void {
@@ -38,7 +38,7 @@ export function moveSoldierFromAwayToMercSlot(t: TacticalState, s: Soldier): boo
 }
 
 export function awaySoldierAt(t: TacticalState, g: number, level: number): Soldier | null {
-  return t.awaySlots.find((s) => s.gridNo === g && s.level === level) ?? null;
+  return t.awaySlots.find((s): s is Soldier => s !== null && s.gridNo === g && s.level === level) ?? null;
 }
 
 export function removeFromAwaySlots(t: TacticalState, s: Soldier): void {

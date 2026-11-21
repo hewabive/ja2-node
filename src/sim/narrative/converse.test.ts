@@ -3,13 +3,15 @@ import { type FakeHost, fakeHost, NPC_TYPE, recordArray, testSoldier } from '../
 import { type NpcRecord, QuoteFlag, UiCode } from '../../content/formats/npc.ts';
 import { Approach, NpcAction, StandardQuote } from '../../content/narrative/npc-constants.ts';
 import { TICK_MS } from '../clock.ts';
-import { AlertStatus, TEAM_FIRST_ID, Team, Visible } from '../tactical/soldier.ts';
+import { Opp } from '../tactical/perception/opp.ts';
+import { AlertStatus, NOWHERE, type Soldier, TEAM_FIRST_ID, Team, Visible } from '../tactical/soldier.ts';
 import {
   converse,
   deleteTalkingMenu,
   handleTalkingMenuEscape,
   handleWaitTimerForNpcTrigger,
   initiateConversationFull,
+  npcConsiderInitiatingConv,
   npcReachedDestination,
   pcsNearNpc,
   stepDialogue,
@@ -436,5 +438,37 @@ describe('triggers and scripted sequences', () => {
     pcsNearNpc(host, NPC);
     expect(host.facts.values.get(NarrativeFact.PC_NEAR)).toBe(false);
     expect(host.factLog).toContainEqual([NarrativeFact.PC_NEAR, NPC]);
+  });
+});
+
+describe('an NPC who starts a talk (NPC.cc NPCConsiderInitiatingConv)', () => {
+  const NEAR_MERC_ID = 0;
+  const FAR_MERC_ID = 1;
+  const NEAR_TILE = NPC_TILE + 2;
+  const FAR_TILE = NPC_TILE + 9;
+
+  function scene(seen: readonly number[]): { readonly host: FakeHost; readonly npc: Soldier } {
+    const npc = testSoldier(NPC_ID, Team.CIV, NPC, NPC_TILE);
+    const near = testSoldier(NEAR_MERC_ID, Team.OUR, MERC, NEAR_TILE);
+    const far = testSoldier(FAR_MERC_ID, Team.OUR, MERC + 1, FAR_TILE);
+    for (const id of seen) npc.oppList[id] = Opp.SEEN_CURRENTLY;
+    const host = fakeHost({
+      scripts: { [NPC]: recordArray({ 0: { approachRequired: Approach.NPC_INITIATING_CONV, opinionRequired: 255 } }) },
+      types: { [NPC]: NPC_TYPE },
+      profiles: { [NPC]: {}, [MERC]: {}, [MERC + 1]: {} },
+      soldiers: [npc, near, far],
+      mercSlots: [npc, near, far],
+    });
+    return { host, npc };
+  }
+
+  it('heads for the soldier whose id is the slot number of the first merc he would talk to, not for the closest merc', () => {
+    const { host, npc } = scene([NEAR_MERC_ID, FAR_MERC_ID]);
+    expect(npcConsiderInitiatingConv(host, npc)).toBe(FAR_TILE);
+  });
+
+  it('checks his sight of the soldier whose id is the slot number, so a merc he sees in a slot of another number is passed by', () => {
+    const { host, npc } = scene([NEAR_MERC_ID]);
+    expect(npcConsiderInitiatingConv(host, npc)).toBe(NOWHERE);
   });
 });

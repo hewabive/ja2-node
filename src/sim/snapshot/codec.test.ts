@@ -310,6 +310,19 @@ describe('snapshot version 36 (merc slots with empty slots)', () => {
   });
 });
 
+describe('snapshot version 102 (merc slots as vectors)', () => {
+  it('keeps every soldier in his slot and each cursor on its index: slots with no empty entry are a state of the fixed array too', () => {
+    const tactical = {
+      aiPass: { lastTickMs: 0, cursor: 1, awayCursor: 0, handleThisPass: false },
+      mercSlots: [{ $ref: 'soldiers/0' }, { $ref: 'soldiers/1' }],
+      awaySlots: [{ $ref: 'soldiers/2' }],
+    };
+    const graph = { externals: [], sections: [['tactical', tactical]] };
+    const migrated = migrateSnapshot({ format: SNAPSHOT_FORMAT, version: 102, kind: 'tactical', mapPath: null, graph });
+    expect(migrated.graph.sections[0]?.[1]).toEqual(tactical);
+  });
+});
+
 describe('base64', () => {
   it('round-trips every length and refuses bad input', () => {
     for (let n = 0; n < 12; n++) {

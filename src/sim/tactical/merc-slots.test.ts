@@ -63,31 +63,49 @@ function entered(t: TacticalState, team: number, x: number): Soldier {
   return s;
 }
 
-describe('merc slots (Overhead.cc AddMercSlot, RemoveMercSlot)', () => {
-  it('puts a soldier entering the sector after everyone, even behind the place of one who left: the vector closes the gap', () => {
+describe('merc slots (Overhead.cc GetFreeMercSlot, RecountMercSlots, AddMercSlot, RemoveMercSlot)', () => {
+  it('puts a soldier entering the sector in the first empty slot, and leaves the slot of one who left empty until then', () => {
     const t = sector();
     const first = entered(t, Team.ENEMY, 70);
     const second = entered(t, Team.ENEMY, 72);
     const third = entered(t, Team.ENEMY, 74);
     expect(unregisterSoldier(t, second)).toBe(true);
-    expect(t.mercSlots).toEqual([first, third]);
+    expect(t.mercSlots).toEqual([first, null, third]);
     const fourth = entered(t, Team.CIV, 76);
-    expect(t.mercSlots).toEqual([first, third, fourth]);
+    expect(t.mercSlots).toEqual([first, fourth, third]);
     registerSoldier(t, second);
-    expect(t.mercSlots).toEqual([first, third, fourth, second]);
+    expect(t.mercSlots).toEqual([first, fourth, third, second]);
     expect(unregisterSoldier(t, soldier(t, Team.CIV, 78))).toBe(false);
   });
 
-  it('sends a soldier leaving for the away slots to their end and brings him back at the end of the merc slots', () => {
+  it('counts the slots up to the last soldier: one who leaves the last slot takes the empty slots before him along', () => {
+    const t = sector();
+    const first = entered(t, Team.ENEMY, 70);
+    const second = entered(t, Team.ENEMY, 72);
+    const third = entered(t, Team.ENEMY, 74);
+    unregisterSoldier(t, second);
+    unregisterSoldier(t, third);
+    expect(t.mercSlots).toEqual([first]);
+    const fourth = entered(t, Team.CIV, 76);
+    expect(t.mercSlots).toEqual([first, fourth]);
+  });
+
+  it('sends a soldier leaving for the away slots to the first empty one and brings him back to the first empty merc slot', () => {
     const t = sector();
     const walker = entered(t, Team.CIV, 70);
     const stayer = entered(t, Team.CIV, 72);
     const otherWalker = entered(t, Team.CIV, 74);
     moveSoldierFromMercToAwaySlot(t, otherWalker);
     moveSoldierFromMercToAwaySlot(t, walker);
-    expect([t.mercSlots, t.awaySlots]).toEqual([[stayer], [otherWalker, walker]]);
+    expect([t.mercSlots, t.awaySlots]).toEqual([
+      [null, stayer],
+      [otherWalker, walker],
+    ]);
     expect(moveSoldierFromAwayToMercSlot(t, otherWalker)).toBe(true);
-    expect([t.mercSlots, t.awaySlots]).toEqual([[stayer, otherWalker], [walker]]);
+    expect([t.mercSlots, t.awaySlots]).toEqual([
+      [otherWalker, stayer],
+      [null, walker],
+    ]);
   });
 });
 
@@ -110,7 +128,7 @@ describe('the placed soldiers of the merc slots (FOR_EACH_MERC as a list taken a
   });
 });
 
-describe('the soldier pass (Overhead.cc ExecuteOverhead): it walks the vector by index and reads its size at every step', () => {
+describe('the soldier pass (Overhead.cc ExecuteOverhead): it walks the fixed array by index and reads its count at every step', () => {
   function pass(t: TacticalState, during: (t: TacticalState, s: Soldier) => void): Soldier[] {
     const handled: Soldier[] = [];
     executeOverhead(t, {
@@ -122,24 +140,28 @@ describe('the soldier pass (Overhead.cc ExecuteOverhead): it walks the vector by
     return handled;
   }
 
-  it('skips the soldier after one who leaves during the pass until the next pass', () => {
+  function enterDuringPass(t: TacticalState, newcomer: Soldier): void {
+    registerSoldier(t, newcomer);
+    setSoldierPosition(t, newcomer, newcomer.gridNo);
+  }
+
+  it('still handles the soldier after one who leaves during the pass: the slot he leaves stays empty', () => {
     const t = sector();
     const leaver = entered(t, Team.ENEMY, 70);
-    const skipped = entered(t, Team.ENEMY, 72);
+    const next = entered(t, Team.ENEMY, 72);
     const last = entered(t, Team.ENEMY, 74);
-    expect(pass(t, (state, s) => s === leaver && unregisterSoldier(state, leaver))).toEqual([leaver, last]);
-    expect(pass(t, () => {})).toEqual([skipped, last]);
+    expect(pass(t, (state, s) => s === leaver && unregisterSoldier(state, leaver))).toEqual([leaver, next, last]);
+    expect(pass(t, () => {})).toEqual([next, last]);
   });
 
-  it('handles a soldier who enters during the pass in the same pass', () => {
+  it('handles a soldier who enters during the pass in that pass only when the empty slot he takes lies after the current one', () => {
     const t = sector();
     const caller = entered(t, Team.ENEMY, 70);
     const newcomer = soldier(t, Team.ENEMY, 76);
-    const handled = pass(t, (state, s) => {
-      if (s !== caller) return;
-      registerSoldier(state, newcomer);
-      setSoldierPosition(state, newcomer, newcomer.gridNo);
-    });
-    expect(handled).toEqual([caller, newcomer]);
+    expect(pass(t, (state, s) => s === caller && enterDuringPass(state, newcomer))).toEqual([caller, newcomer]);
+    const late = soldier(t, Team.ENEMY, 78);
+    unregisterSoldier(t, caller);
+    expect(pass(t, (state, s) => s === newcomer && enterDuringPass(state, late))).toEqual([newcomer]);
+    expect(t.mercSlots).toEqual([late, newcomer]);
   });
 });

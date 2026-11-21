@@ -745,22 +745,15 @@ export function npcConsiderInitiatingConv(host: NarrativeHost, npcSoldier: Soldi
   const t = host.tactical();
   if (!records || !t) return NOWHERE;
   let best = 0;
-  let bestDistance = 100;
   let target: Soldier | null = null;
-  for (const m of t.mercSlots) {
-    if (m.side !== Side.FRIENDLY || !assignedBelowDuty(host, m)) continue;
-    if (npcSoldier.oppList[m.id] !== Opp.SEEN_CURRENTLY) continue;
+  for (let slot = 0; slot < t.mercSlots.length; slot++) {
+    const m = t.mercSlots[slot];
+    if (!m || m.side !== Side.FRIENDLY || !assignedBelowDuty(host, m)) continue;
+    if (npcSoldier.oppList[slot] !== Opp.SEEN_CURRENTLY) continue;
     const desire = npcConsiderTalking(selectEnv(host), npc, m.profile, Approach.NPC_INITIATING_CONV, 0, records).opinion;
-    if (desire === 0) continue;
-    const d = pythSpacesAway(npcSoldier.gridNo, m.gridNo);
-    if (desire > best) {
-      best = desire;
-      target = m;
-      bestDistance = d;
-    } else if (desire === best && d < bestDistance) {
-      target = m;
-      bestDistance = d;
-    }
+    if (desire <= best) continue;
+    best = desire;
+    target = t.soldiers[slot] ?? null;
   }
   return target ? target.gridNo : NOWHERE;
 }

@@ -87,12 +87,13 @@ APs and 1.25 × breath. An interrupt, a sighting on the enemy's turn or a lack o
 `noAPToFinishMove` until the next order or turn (`10`). Tile reservations exist only in real time.
 
 **The tick loop is the walk.** One pass over `mercSlots` per 5 ms tick; slot order decides real-time races for tiles.
-The slots list the soldiers in the order they entered the sector, and the pass walks them by index, reading their number
-at every step: a soldier who leaves during the pass skips the one after him, one who enters is handled at once (`01`
-§3.10). Positions are float32 as in the original (`MOVE_SIN_COS` holds glibc's values for the original's `PI`), and the
-occupied tile switches when the position crosses into the next tile, so a diagonal step never occupies a side tile.
-There is no snap to the centre: arrival logic runs on the frame after the position passes the tile centre, and the next
-step starts from the overshot position.
+The slots are a fixed array: a soldier entering the sector takes the first empty slot, one who leaves empties his, and
+the count shrinks only from the end (`Tactical/Overhead.cc:234-285`). The pass walks them by index, reading the count at
+every step, so a soldier who enters during the pass is handled in it only when his slot lies after the current one
+(`merc-slots.test.ts`). Positions are float32 as in the original (`MOVE_SIN_COS` holds glibc's values for the original's
+`PI`), and the occupied tile switches when the position crosses into the next tile, so a diagonal step never occupies a
+side tile. There is no snap to the centre: arrival logic runs on the frame after the position passes the tile centre,
+and the next step starts from the overshot position.
 
 **No turn before a step.** The facing turns one octant per frame while the soldier already moves; turning APs are never
 charged while walking. Sight at each arrival uses the facing of that moment. Creatures and vehicles are the exception:
@@ -170,7 +171,6 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A creature that cannot turn pays the step where it starts backwards twice, the second time with the reverse surcharge: the forced backward walk takes the step again | `movement.test.ts` |
 | A creature that cannot turn at the first step of a move goes backwards in the walk it set out in: the move's own state overwrites the backward walk | `movement.test.ts` |
 | A creature that can turn again clears its reverse but walks on, facing its path, in the backward walk | `movement.test.ts` |
-| A soldier who leaves the sector during a pass makes the one after him miss that pass: the merc slots close up under the pass's index | `merc-slots.test.ts` |
 | A soldier moved one tile at a time never trips: the falls skip the first step of a move | `falls.test.ts` "rolls for neither fall on the first step …" |
 | A fall is rolled before its room is tested, on the tile the soldier faces, not the next of his path: where the path turns, a soldier on the faced tile keeps him up after the roll | `falls.test.ts` "tests for room to fall after the roll …" |
 | Hidden marbles trip a walker as well: the slip searches the whole pool | `falls.test.ts` "slips on hidden marbles too …" |

@@ -27,12 +27,12 @@ import {
 import { setSoldierPosition } from '../movement.ts';
 import { BOXING_RING } from '../narrative/boxing-state.ts';
 import { StatKind } from '../profiles.ts';
-import { Body, createSoldier, SkillTrait, type Soldier, Team } from '../soldier.ts';
-import { createTacticalState, registerSoldier, type SectorRef, sectorMapOf, type TacticalState } from '../state.ts';
+import { Body, createSoldier, SkillTrait, type Soldier, Team, TOTAL_SOLDIERS } from '../soldier.ts';
+import { createTacticalState, registerSoldier, type SectorRef, sectorMapOf, type TacticalState, unregisterSoldier } from '../state.ts';
 import { addItemToPool, Visibility } from '../world-items.ts';
 import { revealedRooms, revealRoofsAndItems } from './fov.ts';
 import { HeightClass, lineOfSightTest, soldierToSoldierLineOfSight } from './los.ts';
-import { allTeamsLookForAll, distanceVisible, handleSight, Opp, SightFlags } from './sight.ts';
+import { allTeamsLookForAll, distanceVisible, handleSight, Opp, removeManAsTarget, SightFlags } from './sight.ts';
 import { perceptionHooks } from './wiring.ts';
 
 const doorCosts = testDoorCosts();
@@ -227,6 +227,22 @@ describe('sighting', () => {
     };
     expect(sightings(BLOODCAT_ARENA)).toEqual([Opp.NOT_HEARD_OR_SEEN, Opp.NOT_HEARD_OR_SEEN, Opp.SEEN_CURRENTLY]);
     expect(sightings(BESIDE_THE_ARENA)).toEqual([Opp.SEEN_CURRENTLY, Opp.SEEN_CURRENTLY, Opp.SEEN_CURRENTLY]);
+  });
+});
+
+describe('a soldier gone as a target (OppList.cc RemoveManAsTarget)', () => {
+  it('clears the seen-this-turn flag of the soldier whose id is the slot number of each watcher, so the watcher keeps his own', () => {
+    const t = tactical();
+    const before = [Team.ENEMY, Team.ENEMY, Team.ENEMY].map((team, k) => spawn(t, team, gridNo(60 + k, 60), Direction.SOUTH));
+    for (const s of before) unregisterSoldier(t, s);
+    const watcher = spawn(t, Team.ENEMY, gridNo(70, 70), Direction.SOUTH);
+    const target = spawn(t, Team.OUR, gridNo(74, 70), Direction.NORTH);
+    const seen = (viewer: number) => viewer * TOTAL_SOLDIERS + target.id;
+    const slotOfWatcher = t.mercSlots.indexOf(watcher);
+    t.turn.seenOpponents[seen(watcher.id)] = 1;
+    t.turn.seenOpponents[seen(slotOfWatcher)] = 1;
+    removeManAsTarget(t, target);
+    expect([t.turn.seenOpponents[seen(watcher.id)], t.turn.seenOpponents[seen(slotOfWatcher)]]).toEqual([1, 0]);
   });
 });
 

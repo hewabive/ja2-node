@@ -269,7 +269,7 @@ describe('a campaign snapshot', () => {
       landFirstSquad(c);
       advance(c, { idle: true }, IDLE_BUDGET);
       const t = tacticalOf(c);
-      const [asker, picker] = t.mercSlots.filter((s) => s.team === Team.OUR);
+      const [asker, picker] = t.mercSlots.filter((s) => s?.team === Team.OUR);
       if (!asker || !picker) throw new Error('two mercs are needed');
       const items = t.content.items;
       const trapped = createItem(items, items.byName.get('CANTEEN')?.index ?? 0, 100);

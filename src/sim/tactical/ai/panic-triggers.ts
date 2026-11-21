@@ -114,7 +114,7 @@ export function initPanicSystem(t: TacticalState): void {
 
 function armyInSector(t: TacticalState): number {
   let n = 0;
-  for (const s of t.mercSlots) if ((s.placed || s.offMap) && s.team === Team.ENEMY && !s.dead) n++;
+  for (const s of t.mercSlots) if (s && (s.placed || s.offMap) && s.team === Team.ENEMY && !s.dead) n++;
   return n;
 }
 

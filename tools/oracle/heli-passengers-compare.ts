@@ -31,7 +31,7 @@ import {
   Team,
   withOriginalNowhere,
 } from '../../src/sim/tactical/soldier.ts';
-import type { TacticalState } from '../../src/sim/tactical/state.ts';
+import type { Slots, TacticalState } from '../../src/sim/tactical/state.ts';
 import {
   beginTeamTurn,
   checkForEndOfBattle,
@@ -65,6 +65,7 @@ const SEED = 1;
 const MAIN_STREAM = 'm';
 const PRE_STREAM = 'p';
 const TEAMS = 6;
+const EMPTY_SLOT = -1;
 const SEATED_FLAGS: Readonly<Record<number, number>> = {
   [VehicleSeat.DRIVER]: SoldierStatusFlags.DRIVER,
   [VehicleSeat.PASSENGER]: SoldierStatusFlags.PASSENGER,
@@ -89,6 +90,7 @@ const num = (v: unknown) => Number(v ?? 0);
 const bit = (b: boolean) => (b ? 1 : 0);
 const has = (a: Json, key: string) => a[key] !== undefined;
 const args = (p: Json): Json => (p.args as Json | undefined) ?? {};
+const slotIds = (slots: Slots): number[] => slots.map((s) => s?.id ?? EMPTY_SLOT);
 
 function queuedLines(c: CampaignSim, act: () => unknown): { readonly lines: number[][]; readonly result: unknown } {
   const queue = c.talk?.talk.queue;
@@ -397,8 +399,8 @@ export class HeliPassengerComparer {
       lastBattleWon: c.state.battle.lastBattleWon,
       deaths: c.state.status.mercDeaths,
       heli: heliFacts(this.#economy(c)),
-      mercSlots: t.mercSlots.map((s) => s.id),
-      awaySlots: t.awaySlots.map((s) => s.id),
+      mercSlots: slotIds(t.mercSlots),
+      awaySlots: slotIds(t.awaySlots),
       selected: t.turn.selected,
       currentSquad: forces.currentSquad,
       squads: forces.squads.map((q) => [...q]),

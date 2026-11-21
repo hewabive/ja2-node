@@ -220,6 +220,7 @@ otherwise:
 | A stop-time line its merc cannot say leaves its callback waiting: nothing stops and nothing asks | `dialogue-queue.test.ts` "keeps its callback waiting …" |
 | A stop-time line that fails as it starts still freezes for a frame and then runs its callback | `dialogue-queue.test.ts` "still goes modal and runs the callback …" |
 | Doreen's killer says the factory-manager line without seeing her die: the sight test is commented out; Mike killed by a merc not from A.I.M. gets the plain kill line | `tactical/narrative/kill-quotes.test.ts` |
+| An NPC who starts a talk reads his sight of the soldier whose id is the merc's slot number and heads for that soldier; a closer merc he would say as much to changes only the distance compared, so he goes for the first by slot (`TacticalAI/NPC.cc:1983`, `:1989-2008`) | `converse.test.ts` "heads for the soldier whose id is the slot number …", "checks his sight of the soldier whose id is the slot number …" |
 
 Not pinned yet:
 - The day spoken to is a `UINT8`: from day 256 every new-day record passes, and an NPC spoken to on day 256 counts as

@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-30. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/WorldMan.cc WhoIsThere2; Tactical/Overhead.cc AddMercSlot, RemoveMercSlot (the vector of
-// @src Stracciatella, 2026-11-02); Soldier_Control.cc SetSoldierGridNo (no level node for a driver or passenger, 2026-11-05);
+// @src src/game/TileEngine/WorldMan.cc WhoIsThere2; Tactical/Overhead.cc GetFreeMercSlot, RecountMercSlots,
+// @src AddMercSlot, RemoveMercSlot (the fixed array, 2026-11-20); Soldier_Control.cc SetSoldierGridNo (no level node
+// @src for a driver or passenger, 2026-11-05);
 // @src FOR_EACH_MERC and FOR_EACH_IN_TEAM with bInSector (mercsInSector, teamInSector, 2026-11-08); Rotting_Corpses.cc
 // @src TurnSoldierIntoCorpse, which leaves a dead merc of ours bInSector and in his merc slot (2026-11-18).
 
@@ -320,8 +321,8 @@ export interface TacticalState {
   readonly world: TacticalWorldData;
   readonly content: TacticalContent;
   readonly soldiers: Soldier[];
-  readonly mercSlots: Soldier[];
-  readonly awaySlots: Soldier[];
+  readonly mercSlots: Slots;
+  readonly awaySlots: Slots;
   readonly occupant: readonly [Int16Array, Int16Array];
   readonly reserved: Int16Array;
   readonly doorStatus: Map<number, DoorStatusEntry>;
@@ -688,29 +689,41 @@ export function asPathSoldier(s: Soldier): PathSoldier {
   return s;
 }
 
-export function eraseFromSlots(slots: Soldier[], s: Soldier): boolean {
-  const before = slots.length;
-  let kept = 0;
-  for (const other of slots) if (other !== s) slots[kept++] = other;
-  slots.length = kept;
-  return kept !== before;
+export type Slots = (Soldier | null)[];
+
+export function addToSlots(slots: Slots, s: Soldier): void {
+  const free = slots.indexOf(null);
+  if (free >= 0) slots[free] = s;
+  else slots.push(s);
+}
+
+function countSlotsUpToTheLastSoldier(slots: Slots): void {
+  while (slots.length > 0 && slots[slots.length - 1] === null) slots.length--;
+}
+
+export function removeFromSlots(slots: Slots, s: Soldier): boolean {
+  const slot = slots.indexOf(s);
+  if (slot < 0) return false;
+  slots[slot] = null;
+  countSlotsUpToTheLastSoldier(slots);
+  return true;
 }
 
 export function registerSoldier(t: TacticalState, s: Soldier): void {
   t.soldiers[s.id] = s;
-  t.mercSlots.push(s);
+  addToSlots(t.mercSlots, s);
 }
 
 export function unregisterSoldier(t: TacticalState, s: Soldier): boolean {
-  return eraseFromSlots(t.mercSlots, s);
+  return removeFromSlots(t.mercSlots, s);
 }
 
-const placedMercsOfSlots = new WeakMap<readonly Soldier[], readonly Soldier[]>();
+const placedMercsOfSlots = new WeakMap<Readonly<Slots>, readonly Soldier[]>();
 
-function stillPlacedMercs(slots: readonly Soldier[], placed: readonly Soldier[]): boolean {
+function stillPlacedMercs(slots: Readonly<Slots>, placed: readonly Soldier[]): boolean {
   let k = 0;
   for (const s of slots) {
-    if (!s.placed) continue;
+    if (!s?.placed) continue;
     if (placed[k] !== s) return false;
     k++;
   }
@@ -720,13 +733,13 @@ function stillPlacedMercs(slots: readonly Soldier[], placed: readonly Soldier[])
 export function mercs(t: Pick<TacticalState, 'mercSlots'>): readonly Soldier[] {
   const known = placedMercsOfSlots.get(t.mercSlots);
   if (known && stillPlacedMercs(t.mercSlots, known)) return known;
-  const placed = t.mercSlots.filter((s) => s.placed);
+  const placed = t.mercSlots.filter((s): s is Soldier => s?.placed === true);
   placedMercsOfSlots.set(t.mercSlots, placed);
   return placed;
 }
 
 export function mercsInSector(t: Pick<TacticalState, 'mercSlots'>): readonly Soldier[] {
-  return t.mercSlots.filter((s) => inSector(s));
+  return t.mercSlots.filter((s): s is Soldier => s !== null && inSector(s));
 }
 
 export function soldiersById(t: Pick<TacticalState, 'soldiers'>): Soldier[] {

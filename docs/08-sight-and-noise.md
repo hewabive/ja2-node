@@ -188,9 +188,9 @@ enemy that paused the enemy's turn (`soldierLocated` with `slide`, `perception/s
 the decay waits for 20 world seconds on the campaign's `RealtimeClock`, shared by every loaded sector; leaving combat
 forces up to two decays at once, inside a conversation one (deviation "Real-time turn after combat").
 
-**Iteration order is state.** Looks walk `mercSlots`, in the order the soldiers entered the sector (`07`), team and
-radio loops walk soldiers by id. Both decide `visible` transitions, ties in the best-sighting list and which draws
-happen. A `handleSight` runs to completion, nested looks included, before the next event.
+**Iteration order is state.** Looks walk `mercSlots`, where an entering soldier takes the first empty slot (`07`),
+team and radio loops walk soldiers by id. Both decide `visible` transitions, ties in the best-sighting list and which
+draws happen. A `handleSight` runs to completion, nested looks included, before the next event.
 
 **Randomness.** `pre`: each footstep (one draw for the army, zero to two for others, also for a door's noise), the
 experience chances of spotting an enemy who has not seen the merc (`33`), thrown objects landing (`34`). `main`: the
@@ -224,6 +224,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A look examines only the first slanted roof on a tile, so a hidden roof whose base lies under another gets its ceiling only once a tile of its own is seen | `slant-roofs.test.ts` |
 | Sight takes no roof off a tile outside any room, but the load of the sector's revealed tiles takes off the roofs and slanted roofs of every one of them, so the picture of a sector entered again differs from the one its stay left | `slant-roofs.test.ts` "takes off a slanted roof over a tile a load revealed outside any room …", `src/render/world/reveal.test.ts` "take the roof off a revealed tile outside any room …" |
 | The mercs aboard a vehicle of ours look, hear and radio from its tile, while the vehicle never looks and notices no unseen attacker, though enemies see it | `../vehicle-presence.test.ts` "lets the mercs aboard look …", "lets the vehicle notice no unseen attacker …" |
+| A soldier gone as a target (`RemoveManAsTarget`) has the seen-this-turn flags cleared by merc slot number, in the rows of the soldiers whose ids are the slot numbers, not of the slots' soldiers: a watcher keeps his own, which the interrupt duel and the AI's morale read for a new soldier given that id (`Tactical/OppList.cc:2103`) | `perception.test.ts` "clears the seen-this-turn flag of the soldier whose id is the slot number …" |
 
 Not pinned yet:
 - Fast-forwarding over a tile without structures tests the ground against the land height of the tile it left.

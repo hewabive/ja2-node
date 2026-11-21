@@ -127,7 +127,7 @@ export function closestReachableDisturbance(t: TacticalState, s: Soldier): Distu
   let disturbance = NOWHERE;
   let climb = false;
   for (const opp of t.mercSlots) {
-    if (!opp.placed || considered(s, opp)) continue;
+    if (!opp?.placed || considered(s, opp)) continue;
     const personal = s.oppList[opp.id] ?? 0;
     const publicValue = t.perception.publicOpp[s.team]?.[opp.id] ?? 0;
     if (personal === Opp.NOT_HEARD_OR_SEEN && publicValue === Opp.NOT_HEARD_OR_SEEN) continue;
@@ -184,7 +184,7 @@ export function closestReachableFriendInTrouble(t: TacticalState, s: Soldier): D
   let shortest = 1000;
   let climb = false;
   for (const friend of t.mercSlots) {
-    if (!friend.placed || friend.neutral || s.side !== friend.side || friend === s) continue;
+    if (!friend?.placed || friend.neutral || s.side !== friend.side || friend === s) continue;
     if (!friend.ai.underFire && (friend !== t.perception.lastMercToRadio[friend.team] || !guySawEnemyThisTurnOrBefore(t, friend))) continue;
     if (spacesAway(s.gridNo, friend.gridNo) === ADJACENT) continue;
     const r = estimatePathCostToLocation(t, s, friend.gridNo, friend.level, true);
@@ -255,7 +255,7 @@ export function locationToLocationLos(
 
 export function menInSector(t: TacticalState, team: number): number {
   let n = 0;
-  for (const s of t.mercSlots) if ((s.placed || s.offMap) && s.team === team && !s.dead) n++;
+  for (const s of t.mercSlots) if (s && (s.placed || s.offMap) && s.team === team && !s.dead) n++;
   return n;
 }
 
@@ -263,7 +263,7 @@ export function closestSeenOpponent(t: TacticalState, s: Soldier): number {
   let closest = NOWHERE;
   let closestRange = 1500;
   for (const opp of t.mercSlots) {
-    if (!opp.placed || considered(s, opp) || ignoredByBountyHunter(s, opp)) continue;
+    if (!opp?.placed || considered(s, opp) || ignoredByBountyHunter(s, opp)) continue;
     if ((s.oppList[opp.id] ?? 0) !== Opp.SEEN_CURRENTLY || opp.gridNo === s.gridNo) continue;
     if (onAnotherLevelOfMyBuilding(t, s, opp)) continue;
     const range = rangeInUnits(s.gridNo, opp.gridNo);

@@ -2868,6 +2868,10 @@ function forgetProvedUntrappedDoors(snapshot: Readonly<Record<string, unknown>>)
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+function keepGaplessSlotsAsTheFixedArray(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  return { ...snapshot };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2971,5 +2975,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     99: restoreProfiledPatrolGrids,
     100: addStatChanges,
     101: forgetProvedUntrappedDoors,
+    102: keepGaplessSlotsAsTheFixedArray,
   };
 }

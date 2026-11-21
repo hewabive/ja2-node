@@ -111,7 +111,7 @@ export function startHelicopterRun(t: TacticalState, sweetSpot: number): boolean
 
 function someoneInHelidrop(t: TacticalState): boolean {
   const helidrop = anim(t.content, 'HELIDROP');
-  return t.mercSlots.some((s) => inSector(s) && s.state === helidrop);
+  return t.mercSlots.some((s) => s !== null && inSector(s) && s.state === helidrop);
 }
 
 export function helicopterDropStalled(t: TacticalState): boolean {

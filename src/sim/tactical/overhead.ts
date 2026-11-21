@@ -105,8 +105,8 @@ export interface OverheadHooks {
   readonly afterPass?: (t: TacticalState) => void;
 }
 
-function handleSlot(t: TacticalState, s: Soldier, slot: number, hooks: OverheadHooks): void {
-  if (!inSector(s)) return;
+function handleSlot(t: TacticalState, s: Soldier | null | undefined, slot: number, hooks: OverheadHooks): void {
+  if (!s || !inSector(s)) return;
   updateDamageDisplay(t, s);
   updateSoldierFade(t, s);
   if (frameTimerDone(t, s) && !handleSoldierFrame(t, s)) return;
@@ -115,7 +115,7 @@ function handleSlot(t: TacticalState, s: Soldier, slot: number, hooks: OverheadH
 
 function overheadPass(t: TacticalState, hooks: OverheadHooks): void {
   hooks.passStart?.(t);
-  for (let slot = 0; slot < t.mercSlots.length; slot++) handleSlot(t, t.mercSlots[slot] as Soldier, slot, hooks);
+  for (let slot = 0; slot < t.mercSlots.length; slot++) handleSlot(t, t.mercSlots[slot], slot, hooks);
   hooks.passEnd?.(t);
 }
 

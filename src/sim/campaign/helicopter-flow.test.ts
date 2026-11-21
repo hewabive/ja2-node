@@ -260,7 +260,7 @@ describe('the helicopter passengers over the loaded sector', () => {
   it('keep their merc slot when they board on the loaded map, off their tile with no other, and stay in the view off the map (Vehicles.cc AddSoldierToVehicle, RemoveSoldierFromGridNo)', () => {
     const c = landedCampaign();
     const boarding = c.battle?.roster.get(0)?.soldier;
-    const slots = c.tactical?.state.mercSlots.map((s) => s.id);
+    const slots = c.tactical?.state.mercSlots.map((s) => s?.id);
     if (!boarding || !slots) throw new Error('no loaded sector');
     const [tile, level] = [boarding.gridNo, boarding.level];
     c.dispatch({ type: 'mapScreen' });
@@ -270,7 +270,7 @@ describe('the helicopter passengers over the loaded sector', () => {
     const shown = sim ? tacticalViewParts(sim).soldiers.find((s) => s.id === 0) : undefined;
     expect([shown?.offMap, shown?.gridNo, shown?.vehicle === null || shown?.vehicle === undefined]).toEqual([true, NOWHERE, false]);
     const t = c.tactical?.state;
-    expect(t?.mercSlots.map((s) => s.id)).toEqual(slots);
+    expect(t?.mercSlots.map((s) => s?.id)).toEqual(slots);
     if (t) expect(whoIsThere(t, tile, level)).toBeNull();
     expect(c.battle?.roster.inTacticalSector(0)).toBe(true);
   });
@@ -336,7 +336,7 @@ describe('the helicopter passengers over the loaded sector', () => {
     expect(c.dispatch({ type: 'boardVehicle', soldier: 0, vehicle: 'helicopter' }).ok).toBe(true);
     c.sectors?.updateMercsInSector();
     expect(passengerState(c, 0)).toEqual([true, false, true, NOWHERE, true, true]);
-    expect(c.tactical?.state.mercSlots.filter((s) => s.id === 0)).toHaveLength(1);
+    expect(c.tactical?.state.mercSlots.filter((s) => s?.id === 0)).toHaveLength(1);
     expect(c.battle?.roster.inTacticalSector(0)).toBe(true);
     expect(c.battle?.roster.get(1)?.inSector).toBe(true);
   });

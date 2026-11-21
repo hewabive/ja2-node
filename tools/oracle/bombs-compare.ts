@@ -638,7 +638,9 @@ export class BombComparer {
     const s = this.#soldier(t, a.who);
     if (num(a.off) !== 0) turnOffXRayEffects(t, s);
     else activateXRayDevice(t, s);
-    const xrayed = t.mercSlots.filter((tgt) => tgt.xrayedBy !== null).map((tgt) => [tgt.id, tgt.xrayedBy?.id ?? NO_SOLDIER_ID]);
+    const xrayed = t.mercSlots
+      .filter((tgt): tgt is Soldier => tgt !== null && tgt.xrayedBy !== null)
+      .map((tgt) => [tgt.id, tgt.xrayedBy?.id ?? NO_SOLDIER_ID]);
     return { result: { xrayed }, who: s };
   }
 

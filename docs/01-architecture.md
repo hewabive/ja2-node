@@ -330,7 +330,6 @@ ja2-node follows are in this table, its minor rows only there.
 | Area | Vanilla | Stracciatella |
 |---|---|---|
 | `PreRandom` | Never refilled; `n*range/RAND_MAX%range` | Refilled after each use; uniform mapping (§3.6) |
-| Merc slots (**master**, #106) | A fixed array: an entering soldier takes the first empty slot, a leaving one leaves it empty (`V:Tactical/Overhead.c:294-345`) | Vectors: an entering soldier goes to the end, a leaving one closes the gap, and the index cursors of the AI pass keep their number (`M:Tactical/Overhead.cc:133-271`) |
 | Sight range | Light penalty applied inconsistently | Applied consistently (`OppList.cc:880`) |
 | Movement noise | `UINT8` wraparound; an unreachable water branch | Fixed (`OppList.cc:3234`) |
 | Hearing | Sleeping listener −5 | Disabled (`OppList.cc:3853`) |

@@ -180,7 +180,7 @@ describe('green real-time AI', () => {
     expect(visits[0]).toBe(110);
   });
 
-  it('leaves the soldier after one who walks off the map at his AI tick for the next tick: the slots close up under the cursor', () => {
+  it('visits the soldiers after one who walks off the map at his AI tick in that tick: his slot stays empty under the cursor', () => {
     const { t, hooks } = world(9);
     spawn(t, Team.OUR, gridNo(40, 100), Orders.STATIONARY);
     const leaver = spawn(t, Team.ENEMY, gridNo(80, 80), Orders.STATIONARY);
@@ -193,10 +193,10 @@ describe('green real-time AI', () => {
       for (const s of [waiter, last]) if (!firstVisits.has(s) && s.ai.counter !== 0) firstVisits.set(s, t.clockMs - 5);
     });
     expect(t.mercSlots).not.toContain(leaver);
-    expect([firstVisits.get(last), firstVisits.get(waiter)]).toEqual([55, 110]);
+    expect([firstVisits.get(waiter), firstVisits.get(last)]).toEqual([55, 55]);
   });
 
-  it('gives the away pass to the next away soldier once the one it named is back on the map: the cursor keeps its index', () => {
+  it('visits nobody in the away pass once the away soldier it named is back on the map: his away slot stays empty', () => {
     const { t, hooks } = world(9);
     const returning = spawn(t, Team.CIV, gridNo(80, 80), Orders.STATIONARY);
     const next = spawn(t, Team.CIV, gridNo(84, 80), Orders.STATIONARY);
@@ -206,10 +206,11 @@ describe('green real-time AI', () => {
     }
     run(t, hooks, 60);
     expect(t.aiPass.awayCursor).toBe(0);
+    const nextCounter = next.ai.counter;
     moveSoldierFromAwayToMercSlot(t, returning);
+    expect(t.awaySlots).toEqual([null, next]);
     awayAiForPass(t, createAiControl());
-    expect(returning.ai.counter).toBe(0);
-    expect(next.ai.counter).toBeGreaterThan(t.clockMs);
+    expect([returning.ai.counter, next.ai.counter]).toEqual([0, nextCounter]);
   });
 });
 

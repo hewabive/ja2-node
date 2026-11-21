@@ -53,11 +53,11 @@ passes. A tick visits every AI soldier after the cursor in merc-slot order; the 
 original stops a tick after 10 ms of CPU, which no modern machine reaches, so ja2-node has no slice (deviation
 "Timing"). A visit acts only when the soldier's own 100 ms timer is due, so an idle soldier is visited every 110 ms. The
 AI runs right after the soldier's own frame in the same pass, so its draws follow merc-slot order. The away slots get a
-visit when the cursor has passed the last slot (`35`). Both lists are in the order the soldiers joined them; one who
-leaves closes the gap while the cursors keep their index, so the soldier who slides under a cursor waits for the next
-tick, and an away soldier slid under the away cursor is visited in his place (`01` §3.10; original-bugs "Away cursor
-past the end"). A soldier flagged `handleEveryFrame` is visited on every pass and skips the timer: an NPC a script sends
-somewhere or whose walk ended short of the script's destination, anybody who arrives with `QUOTE_ACTION_ID_CHECKFORDEST`
+visit when the cursor has passed the last slot (`35`). Both lists are fixed arrays: a soldier who joins one takes its
+first empty slot and one who leaves empties his (`07`), so a cursor never moves to another soldier, and the away pass
+visits nobody while the away soldier under its cursor is back on the map. A soldier flagged `handleEveryFrame` is
+visited on every pass and skips the timer: an NPC a script sends somewhere or whose walk ended short of the script's
+destination, anybody who arrives with `QUOTE_ACTION_ID_CHECKFORDEST`
 left in his quote action (a recruited NPC's leftover too, so his next walk ends with his action at once:
 `Tactical/Overhead.cc:972`, `movement.test.ts`), an NPC facing the player until a PC comes near (`24`, `35`). Leaving combat pauses all AI for 1500 ms (`10`). While auto-bandage runs, every soldier is visited on every pass,
 still on his own timer, and our mercs run the AI too, deciding by `decideAutoBandage` (`12` §8).
@@ -128,8 +128,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Quirk | Test |
 |---|---|
 | The first AI tick starts at slot 1, so slot 0 is first visited at 110 ms | `ai.test.ts` |
-| The soldier after one who walks off the map at his AI tick waits for the next tick: the slots close up under the cursor | `ai.test.ts` |
-| Once the away soldier the away cursor names is back on the map, the next away soldier is visited in his place: the cursor keeps its index | `ai.test.ts` |
+| Once the away soldier the away cursor names is back on the map, the away pass visits nobody until the next AI tick: his away slot stays empty | `ai.test.ts` |
 | A random green turn is cut short: Stracciatella's movement range ends it and the queued wait stops it | `ai.test.ts` |
 | An enemy queues no wait after visiting a friend; civilians and militia do | `ai.test.ts` |
 | Any path search of the patrol branch, even one it could not use, skips the friend's roll | `ai.test.ts` |

@@ -60,6 +60,7 @@ import { VehicleTypeId } from '../vehicles/vehicle-list.ts';
 import { anim } from './anim-states.ts';
 import { restartAnimationOnLoad } from './animation.ts';
 import { setAutoBandagePending } from './auto-bandage.ts';
+import { addAwaySlot } from './away-slots.ts';
 import { loadExplosionQueue } from './bombs/bomb-queue.ts';
 import { setBlueFlagFlags } from './bombs/mine-flags.ts';
 import { type CampaignReach, firstCampaignReach, queriesTheRestartMayAsk } from './campaign-reach.ts';
@@ -547,7 +548,7 @@ function importAwaySoldiers(t: TacticalState, save: SaveGame, soldiers: SavedSol
     t.soldiers[s.id] = s;
     s.savedPendingAction = null;
     s.away = true;
-    t.awaySlots.push(s);
+    addAwaySlot(t, s);
   }
 }
 
