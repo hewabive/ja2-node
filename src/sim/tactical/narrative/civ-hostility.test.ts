@@ -87,13 +87,13 @@ function civilian(sim: TacticalSim, id: number, at: number, group: number = Civi
 }
 
 describe('MakeCivHostile', () => {
-  it('only drops neutrality: Stracciatella keeps the side, even for rebels', () => {
+  it('gives every turned civilian the new side: a rebel turns hostile to the army too, anyone else joins its side (Overhead.cc:2729)', () => {
     const { sim } = setup();
     const villager = civilian(sim, 116, NEAR);
     const rebel = civilian(sim, 117, NEAR + 1, CivilianGroup.REBEL);
     makeCivHostile(sim.state, villager);
     makeCivHostile(sim.state, rebel);
-    expect([villager.neutral, villager.side, rebel.neutral, rebel.side]).toEqual([false, Side.ENEMY, false, Side.ENEMY]);
+    expect([villager.neutral, villager.side, rebel.neutral, rebel.side]).toEqual([false, Side.ENEMY, false, Side.HOSTILE]);
   });
 
   it('switches Conrad to the new side, sends Billy patrolling and never touches cows', () => {
@@ -173,7 +173,7 @@ describe('civilian groups', () => {
     const militia = spawnSoldier(sim, 84, Team.MILITIA, NEAR + 2, NORTH);
     processImplicationsOfPCAttack(sim.state, sim.state.soldiers[0] as never, villager, AttackReason.NORMAL);
     expect(sim.state.hostileQuoteList).toEqual([villager]);
-    expect([militia.side, militia.neutral]).toEqual([Side.FRIENDLY, false]);
+    expect([militia.side, militia.neutral]).toEqual([Side.ENEMY, false]);
     checkHostileOrSayQuoteList(sim.state);
     expect(villager.neutral).toBe(false);
     expect(sim.state.hostileQuoteList).toEqual([]);

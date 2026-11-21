@@ -139,7 +139,7 @@ import { TEAM_COUNT } from './turn-state.ts';
 
 export const InterruptKind = { SIGHT: 0, NOISE: 1 } as const;
 
-const TEAM_SIDE = [Side.FRIENDLY, Side.ENEMY, Side.NONE, Side.FRIENDLY, Side.ENEMY, Side.FRIENDLY] as const;
+export const TEAM_SIDE = [Side.FRIENDLY, Side.ENEMY, Side.NONE, Side.FRIENDLY, Side.ENEMY, Side.FRIENDLY] as const;
 const HUMAN_TEAM = [true, false, false, false, false, true] as const;
 const LAST_TEAM = Team.CIV;
 const MAX_DISTANCE_VISIBLE = 26;

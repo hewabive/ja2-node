@@ -160,7 +160,7 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A promotion falls back to a higher rank when the soldier's own is gone; a green can reach elite at once | `militia.test.ts` |
 | The next unload, even of a sector where nobody is promoted, drops the promotions the map screen has not boxed yet: the roll clears the counts first (`Tactical/Militia_Control.cc:64-67`) | `militia.test.ts` |
 | AUTO deals out the militia of a town sector with enemies in it while they also stay there | `militia.test.ts` |
-| Militia the player attacks stay on our side and never defect: Stracciatella's `MakeCivHostile` sets no side outside Conrad and the General (`Overhead.cc:2661`), and the unload asks the militia team (`Town_Militia.cc:604`) | `campaign/sector-flow.test.ts` |
+| Militia the player attacks take the army's side (`Tactical/Overhead.cc:2729`) but never defect: the unload asks the militia team's side, which nothing changes (`Strategic/Town_Militia.cc:604`) | `campaign/sector-flow.test.ts` "keeps militia the player attacked in the sector …" |
 | A negative loyalty remainder keeps its sign; reaching the cap zeroes the remainder | `loyalty.test.ts` |
 | Betraying the rebels starts every loyalty town, so one not taken yet starts at 0 | `loyalty.test.ts` |
 | A loyalty gain in Omerta while the rebels are not neutral sets the rating to 10, even from above (`Strategic_Town_Loyalty.cc:297-306`) | `loyalty.test.ts`, `campaign/narrative-port.test.ts` |

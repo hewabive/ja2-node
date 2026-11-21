@@ -1267,7 +1267,7 @@ describe('militia and reinforcements', () => {
     expect(militia.every((s) => s.visible === 1)).toBe(true);
   });
 
-  it('keeps militia the player attacked on our side and in the sector: Stracciatella turns no militia and the unload asks the militia team, so nobody defects', () => {
+  it("keeps militia the player attacked in the sector, though they took the army's side: the unload asks the militia team's side, which nothing changes, so nobody defects (Town_Militia.cc:604)", () => {
     const { campaign } = createTestCampaign(kit, { seed: 16, garrison: NO_GARRISON });
     landFirstSquad(campaign);
     const a10 = sectorInfo(campaign.state.map, A10);
@@ -1277,7 +1277,7 @@ describe('militia and reinforcements', () => {
     expect(flow.setCurrentWorldSector(A10)).toBe(true);
     const t = campaign.tactical?.state ?? never();
     militiaChangesSides(t);
-    expect(teamMembers(t, Team.MILITIA).every((s) => s.side === Side.FRIENDLY)).toBe(true);
+    expect(teamMembers(t, Team.MILITIA).every((s) => s.side === Side.ENEMY)).toBe(true);
     flow.handleDefiniteUnloadingOfWorld(UnloadCode.ABOUT_TO_TRASH_WORLD);
     expect(sectorInfo(campaign.state.map, A10).militia).toEqual([6, 0, 0]);
     expect(campaign.economy?.events.some((e) => e.type === 'militiaDefected')).toBe(false);

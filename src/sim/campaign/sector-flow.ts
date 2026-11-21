@@ -197,7 +197,7 @@ import {
 import { Body, OKLIFE, Side, type Soldier, SoldierClass, Team } from '../tactical/soldier.ts';
 import { type RealtimeClock, type SectorHooks, sectorMapOf, type TacticalState, teamMembers, WaitForMercs } from '../tactical/state.ts';
 import { TacticalSim } from '../tactical/tactical-sim.ts';
-import { checkForEndOfCombatMode, syncStrategicTurnTimes } from '../tactical/turns/turns.ts';
+import { checkForEndOfCombatMode, syncStrategicTurnTimes, TEAM_SIDE } from '../tactical/turns/turns.ts';
 import {
   seatAtVehicle,
   seatInTheHelicopterOnSectorEntry,
@@ -1437,9 +1437,7 @@ export class SectorFlow {
   }
 
   militiaFriendly(): boolean {
-    const t = this.campaign.tactical?.state;
-    if (!t) return true;
-    return teamMembers(t, Team.MILITIA).every((s) => s.side === Side.FRIENDLY);
+    return TEAM_SIDE[Team.MILITIA] === Side.FRIENDLY;
   }
 
   saveCurrentSectorsInformation(): void {

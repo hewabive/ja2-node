@@ -107,8 +107,9 @@ schedules are drawn anew.
 
 **Civilian groups are strategic state.** `StrategicState.civGroups` is shared with the loaded sector as
 `TacticalState.civGroups`; a created civilian is neutral unless he is the Warden or his group is hostile. Turning
-hostile follows Stracciatella (`MakeCivHostile`, `Tactical/Overhead.cc:2661`): only Conrad and the General change side;
-everyone else just stops being neutral and keeps his side, where vanilla also set it.
+hostile (`MakeCivHostile`, `Tactical/Overhead.cc:2661-2742`) stops a soldier being neutral and gives him the new side:
+side 2, hostile to the army too, for the rebels, their sympathizers, and Maria and Angel once her rescue has begun; the
+army's side for anyone else, the militia included. Only Conrad and the General also change team.
 
 **Doors.** The `door` command returns the menu as data and, like the original's menu, cannot lock a door; the
 `HANDLE_DOOR_LOCK` branch of `handleOpenableStruct` stays, reached by the door oracle's probes alone. Our merc gets
@@ -166,7 +167,6 @@ otherwise:
 | The ice-cream truck placement asks whether profile 26, the truck's body type, is on our team | `narrative/placement.test.ts` |
 | The next schedule entry is posted at today's start plus its time, so one past midnight lands in the past and the schedule stops until the next load | `narrative/schedules.test.ts` |
 | A civilian leaving the map by schedule stops two tiles past the edge and stays there, in the sector, until the next load | `src/sim/campaign/narrative/schedules-scenario.test.ts` |
-| Hostile rebels stay allied with the army: only Conrad and the General change side | `narrative/civ-hostility.test.ts` |
 | The death checks of a team change during a hit stay armed once the hit soldier has changed team: every later team change runs them for the old soldier until the next fall from a hit, so a standing recruit turned hostile kneels | `narrative/team-change.test.ts` |
 | An electric trap's breath loss is `3 + 1000 × PreRandom(3)`, drawn before the life roll | `doors/doors.test.ts` |
 | Escorts may use a crowbar: its button alone has no escort check | `doors/doors.test.ts` "lets an escort use a crowbar …" |

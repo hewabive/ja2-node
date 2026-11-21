@@ -96,6 +96,7 @@ export function makeCivHostile(t: TacticalState, s: Soldier): void {
     )
       t.narrative.setFactTrue(Fact.MARIA_ESCAPE_NOTICED);
     if (s.profile === Profile.BILLY) s.ai.orders = Orders.FARPATROL;
+    s.side = side;
     if (s.neutral) {
       setSoldierNonNeutral(s);
       recalculateOppCntsDueToNoLongerNeutral(t, s);
