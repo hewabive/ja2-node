@@ -324,8 +324,8 @@ serve mods only; the default game ships just `enums.lua`, so nothing is ported.
 ja2-node follows the Stracciatella column (D1) unless `deviations.md` says otherwise. A row marked **master** holds only on
 master `ae6bf01` (`M:` citations): v0.22.1 behaves as vanilla there, and ja2-node follows master until the issue named
 moves it. v0.22.1's own differences from vanilla stand. The maintainer reconsiders one only from play of the original.
-#118 lists the differences an audit of v0.22.1 found, with what play has shown so far; the rows ja2-node keeps join
-this table.
+#118 lists the differences an audit of v0.22.1 found, with what play has shown so far: its major and medium rows that
+ja2-node follows are in this table, its minor rows only there.
 
 | Area | Vanilla | Stracciatella |
 |---|---|---|
@@ -338,7 +338,6 @@ this table.
 | Gun hit chance | Bandaging worsens the wound penalty; barrel extenders wear on every shot | Bandaging helps (**master**, #115); wear only on real shots. Kept: the agility dodge applies only against `QUEENMONSTER` (`Weapons.cc:1939`) |
 | Next bleed (**master**, #115) | Integer division | Float division (`M:Soldier_Control.cc:8056`) |
 | Carried weight | Strength halved with integer division | Minor fix (`Items.cc:845`) |
-| Jam (**master**, kept: #117) | Reserved bullets lost | Refunded (`M:Soldier_Ani.cc:1061-1073`) |
 | Blast during a hit animation (**master**, #115) | The soldier keeps his non-interruptible hit animation | The blast knocks him down anyway (`M:Soldier_Control.cc:3254-3262`) |
 | AI burst choice (**master**, #115) | Affordability without re-raise AP | Re-raise AP included (`M:DecideAction.cc:3245-3300`) |
 | PD placement pass | `AddSoldierInitListEnemyDefenceSoldiers` examines every priority-and-detailed node (`V:Tactical/SoldierInitList.c:787-806`) | Every second one: the body advances `curr` as well as `FOR_EACH` (`Tactical/Soldier_Init_List.cc:718-749`; confirmed by the oracle `defence` probes on A9, `17`) |
@@ -350,6 +349,26 @@ this table.
 | M.E.R.C. unlocks | Four hardcoded stages | `mercs-MERC-listings.json` (`Laptop/Mercs.cc:513, 1579`) |
 | Window climbing, Dead is Dead, stat healing | Absent | Additions (`Soldier_Control.cc:5181-6195`; `27` §1.6; `enable_stat_healing`, off, **master**, #115) |
 | Light walk (**master**, #105) | `LightTileBlocked`, `LightAddTile`: a window passes light only into its own tile, every struct node of a reached tile is lit (`V:TileEngine/Lighting.c:443-870`); v0.22.1 the same, except that an open door's swing tile does not block (#118, row 11) | The illumination filter of the unreleased overhaul (PR 2432): walls lit by orientation, windows both ways, tall obstacles and cave walls block (`M:TileEngine/Lighting.cc:297`) |
+| Enemies on roofs | No climb points outside test builds, so the AI finds none (`V:TileEngine/WorldDef.c:2789-2796`) | Buildings on every load (`TileEngine/WorldDef.cc:2569`); the AI climbs (`TacticalAI/AIUtils.cc:1191`, `:1222`) |
+| Extra hotkeys | None | J, Shift+J, Ctrl+Shift+R, Ctrl+N, Ctrl+Q, Alt+R, Ctrl+I (`extra_hotkeys`, `Tactical/Turn_Based_Input.cc:1483-1923`; deviations "Game policy keys") |
+| Combat autosave | Only with the developer file `AutoSave.pls` (`V:Tactical/HandleUI.c:1518-1526`) | At the end of every combat turn (`Tactical/Handle_UI.cc:1065-1083`) |
+| Pickup in combat | Free (`V:Tactical/HandleItems.c:1343-1450`) | Costs `AP_PICKUP_ITEM` (`Tactical/Handle_Items.cc:1299-1302`) |
+| Gun hit roll | Hits on `sHitBy >= 0` (`V:Tactical/LOS.c:3133`, `:3177`) | `> 0`, so 99 % can miss (`Tactical/LOS.cc:3371`, `:3423`) |
+| Breath from unused AP | Inverted: `(AP_MAXIMUM - unused) * perAP` (`V:Tactical/Points.c:691`) | `unused * perAP` (`Tactical/Points.cc:748`) |
+| Path finding | Overestimating heuristic, limits 4096/512/5 (`V:Tactical/PathAI.c:86-88`, `:146`) | Admissible, limits 16384/1024/6 (`Tactical/PathAI.cc:61-67`, `:121-127`) |
+| AI throw search | An out-of-range tile ends the whole search (`V:TacticalAI/Attacks.c:667-670`) | Goes on to the next tile (`TacticalAI/Attacks.cc:633-637`) |
+| AI cover next to teammates | No penalty: the test reads the centre tile (`V:TacticalAI/FindLocations.c:468`) | −10 % per teammate beside the tile (`TacticalAI/FindLocations.cc:489`, `:726`, `:885-893`) |
+| Open door's swing tile | An obstacle: blasts and light stop (`V:Tactical/PathAI.c:2364-2372`, `V:TileEngine/Lighting.c:530-535`) | Keeps the door code: blasts, gas, light and sight pass (`Tactical/PathAI.cc:2455`, `:2500-2509`; light with #105) |
+| Gas damage | From the igniting item's row (`V:TileEngine/ExplosionControl.c:1334-1344`) | From the gas type in `smoke-effects.json` (`TileEngine/Explosion_Control.cc:771-772`, `:938-940`) |
+| Thrown knife or grenade | The hand stays empty (`V:Tactical/Weapons.c:1159-1161`) | Refilled from the pockets, for the AI too (`Tactical/Weapons.cc:834-846`, `:1328-1340`) |
+| Mine the Queen retakes | Its extraction still pays the player (`V:Strategic/StrategicMines.c:556-592`) | Pays nothing (`Strategic/Strategic_Mines.cc:461-511`) |
+| Militia kill points | Reset after every battle (`V:Tactical/MilitiaControl.c:102`) | Kept until a promotion (`Tactical/Militia_Control.cc:103`) |
+| Health from travel on foot | None: the divisor goes negative (`V:Strategic/StrategicMovement.c:1336`) | Gained (`Strategic/Strategic_Movement.cc:1009`) |
+| Creature lair after a militia autoresolve | The battle code is never cleared, so the lair empties (`V:Strategic/CreatureSpreading.c:841`, `:1094-1121`) | Reset (`Strategic/Auto_Resolve.cc:416`) |
+| Central SAM counterattack | Sent to H8 (`SAM_3_X, SAM_3_X`, `V:Strategic/Meanwhile.c:647`) | Sent to the SAM sector, I8 (`Strategic/Meanwhile.cc:496`) |
+| I.M.P. attitude | `Random(n+1)` stores the tie index, not the attitude (`V:Laptop/IMPCompileCharacter.c:201`, `:208`) | Follows the quiz (`Laptop/IMP_Compile_Character.cc:103`, `:114`) |
+| San Mona brothel action item | Commented out (`V:TileEngine/ExplosionControl.c:2353-2355`) | Works (`TileEngine/Explosion_Control.cc:1839-1905`; deviations "Brothel time warp") |
+| Tiles off the visible map | Valid destinations (`V:Tactical/Overhead.c:3541`) | Not valid (`Tactical/Overhead.cc:3025`) |
 
 ---
 
