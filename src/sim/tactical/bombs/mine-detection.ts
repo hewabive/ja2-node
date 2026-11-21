@@ -38,8 +38,9 @@ function mineFinder(t: TacticalState, s: Soldier): MineFinder {
   return { metalDetector: false, detectLevel: calcTrapDetectLevel(t, s, false) };
 }
 
-function sideMineFlag(s: Soldier): number {
-  return s.side === Side.FRIENDLY ? MineFlag.PLAYER : MineFlag.ENEMY;
+function minesKnownTo(s: Soldier): number {
+  if (s.side !== Side.FRIENDLY) return MineFlag.ENEMY;
+  return s.team === Team.OUR ? MineFlag.PLAYER : MineFlag.PLAYER | MineFlag.ENEMY;
 }
 
 function impassableFrom(t: TacticalState, g: number, direction: number, level: number): boolean {
@@ -64,7 +65,7 @@ function unnoticedPressureBomb(o: ItemObject): boolean {
 
 export function nearbyGroundSeemsWrong(t: TacticalState, s: Soldier, g: number, around: boolean): number | null {
   const finder = mineFinder(t, s);
-  const known = sideMineFlag(s);
+  const known = minesKnownTo(s);
   for (const next of tilesToCheck(t, s, g, around)) {
     if (hasMineFlag(t, next, known)) continue;
     for (const wi of worldBombItems(t)) {
@@ -113,7 +114,7 @@ function stopOnSuspiciousGround(t: TacticalState, s: Soldier): void {
 
 function reconsiderAfterSpottingMine(t: TacticalState, s: Soldier, mine: number): void {
   stopMerc(t, s);
-  setMineFlag(t, mine, sideMineFlag(s));
+  setMineFlag(t, mine, MineFlag.ENEMY);
   t.turnHooks.setNewSituation(t, s);
   t.turnHooks.actionDone(t, s);
 }

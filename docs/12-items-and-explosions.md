@@ -303,9 +303,11 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   sector diffs and snapshots carry them unchanged.
 - The world bomb list is the original's slot array: a new bomb takes the first free slot, a removed one leaves its slot
   empty with the item it held. Its order, not the item list's, is the order the original's bomb loops run in.
-- The mine flags are per tile, shared by both levels (`TacticalState.mineFlags`): the player flag for our team and the
-  militia, the enemy flag for everybody else. They belong to the loaded sector: snapshots keep them, the sector's temp
-  state does not. Every load starts from the flags the map file stores with each tile (`mineFlagsOfMap`, the high
+- The mine flags are per tile, shared by both levels (`TacticalState.mineFlags`): our team's blue flags and planted
+  mines set the player flag, a mine any AI soldier spots the enemy flag (`Tactical/Overhead.cc:1307`). The mine check
+  skips the player's tiles for our team, the enemy's for the other sides, and either for the militia (original-bugs
+  "Militia re-spotting a mine"). They belong to the loaded sector: snapshots keep them, the sector's temp state does
+  not. Every load starts from the flags the map file stores with each tile (`mineFlagsOfMap`, the high
   nibble of a tile's layer count byte, `TileEngine/WorldDef.cc:2202`) and marks for the player the tiles where the
   replayed map changes leave a blue flag (`setBlueFlagFlags` at the end of `initLoadedWorld`, a native import
   included); the map's items mark the hidden mines the load arms for the enemy, and every pit added to a pool its

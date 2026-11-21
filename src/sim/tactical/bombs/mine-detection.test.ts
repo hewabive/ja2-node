@@ -12,6 +12,7 @@ import type { TacticalContent } from '../content.ts';
 import { InvSlot } from '../inventory.ts';
 import { MercQuote } from '../narrative/merc-quotes.ts';
 import { NO_NARRATIVE_PORT, StopTimeCallback } from '../narrative/port.ts';
+import { findBestPath } from '../pathfinding.ts';
 import type { ProfileProgress, StatKey } from '../profiles.ts';
 import { type Soldier, TEAM_FIRST_ID, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -228,7 +229,7 @@ describe('suspicious ground (Handle_Items.cc NearbyGroundSeemsWrong, Overhead.cc
     expect(other.pathSize).toBe(path);
   });
 
-  it('has an enemy who spots a mine stop, mark it for his side and rethink; the militia marks it for the player', () => {
+  it('has an enemy who spots a mine stop, mark it with the enemy flag and rethink; a militiaman marks the enemy flag too (Overhead.cc:1307)', () => {
     const { sim, t } = scene();
     const far = FAR;
     const enemy = enemyAt(sim, far);
@@ -243,8 +244,44 @@ describe('suspicious ground (Handle_Items.cc NearbyGroundSeemsWrong, Overhead.cc
     const militia = enemyAt(sim, far - 10 * EAST, Team.MILITIA);
     layMine(t, militia.gridNo + EAST, SURE_TRAP);
     expect(checkIfNearbyGroundSeemsWrong(t, militia, militia.gridNo, true)).toBe(true);
-    expect(hasMineFlag(t, militia.gridNo + EAST, MineFlag.PLAYER)).toBe(true);
+    expect([hasMineFlag(t, militia.gridNo + EAST, MineFlag.ENEMY), hasMineFlag(t, militia.gridNo + EAST, MineFlag.PLAYER)]).toEqual([
+      true,
+      false,
+    ]);
     expect(t.prompt).toBeNull();
+  });
+
+  it('has a militiaman spot a mine once: he takes either flag for a known mine, so he does not stop at it again (original-bugs "Militia re-spotting a mine")', () => {
+    const { sim, t } = scene();
+    const militia = enemyAt(sim, FAR, Team.MILITIA);
+    const mine = layMine(t, FAR + EAST, SURE_TRAP);
+    expect(checkIfNearbyGroundSeemsWrong(t, militia, FAR, true)).toBe(true);
+    expect(checkIfNearbyGroundSeemsWrong(t, militia, FAR, true)).toBe(false);
+    t.mineFlags[mine.gridNo] = MineFlag.PLAYER;
+    expect(nearbyGroundSeemsWrong(t, militia, FAR, true)).toBeNull();
+  });
+
+  it('still warns our merc of a mine a militiaman spotted, whose enemy flag his check does not read', () => {
+    const { sim, t, merc } = scene();
+    const militia = enemyAt(sim, MERC_AT + 3 * EAST, Team.MILITIA);
+    const mine = layMine(t, MERC_AT + 2 * EAST, SURE_TRAP);
+    expect(checkIfNearbyGroundSeemsWrong(t, militia, militia.gridNo, true)).toBe(true);
+    expect(nearbyGroundSeemsWrong(t, merc, mine.gridNo, false)).toBe(mine.gridNo);
+  });
+
+  it('keeps enemies off a mine a militiaman spotted: their paths skip the enemy flag (PathAI.cc:1010-1014)', () => {
+    const { sim, t } = scene();
+    const militia = enemyAt(sim, FAR - SOUTH, Team.MILITIA);
+    const enemy = enemyAt(sim, FAR - EAST);
+    const mine = layMine(t, FAR, SURE_TRAP);
+    const passes = (from: number, steps: readonly number[]) =>
+      steps.some((_, k) => steps.slice(0, k + 1).reduce((g, d) => g + (DIRECTION_INCREMENT[d] ?? 0), from) === mine.gridNo);
+    expect(passes(enemy.gridNo, findBestPath(t.pathEnv, enemy, FAR + EAST, enemy.level).steps)).toBe(true);
+    expect(checkIfNearbyGroundSeemsWrong(t, militia, militia.gridNo, true)).toBe(true);
+    const around = findBestPath(t.pathEnv, enemy, FAR + EAST, enemy.level);
+    expect(around.length).toBeGreaterThan(0);
+    expect(passes(enemy.gridNo, around.steps)).toBe(false);
+    expect(nearbyGroundSeemsWrong(t, enemy, mine.gridNo, false)).toBeNull();
   });
 
   it(`flags a mine of trap ${METAL_DETECTOR_MAX_TRAP} or less with a metal detector anywhere in his pockets, drawing nothing; our merc stops without a word, an enemy plants the flag for the player and walks on`, () => {
