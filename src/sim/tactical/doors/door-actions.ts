@@ -6,8 +6,8 @@
 // @src Interactive_Tiles.cc StartInteractiveObject (its pending action replacing a held MERC_GIVEITEM, 2026-11-08; the
 // @src structure ID it records, 2026-11-09), SoldierHandleInteractiveObject (FindStructureByID, 2026-11-09); Soldier_Ani.cc
 // @src code 495.
-// @src vanilla Build/Tactical/HandleDoors.c InteractWithOpenableStruct and Interface.c PopupDoorOpenMenu, BtnDoorMenuCallback (the
-// @src closing menu Stracciatella dropped).
+// @src InteractWithOpenableStruct's closing menu (PopupDoorOpenMenu with fClosingDoor); HandleOpenableStruct's
+// @src QUOTE_BOOBYTRAP_ITEM of a trap noticed or examined (2026-11-20).
 
 import { ANYKEY } from '../../../content/formats/locks.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
@@ -18,6 +18,7 @@ import { handleDoorChangeFromGridNo } from '../doors.ts';
 import { dropHeldActions } from '../give.ts';
 import { stopMerc } from '../movement.ts';
 import { processImplicationsOfPCMessingWithDoor } from '../narrative/civ-hostility.ts';
+import { MercQuote } from '../narrative/merc-quotes.ts';
 import { AP, BP, DOOR_APS, deductPoints, enoughPoints } from '../points.ts';
 import { Body, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
@@ -304,6 +305,7 @@ function checkLockedTrap(t: TacticalState, s: Soldier, gridNo: number, isDoor: b
     r.result = 'trapNoticed';
     r.trap = DOOR_TRAP_NAMES[door.trapId] ?? 'unknown';
     proceed = false;
+    t.narrative.sayQuote(s, MercQuote.BOOBYTRAP_ITEM);
   } else if (springDoorTrap(t, s, gridNo)) proceed = false;
   updateDoorPerceivedValue(t, gridNo);
   if (!proceed) r.result ??= 'trapStopped';
@@ -397,6 +399,7 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
         return;
       }
       if (examineDoorForTraps(t, s, gridNo)) {
+        t.narrative.sayQuote(s, MercQuote.BOOBYTRAP_ITEM);
         updateDoorPerceivedValue(t, gridNo);
         r.result = 'trapFound';
       } else r.result = 'noTrapFound';

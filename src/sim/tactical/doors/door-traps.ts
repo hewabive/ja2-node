@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Keys.cc HasDoorTrapGoneOff, HandleDoorTrap, ExamineDoorForTraps, AttemptToUntrapDoor,
 // @src UpdateDoorPerceivedValue; Handle_Doors.cc DoTrapCheckOnStartingMenu; TacticalAI/Knowledge.cc CallAvailableEnemiesTo,
-// @src CallAvailableTeamEnemiesTo, CallAvailableKingpinMenTo.
+// @src CallAvailableTeamEnemiesTo, CallAvailableKingpinMenTo; the QUOTE_BOOBYTRAP_ITEM of DoTrapCheckOnStartingMenu (2026-11-20).
 
 import { i8 } from '../../../core/int.ts';
 import { soldierTakeDamage } from '../combat/hit.ts';
@@ -11,6 +11,7 @@ import { DamageReason } from '../combat/types.ts';
 import { igniteExplosion } from '../explosions/explosion.ts';
 import { wearGasMaskIfAvailable } from '../explosions/smoke.ts';
 import { Profile } from '../narrative/constants.ts';
+import { MercQuote } from '../narrative/merc-quotes.ts';
 import { CivilianGroup, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import { type TacticalState, teamMembers } from '../state.ts';
 import {
@@ -148,6 +149,7 @@ export function doTrapCheckOnStartingMenu(t: TacticalState, s: Soldier, gridNo: 
   const door = findDoorInfo(t, gridNo);
   if (!door?.locked || door.trapId === DoorTrap.NONE || door.perceivedTrapped !== PerceivedTrap.UNKNOWN) return false;
   if (calcTrapDetectLevel(t, s, false) < door.trapLevel) return false;
+  t.narrative.sayQuote(s, MercQuote.BOOBYTRAP_ITEM);
   updateDoorPerceivedValue(t, gridNo);
   t.events.push({ type: 'doorResult', soldier: s.id, gridNo, action: 'open', result: 'trapNoticedAtMenu' });
   return true;

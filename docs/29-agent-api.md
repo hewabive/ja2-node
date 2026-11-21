@@ -766,7 +766,8 @@ real-time order (`Tactical/Handle_UI.cc:1699-1703`): a run that has ended leaves
 `run` where the original's click keeps a running merc fast (`Tactical/Real_Time_Input.cc:616-625`). The mode he walks
 in stays his, as after a `move`; one already at the door keeps his. `open` on a locked door answers the door menu as data after the start-of-menu trap check;
 a trap the merc notices there answers `{trapNoticed: true}` instead, with `doorResult {result: trapNoticedAtMenu}`, which
-names no trap, as the original prints nothing then.
+names no trap, as the original prints nothing then. A merc who notices a door's trap there or at the handle, or whose
+examination finds one, says his booby-trap line (`Tactical/Handle_Doors.cc:186`, `:401`, `:602`).
 `openManually` is the menu's open button (deviation "Door menu"), the one action besides cancel a merc facing
 diagonally keeps; a `doorMenu` event says `diagonal` then. `close` by our merc at a door answers the closing menu
 (`{closed: false, options}` and a `doorMenu {closing: true}` event), where only `closeManually` is enabled; other

@@ -16,6 +16,7 @@ import { apsToMovePlusAction, soldierGiveItem } from '../give.ts';
 import { playerInterfaceLocked } from '../interface-lock.ts';
 import { InvSlot } from '../inventory.ts';
 import { getNewSoldierPath } from '../movement.ts';
+import { MercQuote } from '../narrative/merc-quotes.ts';
 import { NO_NARRATIVE_PORT } from '../narrative/port.ts';
 import { hasPendingAction } from '../pending-action.ts';
 import { pickGridNoNearestEdge, setActionToDoOnceMercsGetToLocation } from '../sector-exit.ts';
@@ -26,7 +27,7 @@ import { TacticalSim } from '../tactical-sim.ts';
 import { doorApCost, doorMenu, doorMenuNotes, handleOpenableStruct } from './door-actions.ts';
 import { isDoorBusy } from './door-status.ts';
 import { DoorTrap, findDoorInfo, HandleDoor, PerceivedLock, PerceivedTrap, removeDoorInfo, updateDoor } from './door-table.ts';
-import { attemptToUntrapDoor, handleDoorTrap } from './door-traps.ts';
+import { attemptToUntrapDoor, doTrapCheckOnStartingMenu, handleDoorTrap } from './door-traps.ts';
 import { keyRingView } from './door-view.ts';
 import { newKeyRing } from './key-ring.ts';
 import { attemptToBlowUpLock, attemptToCrowbarLock, attemptToSmashDoor, damageLock } from './lock-attempts.ts';
@@ -363,6 +364,41 @@ describe('the stub village door', () => {
     expect(untrapped(1)).toBe(false);
     expect(untrapped(9)).toBe(true);
     expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ trapId: DoorTrap.NONE, trapLevel: 0 });
+  });
+
+  describe('the booby-trap line (QUOTE_BOOBYTRAP_ITEM)', () => {
+    function mercWhoNotices(sim: TacticalSim): { s: Soldier; said: [number, number][] } {
+      const said: [number, number][] = [];
+      sim.state.narrative = { ...NO_NARRATIVE_PORT, sayQuote: (who, quote) => said.push([who.id, quote]) };
+      updateDoor(sim.state, DOOR, { trapId: DoorTrap.ELECTRIC, trapLevel: 1, perceivedTrapped: PerceivedTrap.UNKNOWN });
+      return { s: spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH), said };
+    }
+
+    it('comes with the trap noticed at the start of the menu (Handle_Doors.cc:186)', () => {
+      const sim = village();
+      const { s, said } = mercWhoNotices(sim);
+      expect(doTrapCheckOnStartingMenu(sim.state, s, DOOR)).toBe(true);
+      expect(said).toEqual([[s.id, MercQuote.BOOBYTRAP_ITEM]]);
+    });
+
+    it('comes with the trap noticed when he tries the handle (Handle_Doors.cc:401)', () => {
+      const sim = village();
+      const { s, said } = mercWhoNotices(sim);
+      s.doorHandleCode = HandleDoor.OPEN;
+      handleOpenableStruct(sim.state, s, DOOR, doorStructure(sim));
+      expect(resultsOf(sim.drainEvents())).toEqual(['open:trapNoticed']);
+      expect(said).toEqual([[s.id, MercQuote.BOOBYTRAP_ITEM]]);
+    });
+
+    it('comes with the trap his examination finds (Handle_Doors.cc:602)', () => {
+      const sim = village();
+      const { s, said } = mercWhoNotices(sim);
+      updateDoor(sim.state, DOOR, { perceivedTrapped: PerceivedTrap.TRAPPED });
+      s.doorHandleCode = HandleDoor.EXAMINE;
+      handleOpenableStruct(sim.state, s, DOOR, doorStructure(sim));
+      expect(resultsOf(sim.drainEvents())).toEqual(['examine:trapFound']);
+      expect(said).toEqual([[s.id, MercQuote.BOOBYTRAP_ITEM]]);
+    });
   });
 
   it('calls the computer teams to a silent alarm, each soldier putting on a gas mask he carries (Knowledge.cc CallAvailableTeamEnemiesTo)', () => {
