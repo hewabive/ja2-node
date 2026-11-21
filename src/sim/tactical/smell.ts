@@ -98,8 +98,8 @@ export function bloodFloorStrength(info: number): number {
   return (info & BLOOD_FLOOR_MASK) >> BLOOD_FLOOR_SHIFT;
 }
 
-export function bloodRoofStrength(info: number): number {
-  return (info & BLOOD_ROOF_MASK) >> BLOOD_ROOF_SHIFT;
+function unshiftedRoofStrength(info: number): number {
+  return info & BLOOD_ROOF_MASK;
 }
 
 function bloodDelay(info: number): number {
@@ -114,8 +114,8 @@ function withFloorStrength(info: number, strength: number): number {
   return u8((strength << BLOOD_FLOOR_SHIFT) | (info & ~BLOOD_FLOOR_MASK));
 }
 
-function withRoofStrength(info: number, strength: number): number {
-  return u8((info & ~BLOOD_ROOF_MASK) | (strength << BLOOD_ROOF_SHIFT));
+function withRoofStrengthFromFloorField(info: number, strength: number): number {
+  return u8((bloodFloorStrength(strength) << BLOOD_ROOF_SHIFT) | (info & ~BLOOD_ROOF_MASK));
 }
 
 function withSmell(info: number, strength: number, kind: number): number {
@@ -194,24 +194,32 @@ export function decaySmells(m: SmellMap): void {
   for (let g = 0; g < WORLD_MAX; g++) {
     const info = smell[g] ?? 0;
     if (info === 0) continue;
-    const strength = Math.max(smellStrength(info) - 1, 0);
-    smell[g] = strength === 0 ? 0 : u8((info & TYPE_BITS) | (strength << SMELL_TYPE_NUM_BITS));
+    const decayed = (info & TYPE_BITS) | u8(u8(smellStrength(info) - 1) << SMELL_TYPE_NUM_BITS);
+    smell[g] = smellStrength(decayed) === 0 ? 0 : decayed;
   }
+}
+
+function decayFloorBlood(info: number): number {
+  if (bloodFloorStrength(info) === 0) return info;
+  const decayed = withFloorStrength(info, bloodFloorStrength(info) - 1);
+  return bloodFloorStrength(decayed) === 0 && noBloodStrength(decayed) ? 0 : decayed;
+}
+
+function decayRoofBlood(info: number): number {
+  if (unshiftedRoofStrength(info) === 0) return info;
+  const decayed = withFloorStrength(info, unshiftedRoofStrength(info) - 1);
+  return unshiftedRoofStrength(decayed) === 0 && noBloodStrength(decayed) ? 0 : decayed;
 }
 
 function decayBloodAt(w: SmellWorld, g: number): void {
   const blood = w.smell.blood;
-  let info = blood[g] ?? 0;
-  if (bloodDelay(info) > 0) info--;
+  let info = u8((blood[g] ?? 0) - 1);
   if (bloodDelay(info) !== 0) {
     blood[g] = info;
     return;
   }
   setBloodReevaluation(w, g, 1);
-  info = withFloorStrength(info, Math.max(bloodFloorStrength(info) - 1, 0));
-  if (bloodFloorStrength(info) === 0 && noBloodStrength(info)) info = 0;
-  info = withRoofStrength(info, Math.max(bloodRoofStrength(info) - 1, 0));
-  if (bloodRoofStrength(info) === 0 && noBloodStrength(info)) info = 0;
+  info = decayRoofBlood(decayFloorBlood(info));
   blood[g] = info;
   if (info) setRandomBloodDecayTime(w, g);
 }
@@ -235,7 +243,7 @@ export function decayBloodAndSmells(w: SmellWorld, worldSeconds: number, compres
 }
 
 function combinedSmell(strength: number, old: number): number {
-  return Math.min(Math.max(strength, old) + idiv(Math.min(strength, old), SMELL_COMBINE_DIVISOR), SMELL_STRENGTH_MAX);
+  return Math.max(u8(Math.max(strength, old) + idiv(Math.min(strength, old), SMELL_COMBINE_DIVISOR)), SMELL_STRENGTH_MAX);
 }
 
 export function dropSmell(m: SmellMap, s: Pick<Soldier, 'level' | 'gridNo' | 'normalSmell' | 'monsterSmell'>): void {
@@ -298,14 +306,15 @@ function dropBloodOnFloor(w: SmellWorld, g: number, kind: number, strength: numb
 function dropBloodOnRoof(w: SmellWorld, g: number, kind: number, strength: number): void {
   const m = w.smell;
   const info = m.blood[g] ?? 0;
-  const old = bloodRoofStrength(info);
+  const old = unshiftedRoofStrength(info);
   if (old > 0) {
-    if (bloodType(m, g, 1) === kind) m.blood[g] = withRoofStrength(info, Math.min(Math.max(old, strength) + 1, MAX_BLOOD_QUANTITY));
-    else if (strength > old) m.blood[g] = withRoofStrength(info, strength);
+    if (bloodType(m, g, 1) === kind)
+      m.blood[g] = withRoofStrengthFromFloorField(info, Math.max(Math.max(old, strength) + 1, MAX_BLOOD_QUANTITY));
+    else if (strength > old) m.blood[g] = withRoofStrengthFromFloorField(info, strength);
     return;
   }
   setRandomBloodDecayTime(w, g);
-  m.blood[g] = withRoofStrength(m.blood[g] ?? 0, strength);
+  m.blood[g] = withRoofStrengthFromFloorField(m.blood[g] ?? 0, strength);
   setBloodType(m, g, 1, kind);
 }
 

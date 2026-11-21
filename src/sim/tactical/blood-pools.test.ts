@@ -17,8 +17,13 @@ import {
   bloodFloorStrength,
   DROPPED_IN_SIGHT,
   decayBloodAndSmells,
+  decaySmells,
+  dropSmell,
   internalDropBlood,
   restoreBloodAndSmellAt,
+  SmellKind,
+  smellStrength,
+  smellType,
 } from './smell.ts';
 import { Body, NO_PROFILE, type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
@@ -109,6 +114,54 @@ describe('blood pools on the ground (Smell.cc InternalDropBlood, UpdateBloodGrap
     revealRoofsAndItems(t, merc, false);
     expect(bloodViews(t)).toEqual([]);
     expect(bloodFloorStrength(t.smell.blood[AHEAD] ?? 0)).toBe(5);
+  });
+});
+
+describe('the smell and blood bytes (Smell.cc)', () => {
+  const ROOF = 1;
+  const ROOF_BITS = 0xe0;
+  const FULL_SMELL = 63;
+  const HUMAN_SMELL = { level: 0, gridNo: AHEAD, normalSmell: 10, monsterSmell: 0 };
+
+  it('gives any smell dropped again of the same kind the full strength: the cap takes the larger value (quirk, DropSmell)', () => {
+    const { sim } = squad();
+    const m = sim.state.smell;
+    dropSmell(m, HUMAN_SMELL);
+    expect(smellStrength(m.smell[AHEAD] ?? 0)).toBe(10);
+    dropSmell(m, HUMAN_SMELL);
+    expect(smellStrength(m.smell[AHEAD] ?? 0)).toBe(FULL_SMELL);
+  });
+
+  it('turns the creature blood type of a tile without smell into a full creature smell: the decayed strength wraps (quirk, DecaySmells)', () => {
+    const { sim } = squad();
+    const t = sim.state;
+    internalDropBlood(t, AHEAD, 0, BloodKind.CREATURE_ON_FLOOR, 3, UNSEEN);
+    expect(t.smell.smell[AHEAD]).toBe(SmellKind.CREATURE);
+    decaySmells(t.smell);
+    expect([smellType(t.smell.smell[AHEAD] ?? 0), smellStrength(t.smell.smell[AHEAD] ?? 0)]).toEqual([SmellKind.CREATURE, FULL_SMELL]);
+    decaySmells(t.smell);
+    expect(smellStrength(t.smell.smell[AHEAD] ?? 0)).toBe(FULL_SMELL - 1);
+  });
+
+  it('keeps no roof blood below strength 4 and stores 4 to 7 as 1: the roof setter reads the floor field of the strength (quirk, SET_BLOOD_ROOF_STRENGTH)', () => {
+    const { sim } = squad();
+    const t = sim.state;
+    internalDropBlood(t, AHEAD, ROOF, BloodKind.HUMAN, 3, UNSEEN);
+    expect((t.smell.blood[AHEAD] ?? 0) & ROOF_BITS).toBe(0);
+    internalDropBlood(t, AHEAD, ROOF, BloodKind.HUMAN, 7, UNSEEN);
+    expect((t.smell.blood[AHEAD] ?? 0) & ROOF_BITS).toBe(0x20);
+    internalDropBlood(t, AHEAD, ROOF, BloodKind.HUMAN, 7, UNSEEN);
+    expect((t.smell.blood[AHEAD] ?? 0) & ROOF_BITS).toBe(0);
+  });
+
+  it('leaves a full pool on the ground for good under decaying roof blood: the roof decay writes the floor field (quirk, DECAY_BLOOD_ROOF_STRENGTH)', () => {
+    const { sim } = squad();
+    const t = sim.state;
+    internalDropBlood(t, AHEAD, ROOF, BloodKind.HUMAN, 5, UNSEEN);
+    decayUntil(sim, () => bloodFloorStrength(t.smell.blood[AHEAD] ?? 0) === FULL_POOL);
+    for (let round = 0; round < MAX_DECAY_ROUNDS; round++) decayBloodAndSmells(t, t.smell.lastDecaySeconds + DECAY_PERIOD_SECONDS);
+    expect(bloodFloorStrength(t.smell.blood[AHEAD] ?? 0)).toBe(FULL_POOL);
+    expect((t.smell.blood[AHEAD] ?? 0) & ROOF_BITS).not.toBe(0);
   });
 });
 
