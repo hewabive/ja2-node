@@ -15,12 +15,12 @@ import {
   selectPortrait,
   showCurrentTeam,
   showDepartedTeam,
-  signedDelta,
   skillLines,
   sliderIndexAt,
   sliderPositionOf,
   sliderTo,
   sliderZones,
+  statGainText,
   teamCost,
   teamStatRow,
 } from './personnel-model.ts';
@@ -133,10 +133,10 @@ describe('the personnel texts', () => {
     expect(remainingContractText(-10, 1, a)).toBe('0h / 1d');
   });
 
-  it('signs the stat deltas', () => {
-    expect(signedDelta(0)).toBe('');
-    expect(signedDelta(2)).toBe('( +2 )');
-    expect(signedDelta(-1)).toBe('( -1 )');
+  it('prints a stat delta only above 0, so a stat lost since the start of the game shows none (Personnel.cc PrintStatWithDelta)', () => {
+    expect(statGainText(0)).toBe('');
+    expect(statGainText(2)).toBe('( +2 )');
+    expect(statGainText(-1)).toBe('');
   });
 
   it('keeps the later of equal values for the lowest and highest and truncates the average', () => {

@@ -422,14 +422,14 @@ describe('the stat a critical hit costs, in the profile (Weapons.cc BulletImpact
     return { sim, firer, merc, p };
   }
 
-  it("keeps a merc's critical loss through his next gain in that stat: the profile's stat goes down with his, its delta too", () => {
+  it("keeps a merc's critical loss through his next gain in that stat: the profile's stat goes down with his, its delta stays (Weapons.cc:3035-3038)", () => {
     const { sim, firer, merc, p } = mercWithProfile();
     const impact = bulletImpact(sim.state, firer, merc, AimShot.LEGS, CRITS_OF_62_IN_THE_LEGS, 0, Special.NONE);
     expect(impact.statLoss).toEqual({ stat: 'agility', points: 5 });
-    expect([merc.stats.agility, p.stats.agility, p.deltas.agility]).toEqual([65, 65, -5]);
+    expect([merc.stats.agility, p.stats.agility, p.deltas.agility]).toEqual([65, 65, 0]);
     p.gains.agility = ONE_POINT_OF_AGILITY;
     processUpdateStats(sim.state, merc);
-    expect([merc.stats.agility, p.stats.agility, p.deltas.agility]).toEqual([66, 66, -4]);
+    expect([merc.stats.agility, p.stats.agility, p.deltas.agility]).toEqual([66, 66, 1]);
   });
 
   it('writes no profile for a soldier without one', () => {

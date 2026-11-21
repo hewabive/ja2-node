@@ -5,13 +5,12 @@
 // @src values; Soldier_Profile.cc InitProfileFromContent (the relation counters; fUseProfileInsertionInfo and sGridNo,
 // @src which prof.dat holds as leftovers, cleared); Soldier_Profile.cc WhichBuddy; Soldier_Profile_Type.h BuddySlot;
 // @src TileEngine/Isometric_Utils.h NOWHERE (GRIDSIZE + 1) in a saved sPreCombatGridNo (2026-11-06); MERCPROFILESTRUCT's
-// @src stat deltas, a saved profile's included, and the export of a soldier's stat change to his profile that
-// @src Weapons.cc BulletImpact and Strategic/Assignments.cc HealCharacters make (2026-11-14)
+// @src stat deltas, a saved profile's included, and the export of the stat a critical hit lowers to his profile that
+// @src Weapons.cc BulletImpact makes (2026-11-14)
 
 import type { MercProfile, ProfileStatGains } from '../../content/formats/prof.ts';
 import type { SavedMercProfile } from '../../content/formats/savegame-profile.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
-import { i8 } from '../../core/int.ts';
 import { NO_PROFILE, NOWHERE, type Soldier, type SoldierStats } from './soldier.ts';
 
 const STAT_CHANGE_COUNTERS = 12;
@@ -534,10 +533,8 @@ export function profileProgress(t: ProfileSource, id: number): ProfileProgress |
   return created;
 }
 
-export function exportStatChangeToProfile(t: ProfileSource, s: Soldier, stat: keyof SoldierStats, change: number): void {
+export function exportStatToProfile(t: ProfileSource, s: Soldier, stat: keyof SoldierStats): void {
   if (s.profile === NO_PROFILE) return;
   const p = profileProgress(t, s.profile);
-  if (!p) return;
-  p.stats[stat] = s.stats[stat];
-  p.deltas[stat] = i8(p.deltas[stat] + change);
+  if (p) p.stats[stat] = s.stats[stat];
 }

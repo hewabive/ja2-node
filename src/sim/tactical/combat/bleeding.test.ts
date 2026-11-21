@@ -14,12 +14,15 @@ import type { TacticalSim } from '../tactical-sim.ts';
 import { beginMercTurn } from '../turns/turns.ts';
 import { calcSoldierNextBleed, checkBleeding } from './bleeding.ts';
 import { beginSoldierGetup } from './death.ts';
+import { processUpdateStats } from './experience.ts';
 import { soldierTakeDamage } from './hit.ts';
 import { DamageReason } from './types.ts';
 
 let content: TacticalContent;
 
 const MERC_PROFILE = 5;
+const HEALED_LIFE = 50;
+const ONE_POINT_OF_HEALTH = 50;
 
 beforeAll(async () => {
   content = await loadTestContent();
@@ -90,7 +93,7 @@ describe('bleeding at turn start', () => {
     expect(s.bleeding).toBe(70);
   });
 
-  it("takes that point off his profile's maximum life, life and life delta", () => {
+  it("leaves his profile's maximum life, so his next health gain gives the point back (Soldier_Control.cc:7874-7879, Campaign.cc:560, :577)", () => {
     const sim = newCombatSim(content);
     sim.state.inCombat = true;
     const s = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { life: 10, profile: MERC_PROFILE });
@@ -101,7 +104,11 @@ describe('bleeding at turn start', () => {
     p.stats.lifeMax = 80;
     sim.state.profiles.set(MERC_PROFILE, p);
     beginMercTurn(sim.state, s);
-    expect([p.stats.lifeMax, p.life, p.deltas.lifeMax]).toEqual([79, 9, -1]);
+    expect([s.lifeMax, p.stats.lifeMax, p.life, p.deltas.lifeMax]).toEqual([79, 80, 10, 0]);
+    s.life = HEALED_LIFE;
+    p.gains.lifeMax = ONE_POINT_OF_HEALTH;
+    processUpdateStats(sim.state, s);
+    expect([s.lifeMax, p.stats.lifeMax]).toEqual([81, 81]);
   });
 });
 

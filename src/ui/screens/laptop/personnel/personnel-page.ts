@@ -45,10 +45,10 @@ import {
   selectPortrait,
   showCurrentTeam,
   showDepartedTeam,
-  signedDelta,
   skillLines,
   sliderTo,
   sliderZones,
+  statGainText,
   stepFace,
   teamCost,
   teamStatRow,
@@ -266,13 +266,13 @@ export function personnelPage(context: LaptopContext): LaptopPage {
     const health: TextRow = {
       label: `${string(S.health)}:`,
       value: isPow ? string(S.pow, POW_HEALTH_TEXT) : `${m.life}/${m.lifeMax}`,
-      delta: isPow ? '' : signedDelta(m.deltas.health),
+      delta: isPow ? '' : statGainText(m.deltas.health),
     };
     const attributes = ATTRIBUTES.map(
       (key, i): TextRow => ({
         label: `${string(S.statList, i + 1)}:`,
         value: m.robot ? notApplicable : String(m.stats[key]),
-        delta: m.robot ? '' : signedDelta(m.deltas[key]),
+        delta: m.robot ? '' : statGainText(m.deltas[key]),
       }),
     );
     return [

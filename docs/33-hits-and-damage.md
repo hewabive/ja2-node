@@ -113,14 +113,14 @@ combat turns them into lost APs, morale and a stance change; the 5 s real-time t
 when the busy count reaches 0. AI morale is recomputed only when the AI decides, so suppression tolerance and the
 chance to hit read the value of the soldier's last decision.
 
-**What changes a soldier's stat also changes his profile.** `changeStat` copies the profile's stat into the soldier at
-every change (`combat/experience.ts`, `Tactical/Campaign.cc:577`), so the stat a critical hit costs and the doctor's
-healing of it go into the profile as well (`exportStatChangeToProfile`, `src/sim/tactical/profiles.ts`;
-`M:Tactical/Weapons.cc:2977-2978`, `M:Strategic/Assignments.cc:1567-1568`), and so does the point of maximum life a dying
-soldier bleeds away (`combat/bleeding.ts`, `M:Tactical/Soldier_Control.cc:7877`). Each moves the stat's delta
-(`ProfileProgress.deltas`, the original's `b*Delta`), as `changeStat` does for a merc on our team
-(`Tactical/Campaign.cc:566`); prof.dat holds zeros and a native save its own. The personnel page prints the deltas
-beside the stats (`M:Laptop/Personnel.cc:702-740`), and Larry's swap adds the other profile's onto its stats
+**What changes a soldier's stat also changes his profile, but for the dying bleed.** `changeStat` copies the profile's
+stat into the soldier at every change (`combat/experience.ts`, `Tactical/Campaign.cc:577`), so the stat a critical hit
+costs goes into the profile as well (`exportStatToProfile`, `src/sim/tactical/profiles.ts`; `Tactical/Weapons.cc:2935`,
+`:2973`, `:3005`, `:3037`), though not into its delta. The point of maximum life a dying soldier bleeds away comes off the
+soldier alone (`combat/bleeding.ts`, `Tactical/Soldier_Control.cc:7874-7879`), so his next health gain gives it back
+(§3). Only `changeStat` moves the deltas (`ProfileProgress.deltas`, the original's `b*Delta`), for a merc on our team
+(`Tactical/Campaign.cc:566`); prof.dat holds zeros and a native save its own. The personnel page prints a delta beside
+its stat only above 0 (`Laptop/Personnel.cc:659`, `:697`), and Larry's swap adds the other profile's onto its stats
 (`statsAfterLarrysSwap`, `src/sim/strategic/narrative/larry.ts`, `Tactical/Soldier_Profile.cc:993-1002`).
 
 **Autoresolve reuses the damage rules** through `CombatContext` instead of a copy (`19`).
@@ -213,6 +213,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A body laid in an unloaded sector, by the map screen's strategic death or by autoresolve, carries profile 0, not the dead soldier's: the definition is zeroed and the profile never set (`Tactical/Tactical_Save.cc:882`), so a search for a corpse by profile misses it | `src/sim/campaign/sector-loot.test.ts` "lays the corpse of a soldier with a profile under profile 0 …" |
 | Bandaging a wound worsens the injury penalties of the turn APs and of the chances to hit with a gun, in melee and with a throw: they count the bandaged part of the damage one and a half times (`Tactical/Soldier_Control.cc:348`, `Tactical/Weapons.cc:2454`, `:3262`, `:3331`, `:3652`) | `src/sim/tactical/points.test.ts` "counts bandaged damage one and a half times …" |
 | The next bleed comes after a whole number of turns: the effective life is divided as integers before the float cast (`Tactical/Soldier_Control.cc:8055`) | `bleeding.test.ts` "waits a whole number of turns for the next bleed …" |
+| The point of maximum life a dying merc bleeds away comes off the soldier but not off his profile, so his next health gain gives it back (`Tactical/Soldier_Control.cc:7874-7879`, `Tactical/Campaign.cc:560`, `:577`) | `bleeding.test.ts` "leaves his profile's maximum life …" |
 | A blast leaves a standing soldier in the hit animation he plays: no explosion cancels it (`Tactical/Soldier_Control.cc:3255-3259`) | `hit-locked.test.ts` "lets a blast leave a standing soldier …" |
 | The wounds a blast of our merc causes count as a failure for his explosives, so they never complete his next point (`Tactical/Soldier_Control.cc:5797`) | `experience.test.ts` "counts the wounds a blast of our merc causes as a failure …" |
 | A suppression stance change leaves a medic on his first aid (`Tactical/Overhead.cc:5383-5408`) | `src/sim/tactical/first-aid.test.ts` "keeps a medic giving first aid on it …" |

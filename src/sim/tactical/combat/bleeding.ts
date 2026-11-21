@@ -1,17 +1,16 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc CheckBleeding (with its blood amount, the dying quote and the bleeding
-// @src warning; the patient being bandaged or doctored, 2026-11-01; STR_LOSES_1_HP of our merc, 2026-11-06; the life
-// @src delta, 2026-11-14; the uiChangeHealthTime and usValueGoneUp of our merc, 2026-11-19), SoldierBleed
+// @src warning; the patient being bandaged or doctored, 2026-11-01; STR_LOSES_1_HP of our merc, 2026-11-06; the
+// @src uiChangeHealthTime and usValueGoneUp of our merc, 2026-11-19), SoldierBleed
 // @src (the portrait flash and SetInfoChar of our merc as a presentation event, 2026-11-06), CalcSoldierNextBleed;
 // @src Overhead.cc HandleBloodForNewGridNo (2026-11-04).
 
-import { i8, idiv } from '../../../core/int.ts';
+import { idiv } from '../../../core/int.ts';
 import { MercQuote } from '../narrative/merc-quotes.ts';
-import { profileProgress } from '../profiles.ts';
 import { effectiveLife } from '../skills.ts';
 import { BLOOD_DIVISOR, dropBlood, MAX_BLOOD_QUANTITY } from '../smell.ts';
-import { Body, NO_PROFILE, OKLIFE, type Soldier, Team } from '../soldier.ts';
+import { Body, OKLIFE, type Soldier, Team } from '../soldier.ts';
 import type { TacticalState } from '../state.ts';
 import { markStatChange } from './experience.ts';
 import { soldierTakeDamage } from './hit.ts';
@@ -32,16 +31,10 @@ export function bleedsAtTurnStart(s: Soldier): boolean {
   return !isVehicleOrRobot(s) && (s.bleeding !== 0 || s.life < OKLIFE);
 }
 
-function loseLifeMaxWhileDying(t: TacticalState, s: Soldier): boolean {
+function loseLifeMaxWhileDying(s: Soldier): boolean {
   if (s.lifeMax < OKLIFE) return false;
   s.lifeMax--;
   s.bleeding--;
-  if (s.profile === NO_PROFILE) return true;
-  const progress = profileProgress(t, s.profile);
-  if (!progress) return true;
-  progress.deltas.lifeMax = i8(progress.deltas.lifeMax - 1);
-  progress.stats.lifeMax--;
-  progress.life--;
   return true;
 }
 
@@ -80,7 +73,7 @@ export function checkBleeding(t: TacticalState, s: Soldier): number {
   if (bandaged !== 0 && s.life >= OKLIFE) s.bleeding++;
   else if (s.life < OKLIFE) {
     sayDyingQuote(t, s);
-    lifeMaxLost = loseLifeMaxWhileDying(t, s);
+    lifeMaxLost = loseLifeMaxWhileDying(s);
     if (lifeMaxLost && s.team === Team.OUR) markStatChange(t, s, 'lifeMax', false);
   }
   soldierBleed(t, s, lifeMaxLost);

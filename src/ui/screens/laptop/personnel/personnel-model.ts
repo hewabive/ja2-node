@@ -8,7 +8,7 @@
 // @src FindPositionOfPersInvSlider, HandleSliderBarClickCallback (scroll count x relative y / (203 - 19)),
 // @src DisplayTeamStats (min with >=, max with <=, the integer average), DisplayCostOfCurrentTeam,
 // @src DisplayEmploymentinformation (the days and hours left of the contract), DisplayCharStats (the KM overrun rule of
-// @src the skill texts).
+// @src the skill texts), PrintStatWithDelta (a delta printed only above 0, 2026-11-21).
 
 import { idiv } from '../../../../core/int.ts';
 
@@ -271,8 +271,8 @@ export function remainingContractText(minutesLeft: number, totalDays: number, a:
   return days > 0 ? `${days}${a.days} ${hours}${a.hours} / ${total}` : `${hours}${a.hours} / ${total}`;
 }
 
-export function signedDelta(delta: number): string {
-  return delta ? `( ${delta > 0 ? '+' : ''}${delta} )` : '';
+export function statGainText(delta: number): string {
+  return delta > 0 ? `( +${delta} )` : '';
 }
 
 export function hitPercentage(shotsFired: number, shotsHit: number): number {
