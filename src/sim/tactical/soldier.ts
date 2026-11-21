@@ -508,7 +508,6 @@ export interface Soldier {
   timeOfLastRandomAction: number;
   turningFromHit: boolean;
   changingStanceDueToSuppression: boolean;
-  statDamage: { strength: number; dexterity: number; agility: number; wisdom: number };
   statChanges: StatChanges;
   kills: number;
   assists: number;
@@ -957,7 +956,6 @@ function awarenessAndCombat(init: SoldierInit) {
 
 function recordAndServices() {
   return {
-    statDamage: { strength: 0, dexterity: 0, agility: 0, wisdom: 0 },
     statChanges: {},
     kills: 0,
     assists: 0,

@@ -285,7 +285,6 @@ describe('the lines of a hit (Weapons.cc BulletImpact)', () => {
     const head = impactAt(AimShot.HEAD, [NO_FLUKE, CRITICAL_ROLL_OF_33, FIVE_POINTS]);
     expect(head.impact).toEqual({ damage: 66, special: Special.NONE, statLoss: { stat: 'wisdom', points: 5 } });
     expect(head.target.stats.wisdom).toBe(65);
-    expect(head.target.statDamage.wisdom).toBe(5);
     expect(head.pre.requested).toEqual([51, 33, 33]);
     expect(impactAt(AimShot.TORSO, [NO_FLUKE, CRITICAL_ROLL_OF_33, 0, 49]).impact.statLoss).toEqual({ stat: 'dexterity', points: 1 });
     expect(impactAt(AimShot.TORSO, [NO_FLUKE, CRITICAL_ROLL_OF_33, 0, 50]).impact.statLoss).toEqual({ stat: 'strength', points: 1 });

@@ -78,7 +78,6 @@ beforeAll(async () => {
   content = await loadTestContent();
 });
 
-const SAVE_VERSION = 99;
 const SAVED_SECOND = 7 * 3600;
 const SECTOR = { x: 13, y: 4, z: 0 };
 const CENTRE = gridNo(80, 80);
@@ -154,7 +153,7 @@ function savedSoldier(id: number, team: number, at: number, extra: SoldierFields
     ...extra,
   });
   fillInt8Arrays(record, arrays);
-  return { soldier: decodeSoldierRecord(record, SAVE_VERSION, false), mercPath: [], keyRing: null };
+  return { soldier: decodeSoldierRecord(record, false), mercPath: [], keyRing: null };
 }
 
 interface SyntheticSave {

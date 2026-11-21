@@ -19,7 +19,6 @@ const DRUG_KINDS = 2;
 const DRUG_ADRENALINE = 0;
 const DRUG_ALCOHOL = 1;
 const LAST_LOCATIONS = 2;
-const FIRST_VERSION_WITH_STAT_DAMAGE = 103;
 export type SavedChangedStat =
   | 'level'
   | 'health'
@@ -134,11 +133,7 @@ export const SOLDIER_LAYOUT: Layout = [
   field('fUICloseMerc', 'bool'),
   skip(13),
   skip(4),
-  field('bAgilityDamage', 'i8'),
-  field('bDexterityDamage', 'i8'),
-  field('bStrengthDamage', 'i8'),
-  field('bWisdomDamage', 'i8'),
-  skip(8),
+  skip(12),
   field('ubSkillTrait1', 'u8'),
   field('ubSkillTrait2', 'u8'),
   skip(6),
@@ -749,7 +744,6 @@ export interface SavedSoldier {
   readonly apsLostToSuppression: number;
   readonly suppressionPoints: number;
   readonly stats: SoldierStats;
-  readonly statDamage: { readonly agility: number; readonly dexterity: number; readonly strength: number; readonly wisdom: number };
   readonly statChanges: Readonly<Record<SavedChangedStat, SavedStatChange>>;
   readonly fractLife: number;
   readonly bleeding: number;
@@ -818,10 +812,9 @@ export function soldierRecordBytes(stracLinuxFormat: boolean): number {
   return stracLinuxFormat ? SOLDIER_RECORD_BYTES_STRAC_LINUX : SOLDIER_RECORD_BYTES;
 }
 
-export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLinuxFormat: boolean): SavedSoldier {
+export function decodeSoldierRecord(plain: Uint8Array, stracLinuxFormat: boolean): SavedSoldier {
   const r = readLayout(new SaveCursor(plain), SOLDIER_LAYOUT, stracLinuxFormat, 'SOLDIERTYPE');
   const n = (name: string) => r.num(name);
-  const statDamage = (name: string) => (version >= FIRST_VERSION_WITH_STAT_DAMAGE ? n(name) : 0);
   const pathSize = Math.min(u8(n('usPathDataSize')), PATH_ENTRIES);
   const drugCourse = (kind: number): SavedDrugCourse => ({
     future: r.nums('bFutureDrugEffect')[kind] ?? 0,
@@ -902,12 +895,6 @@ export function decodeSoldierRecord(plain: Uint8Array, version: number, stracLin
       explosive: n('bExplosive'),
       medical: n('bMedical'),
       expLevel: n('bExpLevel'),
-    },
-    statDamage: {
-      agility: statDamage('bAgilityDamage'),
-      dexterity: statDamage('bDexterityDamage'),
-      strength: statDamage('bStrengthDamage'),
-      wisdom: statDamage('bWisdomDamage'),
     },
     statChanges: savedStatChanges((name) => n(name)),
     fractLife: n('sFractLife'),

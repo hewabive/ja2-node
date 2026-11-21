@@ -25,13 +25,6 @@ export interface MercStats {
   readonly expLevel: number;
 }
 
-export interface StatDamage {
-  agility: number;
-  dexterity: number;
-  strength: number;
-  wisdom: number;
-}
-
 export interface VehicleCondition {
   life: number;
   readonly lifeMax: number;
@@ -59,7 +52,6 @@ export interface CrewMember extends StrategicMerc {
   readonly inSector: boolean;
   readonly stats: MercStats;
   readonly effective: MercStats;
-  readonly statDamage: StatDamage;
   readonly skillTraits: readonly number[];
   readonly profileTraits: readonly number[];
   readonly needForSleep: number;
@@ -71,7 +63,6 @@ export interface CrewPort extends MercPort {
   byProfile(profile: number): CrewMember | undefined;
   all(): readonly CrewMember[];
   statChange(id: number, stat: number, chances: number, cause: number): void;
-  healStat(id: number, stat: keyof StatDamage, points: number): void;
   opinion(profile: number, aboutProfile: number): number;
   dressWound(doctor: number, patient: number, kit: ItemObject, kitPoints: number, kitStatus: number): number;
 }

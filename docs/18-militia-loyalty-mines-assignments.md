@@ -50,7 +50,7 @@ tactical militia from the counts; promotions on unload          campaign/sector-
 | `save-import.ts`, `sector-loss.ts` | Imported mines, loyalty, ledger and assignment fields; the notice for a lost important sector |
 | `strategic/map/control.ts`, `map/sam.ts`, `campaign/sam-repair.ts` | Sector control changes, air control, SAM damage and repair; the terminal graphic the repair puts back |
 | `campaign/finances.ts`, `finance-summary.ts` | The ledger (`addTransaction`) and the laptop's daily figures |
-| `src/content/strategic/economy-content.ts` | Mines, starting cash, stat healing and merc types from `data/externalized/`; loyalty and head miner tables from `data/tables/` (`tools/transcribe/town-loyalty.ts`, `head-miners.ts`) |
+| `src/content/strategic/economy-content.ts` | Mines, starting cash and merc types from `data/externalized/`; loyalty and head miner tables from `data/tables/` (`tools/transcribe/town-loyalty.ts`, `head-miners.ts`) |
 
 Imports from a save: `src/content/formats/savegame-economy.ts` (mines, loyalty, ledger, the soldiers' assignment fields);
 the sectors' militia and training fields come with the strategic map (`16`), the inactivity counters and Enrico's flags
@@ -198,8 +198,6 @@ Not pinned yet:
 - The theft chance wraps above 51 enemies (`theftChance`).
 - A town with no path to the event counts as distance 0, the full +75 %.
 - A trainer whose sector became full or disloyal is flagged nothing-to-do but keeps training; the session is wasted.
-- Stat healing (off by default) caps the stat points at the hour's points left, then spends three times as many and can
-  wrap the points left.
 - Teammates' jammed guns are unjammed again in every pass of the repair.
 - Fred is placed at random too when the first mine entered has its own head miner (Alma).
 - A mine counts as invaded before (`prevInvadedByMonsters`) only if the player held it when the creatures came.

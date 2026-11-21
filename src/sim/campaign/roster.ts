@@ -2,7 +2,7 @@ import type { MercProfile } from '../../content/formats/prof.ts';
 import type { Sector } from '../../content/strategic/sector-ids.ts';
 import type { ItemObject } from '../items/object.ts';
 import { findObj, NO_SLOT } from '../strategic/economy/kits.ts';
-import type { CrewMember, CrewPort, MercStats, StatDamage } from '../strategic/economy/ports.ts';
+import type { CrewMember, CrewPort, MercStats } from '../strategic/economy/ports.ts';
 import { dressWound as virtualSoldierDressWound } from '../strategic/forces/autoresolve/bandage.ts';
 import { TravelStat } from '../strategic/forces/ports.ts';
 import type { CombatContext } from '../tactical/combat/context.ts';
@@ -10,7 +10,7 @@ import { StatCause, statChange } from '../tactical/combat/experience.ts';
 import type { TacticalContent } from '../tactical/content.ts';
 import { carriedWeightPercentOf } from '../tactical/points.ts';
 import type { ProfileProgress } from '../tactical/profiles.ts';
-import { exportStatChangeToProfile, type StatKey, StatKind } from '../tactical/profiles.ts';
+import { type StatKey, StatKind } from '../tactical/profiles.ts';
 import {
   effectiveAgility,
   effectiveDexterity,
@@ -397,10 +397,6 @@ export class RosterMerc implements CrewMember {
     };
   }
 
-  get statDamage(): StatDamage {
-    return this.soldier.statDamage;
-  }
-
   get skillTraits(): readonly number[] {
     return [this.soldier.skillTrait1, this.soldier.skillTrait2];
   }
@@ -650,13 +646,6 @@ export class Roster implements CrewPort {
   statChange(id: number, stat: number, chances: number, cause: number): void {
     const merc = this.get(id);
     if (merc) statChange(this.#combat(), merc.soldier, stat, chances, cause);
-  }
-
-  healStat(id: number, stat: keyof StatDamage, points: number): void {
-    const merc = this.get(id);
-    if (!merc) return;
-    merc.soldier.stats[stat] += points;
-    exportStatChangeToProfile(this.#combat(), merc.soldier, stat, points);
   }
 
   opinion(profile: number, aboutProfile: number): number {

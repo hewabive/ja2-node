@@ -1,6 +1,6 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Assignments.cc HandleDoctorsInSector, HealCharacters, HealStat, HealPatient,
+// @src src/game/Strategic/Assignments.cc HandleDoctorsInSector, HealCharacters, HealPatient,
 // @src CheckForAndHandleHospitalPatients, HealHospitalPatient, UpdatePatientsWhoAreDoneHealing,
 // @src BandageBleedingDyingPatientsBeingTreated.
 
@@ -16,23 +16,19 @@ import {
   anyDoctorWhoCanHealThisPatient,
   canCharacterDoctor,
   canSoldierBeHealedByDoctor,
-  canStatsBeHealed,
   enoughTimeOnAssignment,
   numberThatCanBeDoctored,
 } from './conditions.ts';
 import { Assignment, HOSPITAL_SECTOR, OKLIFE, SECTORS_WITH_SOLDIERS_Z_LEVELS, StatAmt, StatCause } from './constants.ts';
 import { findObjClass, kitItems, makeSureMedKitIsInHand, NO_SLOT, Slot, totalPoints, useKitPoints } from './kits.ts';
 import { calculateHealingPointsForDoctor } from './points.ts';
-import type { CrewMember, EconomyContext, StatDamage } from './ports.ts';
+import type { CrewMember, EconomyContext } from './ports.ts';
 
 const POINT_COST_PER_HEALTH_BELOW_OKLIFE = 2;
-const STAT_HEALING_RATE_DIVISOR = 3;
 const HOSPITAL_HEALING_RATE = 5;
 const HUNDREDTHS = 100;
-const MAX_STAT_VALUE = 100;
 const MEDICAL_CHANCE_DIVISOR = 100;
 const SECONDARY_CHANCE_DIVISOR = 200;
-const STAT_DAMAGE_KEYS: readonly (keyof StatDamage)[] = ['agility', 'dexterity', 'strength', 'wisdom'];
 
 function medicalKits(ctx: EconomyContext, doctor: CrewMember): ItemObject[] {
   const medicKit = kitItems(ctx.items).medicKit;
@@ -72,33 +68,6 @@ function healNormalLife(ctx: EconomyContext, patient: CrewMember, doctor: CrewMe
   return left;
 }
 
-function healStat(ctx: EconomyContext, patient: CrewMember, key: keyof StatDamage, amount: number): void {
-  const damage = patient.statDamage[key];
-  const healed = Math.min(amount, damage);
-  if (damage > MAX_STAT_VALUE) return;
-  patient.statDamage[key] = i8(damage - healed);
-  ctx.crew.healStat(patient.id, key, healed);
-}
-
-function healDamagedStats(ctx: EconomyContext, patient: CrewMember, doctor: CrewMember, pointsLeft: number): number {
-  let left = pointsLeft;
-  let worst = 0;
-  STAT_DAMAGE_KEYS.forEach((key, k) => {
-    if (patient.statDamage[key] > patient.statDamage[STAT_DAMAGE_KEYS[worst] ?? 'agility']) worst = k;
-  });
-  const key = STAT_DAMAGE_KEYS[worst] ?? 'agility';
-  let toUse = i8(patient.statDamage[key]);
-  if (toUse > left) toUse = i8(left);
-  for (const kit of medicalKits(ctx, doctor)) {
-    const used = i8(useKitPoints(kit, toUse * STAT_HEALING_RATE_DIVISOR));
-    toUse = i8(toUse - used);
-    left = u16(left - used);
-    healStat(ctx, patient, key, i8(idiv(used, STAT_HEALING_RATE_DIVISOR)));
-    if (toUse <= 0 || !canStatsBeHealed(ctx, patient)) break;
-  }
-  return left;
-}
-
 export function healPatient(ctx: EconomyContext, patient: CrewMember, doctor: CrewMember, hundredths: number): number {
   patient.fractLife = i16(patient.fractLife + hundredths);
   let used = u16(hundredths);
@@ -107,8 +76,7 @@ export function healPatient(ctx: EconomyContext, patient: CrewMember, doctor: Cr
   if (left === 0) return used;
   if (patient.life < OKLIFE) left = healCriticalLife(ctx, patient, doctor, left);
   if (patient.life < patient.lifeMax) left = healNormalLife(ctx, patient, doctor, left);
-  if (canStatsBeHealed(ctx, patient)) left = healDamagedStats(ctx, patient, doctor, left);
-  if (patient.life === patient.lifeMax && !canStatsBeHealed(ctx, patient)) {
+  if (patient.life === patient.lifeMax) {
     used = u16(used - HUNDREDTHS * left);
     used = u16(used - patient.fractLife);
     patient.fractLife = 0;
@@ -168,8 +136,7 @@ export function handleDoctorsInSector(
 }
 
 export function updatePatientsWhoAreDoneHealing(ctx: EconomyContext): void {
-  for (const s of ctx.crew.all())
-    if (s.assignment === Assignment.PATIENT && s.life === s.lifeMax && !canStatsBeHealed(ctx, s)) assignmentDone(ctx, s, true, true);
+  for (const s of ctx.crew.all()) if (s.assignment === Assignment.PATIENT && s.life === s.lifeMax) assignmentDone(ctx, s, true, true);
 }
 
 function healHospitalPatient(ctx: EconomyContext, patient: CrewMember, points: number): void {

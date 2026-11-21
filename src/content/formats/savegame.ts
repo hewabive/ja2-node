@@ -441,7 +441,7 @@ function readSoldiers(ctx: Context, key: Uint8Array | null): SavedSoldierEntry[]
   const entries: SavedSoldierEntry[] = [];
   for (let slot = 0; slot < TOTAL_SOLDIERS; slot++) {
     if (c.u8() === 0) continue;
-    const soldier = decodeSoldierRecord(decryptWith(key, c.view(soldierRecordBytes(ctx.linux))), ctx.version, ctx.linux);
+    const soldier = decodeSoldierRecord(decryptWith(key, c.view(soldierRecordBytes(ctx.linux))), ctx.linux);
     if (soldier.checksum !== soldierChecksum(soldier)) throw new FormatError(`soldier slot ${slot}: checksum mismatch`);
     if (soldier.id !== slot) throw new FormatError(`soldier slot ${slot} holds ubID ${soldier.id}`);
     const mercPath = readMercPath(c);

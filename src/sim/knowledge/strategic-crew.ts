@@ -133,7 +133,6 @@ export function crewMemberFromView(items: ItemTable, m: KnowledgeMerc, placement
     inSector: placement.inSector,
     stats: statsOf(m),
     effective: statsOf(m),
-    statDamage: { agility: 0, dexterity: 0, strength: 0, wisdom: 0 },
     skillTraits: [0, 0],
     profileTraits: [0, 0],
     needForSleep: 0,
@@ -168,7 +167,6 @@ export function projectedCrewPort(
     collapseFromFatigue: change('collapseFromFatigue'),
     spendVehicleFuel: () => 0,
     statChange: change('statChange'),
-    healStat: change('healStat'),
     opinion: () => {
       unsupplied('crew.opinion', guard);
       return 0;

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/game/Strategic/Assignments.cc AreAssignmentConditionsMet, BasicCanCharacterDoctor, CanCharacterDoctor,
-// @src CanStatsBeHealed, CanCharacterPatient, BasicCanCharacterTrainMilitia, CanCharacterTrainMilitia,
+// @src CanCharacterPatient, BasicCanCharacterTrainMilitia, CanCharacterTrainMilitia,
 // @src CountMilitiaTrainersInSoldiersSector, CanCharacterTrainStat, CanCharacterOnDuty, CanCharacterPractise,
 // @src CanCharacterTrainTeammates, CanCharacterBeTrainedByOther, CanCharacterSleep, CanCharacterBeAwakened, CanCharacterSquad,
 // @src IsCharacterInTransit, EnoughTimeOnAssignment, GetMinHealingSkillNeeded, CanSoldierBeHealedByDoctor,
@@ -110,18 +110,8 @@ export function canCharacterDoctor(ctx: EconomyContext, s: CrewMember): boolean 
   return basicCanCharacterDoctor(ctx, s) && hasMedicalKitInPockets(s.inv, kitItems(ctx.items));
 }
 
-export function canStatsBeHealed(ctx: EconomyContext, s: CrewMember): boolean {
-  if (!ctx.economy.policy.enableStatHealing) return false;
-  const d = s.statDamage;
-  return d.agility > 0 || d.dexterity > 0 || d.strength > 0 || d.wisdom > 0;
-}
-
 export function canCharacterPatient(ctx: EconomyContext, s: CrewMember): boolean {
-  return (
-    s.life > 0 &&
-    (s.life !== s.lifeMax || canStatsBeHealed(ctx, s)) &&
-    areAssignmentConditionsMet(ctx, s, AC.UNCONSCIOUS | AC.EPC | AC.UNDERGROUND)
-  );
+  return s.life > 0 && s.life !== s.lifeMax && areAssignmentConditionsMet(ctx, s, AC.UNCONSCIOUS | AC.EPC | AC.UNDERGROUND);
 }
 
 export function basicCanCharacterTrainMilitia(ctx: EconomyContext, s: CrewMember): boolean {
@@ -241,7 +231,7 @@ export function canSoldierBeHealedByDoctor(
 ): boolean {
   if (patient.assignment !== Assignment.PATIENT && patient.assignment !== Assignment.DOCTOR) return false;
   if (patient.life === 0) return false;
-  if (patient.life === patient.lifeMax && !canStatsBeHealed(ctx, patient)) return false;
+  if (patient.life === patient.lifeMax) return false;
   if (thisHour && !enoughTimeOnAssignment(ctx, patient)) return false;
   if (!sameSector(patient.sector, doctor.sector)) return false;
   if (patient.betweenSectors) return false;

@@ -7,7 +7,7 @@ import type { StrategicContent } from '../../src/content/strategic/strategic-con
 import { createItem, createItems, emptyObject, type ItemObject } from '../../src/sim/items/object.ts';
 import { Assignment } from '../../src/sim/strategic/economy/constants.ts';
 import { createEconomyContext, type EconomySetup } from '../../src/sim/strategic/economy/context.ts';
-import type { CrewMember, CrewPort, EconomyContext, MercStats, StatDamage } from '../../src/sim/strategic/economy/ports.ts';
+import type { CrewMember, CrewPort, EconomyContext, MercStats } from '../../src/sim/strategic/economy/ports.ts';
 import { applySquadAssignment } from '../../src/sim/strategic/economy/set-assignment.ts';
 import type { HelicopterPort } from '../../src/sim/strategic/forces/ports.ts';
 import { createStrategicState, type StrategicStateOptions } from '../../src/sim/strategic/state.ts';
@@ -123,7 +123,6 @@ export class FakeCrew implements CrewPort {
       inSector: o.inSector ?? false,
       stats,
       effective: { ...stats, ...o.effective },
-      statDamage: { agility: 0, dexterity: 0, strength: 0, wisdom: 0 },
       skillTraits: o.skillTraits ?? [0, 0],
       profileTraits: o.profileTraits ?? o.skillTraits ?? [0, 0],
       needForSleep: o.needForSleep ?? 7,
@@ -177,11 +176,6 @@ export class FakeCrew implements CrewPort {
 
   statChange(id: number, stat: number, chances: number, cause: number): void {
     this.statChanges.push({ id, stat, chances, cause });
-  }
-
-  healStat(id: number, stat: keyof StatDamage, points: number): void {
-    const m = this.mercs.get(id);
-    if (m) (m.stats as unknown as Record<string, number>)[stat] = ((m.stats as unknown as Record<string, number>)[stat] ?? 0) + points;
   }
 
   opinion(profile: number, about: number): number {

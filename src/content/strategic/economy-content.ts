@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/strategic/MineModel.cc (strategic-mines.json); src/externalized/policy/DefaultGamePolicy.cc
-// @src (starting_cash_*, enable_stat_healing); src/externalized/mercs/MercProfileInfo.cc (type). Tables in data/tables
+// @src (starting_cash_*); src/externalized/mercs/MercProfileInfo.cc (type). Tables in data/tables
 // @src from tools/transcribe/town-loyalty.ts and head-miners.ts.
 
 import { i16 } from '../../core/int.ts';
@@ -68,7 +68,6 @@ export interface HeadMinerTables {
 
 export interface EconomyPolicy {
   readonly startingCash: readonly [number, number, number];
-  readonly enableStatHealing: boolean;
 }
 
 export interface EconomyContent {
@@ -163,7 +162,6 @@ function parseEconomyPolicy(json: unknown): EconomyPolicy {
       cash('starting_cash_medium', DEFAULT_STARTING_CASH[1]),
       cash('starting_cash_hard', DEFAULT_STARTING_CASH[2]),
     ],
-    enableStatHealing: o.enable_stat_healing === undefined ? false : asBool(o.enable_stat_healing, 'enable_stat_healing'),
   };
 }
 

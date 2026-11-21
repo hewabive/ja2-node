@@ -270,10 +270,31 @@ describe('snapshot version 100 (the stat change times on the soldier)', () => {
 
   it('gives every soldier no recent stat change, placed after his stat damage as a new soldier has it, and keeps one already written', () => {
     const migrated = migratedSoldier({ statDamage: STAT_DAMAGE, kills: 2 });
-    expect(migrated).toMatchObject({ statDamage: STAT_DAMAGE, statChanges: {}, kills: 2 });
-    expect(Object.keys(migrated as object).slice(-3)).toEqual(['statDamage', 'statChanges', 'kills']);
+    expect(migrated).toMatchObject({ statChanges: {}, kills: 2 });
+    expect(Object.keys(migrated as object).slice(-2)).toEqual(['statChanges', 'kills']);
     const changed = { marksmanship: { at: 5000, up: true } };
     expect(migratedSoldier({ statDamage: STAT_DAMAGE, statChanges: changed })).toMatchObject({ statChanges: changed });
+  });
+});
+
+describe("snapshot version 104 (the stat damage of master's stat healing)", () => {
+  it("drops every soldier's stat damage, which v0.22.1 does not keep, and leaves his stats as they are", () => {
+    const stats = { agility: 72, wisdom: 65 };
+    const soldier = {
+      id: 3,
+      state: 0,
+      pc: 0,
+      frameSlot: 0,
+      aniDelay: 0,
+      stats,
+      statDamage: { strength: 0, dexterity: 0, agility: 8, wisdom: 5 },
+      kills: 2,
+    };
+    const graph = { externals: [], sections: [['soldiers', { $sparse: 200, $e: [[3, soldier]] }]] };
+    const migrated = migrateSnapshot({ format: SNAPSHOT_FORMAT, version: 104, kind: 'tactical', mapPath: null, graph });
+    const section = migrated.graph.sections[0]?.[1] as { $e: [number, unknown][] } | undefined;
+    const { statDamage: _, ...kept } = soldier;
+    expect(section?.$e[0]?.[1]).toEqual(kept);
   });
 });
 

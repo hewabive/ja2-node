@@ -144,7 +144,6 @@ function crewMember(save: SaveGame, s: SavedSoldier, path: readonly number[], sa
     inSector: s.inSector,
     stats: naturalStats(s),
     effective: effectiveStats(s),
-    statDamage: { ...s.statDamage },
     skillTraits: [...s.skillTraits],
     profileTraits: profile ? [profile.skillTrait, profile.skillTrait2] : [0, 0],
     needForSleep: profile?.needForSleep ?? 0,
@@ -175,7 +174,6 @@ function savedCrew(save: SaveGame, assignments: readonly SavedSoldierAssignment[
     byProfile: (p) => all().find((m) => m.profile === p),
     all,
     statChange: () => {},
-    healStat: () => {},
     opinion: (profile, about) => save.profiles[profile]?.mercOpinion[about] ?? 0,
     dressWound: () => 0,
   };

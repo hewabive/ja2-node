@@ -2910,6 +2910,20 @@ function liftThrownObjectsOntoTheLand(
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+function withoutStatDamage(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutStatDamage(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withoutStatDamage(v);
+  return isSoldierRecord(mapped) ? withoutKeys(mapped, [STAT_DAMAGE_KEY]) : mapped;
+}
+
+function dropStatDamage(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withoutStatDamage(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -3015,5 +3029,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     101: forgetProvedUntrappedDoors,
     102: keepGaplessSlotsAsTheFixedArray,
     103: (snapshot) => liftThrownObjectsOntoTheLand(snapshot, context),
+    104: dropStatDamage,
   };
 }

@@ -150,7 +150,7 @@ function soldierRecord(linux: boolean): Uint8Array {
   v.setUint8(inv + 5 * 36 + 2, 1);
   v.setInt8(inv + 5 * 36 + 4, 90);
   v.setInt8((layoutOffsets(SOLDIER_LAYOUT, linux).get('bOppList') ?? 0) + 23, 1);
-  const checksum = soldierChecksum(decodeSoldierRecord(plain, VERSION, linux));
+  const checksum = soldierChecksum(decodeSoldierRecord(plain, linux));
   v.setUint32(layoutOffsets(SOLDIER_LAYOUT, linux).get('checksum') ?? 0, checksum, true);
   return plain;
 }

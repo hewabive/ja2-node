@@ -344,7 +344,7 @@ ja2-node follows are in this table, its minor rows only there.
 | Sleep need | An integer bug always adds 4 | Fixed (`Assignments.cc:1928, 5527, 6753`) |
 | Flo's discount | Not on blades and launchers | Also on blades and launchers (`ShopKeeper_Interface.cc:2439, 2591`) |
 | M.E.R.C. unlocks | Four hardcoded stages | `mercs-MERC-listings.json` (`Laptop/Mercs.cc:513, 1579`) |
-| Window climbing, Dead is Dead, stat healing | Absent | Additions (`Soldier_Control.cc:5181-6195`; `27` §1.6; `enable_stat_healing`, off, **master**, #115) |
+| Window climbing, Dead is Dead | Absent | Additions (`Soldier_Control.cc:5181-6195`; `27` §1.6) |
 | Light walk (**master**, #105) | `LightTileBlocked`, `LightAddTile`: a window passes light only into its own tile, every struct node of a reached tile is lit (`V:TileEngine/Lighting.c:443-870`); v0.22.1 the same, except that an open door's swing tile does not block (#118, row 11) | The illumination filter of the unreleased overhaul (PR 2432): walls lit by orientation, windows both ways, tall obstacles and cave walls block (`M:TileEngine/Lighting.cc:297`) |
 | Enemies on roofs | No climb points outside test builds, so the AI finds none (`V:TileEngine/WorldDef.c:2789-2796`) | Buildings on every load (`TileEngine/WorldDef.cc:2569`); the AI climbs (`TacticalAI/AIUtils.cc:1191`, `:1222`) |
 | Extra hotkeys | None | J, Shift+J, Ctrl+Shift+R, Ctrl+N, Ctrl+Q, Alt+R, Ctrl+I (`extra_hotkeys`, `Tactical/Turn_Based_Input.cc:1483-1923`; deviations "Game policy keys") |

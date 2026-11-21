@@ -109,7 +109,6 @@ function copyForAutoresolve(s: Soldier): Soldier {
     id: AUTORESOLVE_SOLDIER_ID,
     inv: s.inv.map(cloneObject),
     stats: { ...s.stats },
-    statDamage: { ...s.statDamage },
     drugs: copyDrugCourses(s.drugs),
     gridNo: NOWHERE,
     placed: false,

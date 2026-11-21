@@ -188,7 +188,6 @@ function criticalStatLoss(t: CombatContext, target: Soldier, location: number, r
   const points = rolled >= target.stats[stat] ? target.stats[stat] - 1 : rolled;
   if (points <= 0) return null;
   target.stats[stat] -= points;
-  target.statDamage[stat] += points;
   exportStatChangeToProfile(t, target, stat, -points);
   return { stat, points };
 }
