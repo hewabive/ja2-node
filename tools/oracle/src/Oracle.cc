@@ -9281,9 +9281,16 @@ std::string FlightSoldierRows()
 	return JsonArray(rows);
 }
 
+void AnimateFlightSoldier(SOLDIERTYPE& s)
+{
+	AdjustToNextAnimationFrame(&s);
+	if (gAnimControl[s.usAnimState].uiFlags & ANIM_TURNING) TurnSoldier(&s);
+}
+
 void ProbeShotFlight(Command const& c)
 {
 	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	SOLDIERTYPE* const animated = Has(c, "animate") ? &ExistingSoldier(Required(c, "animate")) : NULL;
 	GridNo const target = GridArgument(c, "target");
 	INT8 const level = static_cast<INT8>(Integer(c, "level", 0));
 	long long const frames = Integer(c, "frames", DEFAULT_FLIGHT_FRAMES);
@@ -9300,13 +9307,14 @@ void ProbeShotFlight(Command const& c)
 		{
 			++frame;
 			guiBaseJA2Clock += step;
-			AdjustToNextAnimationFrame(&s);
-			if (gAnimControl[s.usAnimState].uiFlags & ANIM_TURNING) TurnSoldier(&s);
+			AnimateFlightSoldier(s);
+			if (animated) AnimateFlightSoldier(*animated);
 			DequeAllGameEvents();
 			UpdateBullets();
 			OracleSimulateObjects();
 			bool const flying = OracleFlyingBulletCount() > 0 || OracleLiveObjectCount() > 0;
-			if (launched && !flying) break;
+			bool const attackEnded = !animated || gTacticalStatus.ubAttackBusyCount == 0;
+			if (launched && !flying && attackEnded) break;
 			launched = launched || flying;
 		}
 		return Json{}

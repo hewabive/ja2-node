@@ -2,9 +2,9 @@ Height probe oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-n
 Lets the shot-flight probe fly bullets and thrown objects frame by frame: appended accessors count the bullets still
 flying (Bullets.cc keeps gBullets static), run SimulateObject on every allocated physics slot without the PHYSICSUPDATE
 counter and count those slots (Physics.cc keeps ObjectSlots and SimulateObject static). Nothing calls them in the game.
-Marks three cosmetic Random draws 4001/4000 in the trace of 0002 (deviation "Cosmetic draws in attacks"): a missile
-trail's frame delay, the curse of a merc of ours at a miss and the miss sound of StructureHit. Applied by
-tools/oracle/build.sh after 0032.
+Marks four cosmetic Random draws 4001/4000 in the trace of 0002 (deviation "Cosmetic draws in attacks"): a missile
+trail's frame delay, the curse of a merc of ours at a miss, the miss sound of StructureHit and the impact sound of
+EVENT_SoldierGotHit. Applied by tools/oracle/build.sh after 0032.
 
 --- a/src/game/Tactical/Bullets.cc
 +++ b/src/game/Tactical/Bullets.cc
@@ -43,6 +43,20 @@ tools/oracle/build.sh after 0032.
 +	}
 +	return count;
 +}
+--- a/src/game/Tactical/Soldier_Control.cc
++++ b/src/game/Tactical/Soldier_Control.cc
+@@ -2856,7 +2856,10 @@
+ 	}
+ 	else
+ 	{
+-		PlayLocationJA2Sample(pSoldier->sGridNo, SoundRange<BULLET_IMPACT_1, BULLET_IMPACT_3>(), MIDVOLUME, 1);
++		OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
++		SoundID const impact_sound = SoundRange<BULLET_IMPACT_1, BULLET_IMPACT_3>();
++		OracleTraceMark(ORACLE_MARK_COSMETIC_END);
++		PlayLocationJA2Sample(pSoldier->sGridNo, impact_sound, MIDVOLUME, 1);
+ 	}
+ 
+ 	// PLAY RANDOM GETTING HIT SOUND
 --- a/src/game/Tactical/Weapons.cc
 +++ b/src/game/Tactical/Weapons.cc
 @@ -49,6 +49,10 @@

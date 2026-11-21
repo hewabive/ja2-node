@@ -462,8 +462,10 @@ export class VehicleComparer {
         return done(replayed(() => this.#shotHeight(t, this.#soldier(c, a.who), a)));
       case 'tossheight':
         return done(replayed(() => this.#tossHeight(t, this.#soldier(c, a.who), a)));
-      case 'shotflight':
-        return done(replayed(() => this.#shotFlight(t, this.#soldier(c, a.who), a)));
+      case 'shotflight': {
+        const animated = has(a, 'animate') ? this.#soldier(c, a.animate) : null;
+        return done(replayed(() => this.#shotFlight(t, this.#soldier(c, a.who), a, animated)));
+      }
       default:
         throw new Error('unknown vehicle probe');
     }
@@ -909,7 +911,12 @@ export class VehicleComparer {
     });
   }
 
-  #shotFlight(t: TacticalState, s: Soldier, a: Json): Json {
+  #animateFlightSoldier(t: TacticalState, s: Soldier): void {
+    adjustToNextAnimationFrame(t, s);
+    if (hasAnimFlag(t.content, s.state, AnimFlags.TURNING)) turnSoldier(t, s);
+  }
+
+  #shotFlight(t: TacticalState, s: Soldier, a: Json, animated: Soldier | null): Json {
     if (has(a, 'ap')) s.actionPoints = num(a.ap);
     const level = num(a.level);
     const frames = has(a, 'frames') ? num(a.frames) : DEFAULT_FLIGHT_FRAMES;
@@ -926,8 +933,8 @@ export class VehicleComparer {
     while (frame < frames) {
       frame++;
       t.clockMs += step;
-      adjustToNextAnimationFrame(t, s);
-      if (hasAnimFlag(t.content, s.state, AnimFlags.TURNING)) turnSoldier(t, s);
+      this.#animateFlightSoldier(t, s);
+      if (animated) this.#animateFlightSoldier(t, animated);
       dequeueAllGameEvents(t);
       updateBullets(t);
       const slots = t.explosives.objects.length;
@@ -936,7 +943,8 @@ export class VehicleComparer {
         if (o) simulateObject(t, o);
       }
       const flying = flyingBullets() > 0 || liveObjects() > 0;
-      if (launched && !flying) break;
+      const attackEnded = !animated || t.turn.attackBusyCount === 0;
+      if (launched && !flying && attackEnded) break;
       launched = launched || flying;
     }
     const soldiers = t.soldiers

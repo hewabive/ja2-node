@@ -1,0 +1,28 @@
+# Shots that hit a soldier on a roof (README "Heights"), on SaveGame07: D13 in turn-based combat on our turn, the scene
+# of heights.txt. Ira (2) crouches at 12867; enemy 23 crouches at 12397. Each block loads the save again, seeded, so it
+# repeats.
+#
+# shotflight with animate= runs that soldier's animation beside the shooter's and goes on after the flight until the
+# attack busy count is 0, so the target's hit animation plays to its end. A hit draws the impact sound's Random(3) in
+# EVENT_SoldierGotHit on a roof as on the ground; 0033 marks it cosmetic.
+
+# 1. A shot from the ground at enemy 23 on the east roof.
+seed value=21 pre=reseed
+save SaveGame07
+shotplace who=23 grid=12885 level=1 life=100 lifeMax=100
+shotflight who=2 target=12885 level=1 ap=80 animate=23
+
+# 2. A shot from the east roof at enemy 23 on the north-east roof.
+seed value=22 pre=reseed
+save SaveGame07
+shotplace who=2 grid=12885 level=1
+shotplace who=23 grid=11296 level=1 life=100 lifeMax=100
+shotflight who=2 target=11296 level=1 ap=80 animate=23
+
+# 3. The same hit on the ground, enemy 23 moved two tiles west first: the load leaves the tiles around a soldier who has
+# not moved since with no adjacency record (SetSoldierGridNo removes his records before it adds them, and the UINT8
+# counts wrap back to 0), so a bullet passing beside him draws no suppression roll in the native build.
+seed value=23 pre=reseed
+save SaveGame07
+shotplace who=23 grid=12395 level=0
+shotflight who=2 target=12395 level=0 ap=80 animate=23
