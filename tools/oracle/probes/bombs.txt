@@ -191,7 +191,7 @@ groundcheck who=0 grid=8679 answers=yes
 armbomb grid=8999 item=MINE setting=0 trap=1
 groundcheck who=0 grid=8839 answers=no
 
-# Paths: an enemy avoids his side's flag, our mercs the player's flag but not as the destination.
+# Paths: an enemy avoids his side's flag; our mercs walk around the blue flag, whose structure blocks its tile.
 minepath who=0 to=8999
 minepath who=0 to=8839
 minepath who=0 to=9159
