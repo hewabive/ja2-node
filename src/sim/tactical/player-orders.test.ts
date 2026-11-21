@@ -288,6 +288,30 @@ describe('reverse moves (bReverse)', () => {
     const run = reverseMove(Direction.EAST, ORIGIN - 3 * EAST, 'run');
     expect(run).toMatchObject({ moving: ['WALK_BACKWARDS'], facings: [Direction.EAST] });
   });
+
+  it('walks forward and pays no reverse AP when his gun is raised: lowering it ends the reverse (quirk, Soldier_Control.cc EVENT_InitNewSoldierAnim)', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST);
+    combat(sim);
+    const full = s.actionPoints;
+    expect(sim.dispatch({ type: 'move', soldier: 0, to: ORIGIN - 3 * EAST, mode: 'walk' }).ok).toBe(true);
+    runUntilIdle(sim);
+    const forward = full - s.actionPoints;
+    expect(sim.dispatch({ type: 'move', soldier: 0, to: ORIGIN, mode: 'walk' }).ok).toBe(true);
+    runUntilIdle(sim);
+    s.actionPoints = full;
+    s.direction = Direction.EAST;
+    s.desiredDirection = Direction.EAST;
+    s.state = anim(content, 'AIM_RIFLE_STAND');
+    expect(sim.dispatch({ type: 'move', soldier: 0, to: ORIGIN - 3 * EAST, mode: 'walk', reverse: true }).ok).toBe(true);
+    const moving = new Set<string>();
+    for (let tick = 0; tick < 5_000 && !sim.isIdle(); tick++) {
+      sim.step();
+      if (s.gridNo !== ORIGIN && s.gridNo !== ORIGIN - 3 * EAST) moving.add(animName(content, s.state));
+    }
+    expect([s.gridNo, [...moving], s.direction]).toEqual([ORIGIN - 3 * EAST, ['WALKING'], Direction.WEST]);
+    expect(full - s.actionPoints).toBe(forward);
+  });
 });
 
 describe('exchanging places', () => {

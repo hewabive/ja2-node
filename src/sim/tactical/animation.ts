@@ -597,7 +597,7 @@ function beginAnimation(t: TacticalState, s: Soldier, next: number, startCode: n
   if (hasAnimFlag(content, next, AnimFlags.RT_NONINTERRUPT)) s.rtNonInterruptible = true;
   if (hasAnimFlag(content, next, AnimFlags.SPECIALMOVE)) adjustNoAPToFinishMove(s, false);
   const nextName = content.animations.controls[next]?.id ?? '';
-  if (!hasAnimFlag(content, next, AnimFlags.MOVING) && nextName !== 'END_RIFLE_STAND' && nextName !== 'END_DUAL_STAND') s.reverse = false;
+  if (!hasAnimFlag(content, next, AnimFlags.MOVING)) s.reverse = false;
 
   if (
     !hasAnimFlag(content, s.state, AnimFlags.FIREREADY) &&

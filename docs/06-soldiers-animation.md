@@ -189,6 +189,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Every big male idles with the second big merc animations: `TacticalCreateSoldier` gives each the threaten stance flag | `random-anims.test.ts` |
 | A reverse swat starts in a plain `START_SWAT`; only the `SWATTING` it chains to turns into `SWAT_BACKWARDS` | `player-orders.test.ts` |
 | A reverse move of a body without the backward states pays the first step and leaves him standing: the new state's surface fails after the step was taken | `player-orders.test.ts` |
+| A reverse move begun with a raised gun walks forward: lowering the gun (`END_RIFLE_STAND`, `END_DUAL_STAND`) is not a moving state, so it clears `bReverse`; he turns along his path and his steps cost no reverse AP (`Tactical/Soldier_Control.cc:1383-1387`, `:3556-3562`) | `player-orders.test.ts` "walks forward and pays no reverse AP when his gun is raised …" |
 | Every big male stands, walks, runs and raises his gun in the threaten sheets, so `m_r_std`, `m_r_walk`, `m_r_run2` and `m_raise` never show | `src/content/anim/surface-choice.test.ts`, `hud-view.test.ts` |
 | In water neither the hand item nor wounds choose the sheet: a state without a water sheet, like walking backwards, shows the rifle sheet even with empty hands | `src/content/anim/surface-choice.test.ts` |
 | The queen picks her spit sheet by the direction from two tiles east of her to the target, and has five sheets for eight directions | `hud-view.test.ts`, `src/content/anim/surface-choice.test.ts` |

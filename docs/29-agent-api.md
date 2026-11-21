@@ -634,8 +634,8 @@ by a squad mate standing on his own final tile, with no way around, waits there 
 5 tiles or more away (`07`): `advance {idle}` runs to its budget until the mate moves or the merc gets a new order or a
 `stop`. A `move` with `reverse` is
 the Alt move (`bReverse`): he walks or swats backwards facing away from his path, or side-steps when he faces across it,
-for one more AP a tile; a body without those states, as a civilian escort's, pays the first step and stays where he is
-(`06`). A blinded merc who runs and a drunk one in any move may trip from the second tile of a move on (`07`): he falls
+for one more AP a tile; a body without those states, as a civilian escort's, pays the first step and stays where he is,
+and one with his gun raised lowers it and walks forward (`06`). A blinded merc who runs and a drunk one in any move may trip from the second tile of a move on (`07`): he falls
 where he stands with some APs lost, the move ends there, and `fellDown {soldier, cause: blind|drunk}` brings his CURSE1
 and the original's line, for a soldier out of sight too, named as §7 says. Marbles on a floor or road tile, hidden ones
 too, make anyone slip there the same way and are gone: `slippedOnMarbles {soldier}`, with the line for our mercs only. A FORGETFUL merc may stop on the way with his personality line once he has walked 200 tiles
