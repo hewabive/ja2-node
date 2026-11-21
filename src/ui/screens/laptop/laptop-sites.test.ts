@@ -19,6 +19,7 @@ import { parseSectorString, strategicIndex } from '../../../content/strategic/se
 import type { CampaignSession } from '../../../server/campaign-session.ts';
 import { Bookmark } from '../../../sim/campaign/laptop/laptop-state.ts';
 import { SpeckQuote } from '../../../sim/campaign/laptop/merc-site.ts';
+import { OKLIFE } from '../../../sim/tactical/soldier.ts';
 import { MouseButton } from '../../input/events.ts';
 import { portraitPath } from '../../widgets/portrait.ts';
 import { faceFileOf } from '../tactical/faces.ts';
@@ -29,6 +30,7 @@ import { SPECK_IDLE_CHAT_DELAY } from './merc/speck-idle.ts';
 const DRASSEN_ROW = 2;
 const UNDER_CONSTRUCTION = 'laptop/underconstruction.sti';
 const CONSTRUCTION_FRAME_MS = 200;
+const ANSWERING_MACHINE_WAIT_MS = 3000;
 
 let kit: StubSectorKit;
 let ui: LaptopUiKit;
@@ -279,6 +281,36 @@ describe('A.I.M. on the canvas laptop', () => {
     await until(h, talking);
     expect(t.now - silent).toBeGreaterThanOrEqual(SMALL_TALK_WAIT_MS);
     expect(subtitled()).toBe(true);
+  });
+
+  it('plays the answering machine of a merc of ours, but none while he is out cold (quirk, ExecuteCharacterDialogue)', async () => {
+    const h = await openLaptopHarness(kit, ui, { seed: 27 });
+    const { t } = h;
+    const conferenceClosed = () => find(t, 'closeConference')?.visible !== true;
+    const subtitled = () => t.list.items.some((i) => i.kind === 'image' && i.asset === SUBTITLE_BORDER);
+    const profile = await callMercAtHome(h);
+    await transferFunds(h);
+    await click(t, 'popupOk');
+    await until(h, () => t.runtime.host.modal !== null);
+    await dismissModal(t);
+    await until(h, conferenceClosed);
+    const callAway = async (): Promise<boolean> => {
+      await click(t, 'aimContact');
+      await until(h, () => find(t, 'leaveMessage')?.visible === true);
+      let spoke = false;
+      for (let ms = 0; ms < ANSWERING_MACHINE_WAIT_MS && !spoke; ms += 100) {
+        await wait(h, 100);
+        spoke = subtitled();
+      }
+      await click(t, 'closeConference');
+      await until(h, conferenceClosed);
+      return spoke;
+    };
+    expect(await callAway()).toBe(true);
+    const merc = h.session.campaign.laptop?.roster.byProfile(profile);
+    if (!merc) throw new Error('no hired merc');
+    merc.soldier.life = OKLIFE - 1;
+    expect(await callAway()).toBe(false);
   });
 
   it("blinks the merc's face in the video conference", async () => {

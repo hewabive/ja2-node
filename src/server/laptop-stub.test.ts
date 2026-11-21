@@ -18,6 +18,7 @@ import { SpeckQuote } from '../sim/campaign/laptop/merc-site.ts';
 import { laptopRefusal } from '../sim/campaign/laptop/refusals.ts';
 import { PLAYER_GENERATED_CHARACTER_ID } from '../sim/campaign/laptop/save-import.ts';
 import { MercStatus } from '../sim/tactical/profiles.ts';
+import { OKLIFE } from '../sim/tactical/soldier.ts';
 import { createCampaignSession } from './campaign-factory.ts';
 import { CampaignSession, type TextSource } from './campaign-session.ts';
 import { aimListingOrder } from './laptop-view.ts';
@@ -150,6 +151,30 @@ describe('the laptop view for the canvas pages', () => {
     expect(report.events.map((e) => e.type)).toContain('sectorLoaded');
     expect(session.view().strategic?.flow).toBe('tactical');
     expect(report.worldTime?.hour).toBeLessThan(NOON);
+  });
+
+  it('silences the conference of a merc of ours who is out cold, gassed or a prisoner, as ExecuteCharacterDialogue checks his soldier (quirk, Dialogue_Control.cc:728-753)', async () => {
+    const { session, live } = await newGame(106);
+    const profile = laptopOf(session).aim.find((a) => a.face === 'available')?.profile;
+    if (profile === undefined) throw new Error('nobody is available');
+    const hired = live.dispatch({ type: 'aimHire', profile, contract: 1, gear: false });
+    expect(hired).toMatchObject({ ok: true });
+    const silenced = () => laptopOf(session).aim.find((a) => a.profile === profile)?.silenced;
+    expect(laptopOf(session).aim.find((a) => a.profile === profile)).toMatchObject({ contact: 'answeringMachine', silenced: false });
+    const merc = session.campaign.laptop?.roster.byProfile(profile);
+    if (!merc) throw new Error('no hired merc');
+    merc.soldier.life = OKLIFE - 1;
+    expect(silenced()).toBe(true);
+    merc.soldier.life = merc.soldier.lifeMax;
+    merc.soldier.gassed = true;
+    expect(silenced()).toBe(true);
+    merc.soldier.gassed = false;
+    expect(silenced()).toBe(false);
+    expect(
+      laptopOf(session)
+        .aim.filter((a) => a.profile !== profile)
+        .every((a) => !a.silenced),
+    ).toBe(true);
   });
 
   it('tells the conference the contact mode, the left message and the hire check before any money moves', async () => {

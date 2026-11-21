@@ -22,7 +22,7 @@ import type {
 import type { CampaignSim } from '../sim/campaign/campaign-sim.ts';
 import { mercAccountStatusName } from '../sim/campaign/contracts/merc-account.ts';
 import { financeSummary } from '../sim/campaign/finance-summary.ts';
-import { aimContact, aimFace, aimMessageLeft, contractSalary } from '../sim/campaign/laptop/aim.ts';
+import { aimConferenceSilenced, aimContact, aimFace, aimMessageLeft, contractSalary } from '../sim/campaign/laptop/aim.ts';
 import { bobbyRayItemPrice, bobbyRayUnitPrice, shippingCost } from '../sim/campaign/laptop/bobby-ray.ts';
 import {
   COST_OF_PROFILE,
@@ -141,6 +141,7 @@ function aimView(flow: LaptopFlow): AimMercView[] {
       face: aimFace(flow, id, p),
       contact: aimContact(p),
       messageLeft: aimMessageLeft(p),
+      silenced: aimConferenceSilenced(flow, id),
     });
   }
   return out;

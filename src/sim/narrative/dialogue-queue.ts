@@ -251,7 +251,7 @@ export function handleImportantPbiQuote(host: NarrativeHost, s: Soldier): void {
   if (asleep) makeCharacterDialogueEventSleep(host, s, true);
 }
 
-function speakerSilenced(host: NarrativeHost, s: Soldier, quote: number): boolean {
+export function speakerSilenced(host: Pick<NarrativeHost, 'assignment'>, s: Soldier, quote: number): boolean {
   if (s.life < CONSCIOUSNESS || s.gassed || isRobot(s)) return true;
   if (s.life < OKLIFE && quote !== MercQuote.SERIOUSLY_WOUNDED) return true;
   return heldPrisoner(host, s);

@@ -244,7 +244,7 @@ export function aimMemberPage(context: LaptopContext): LaptopPage {
       },
       say: (quote, now, started) => {
         const merc = current();
-        if (!merc || !videoFace) return;
+        if (!merc || !videoFace || merc.silenced) return;
         const voice = threeDigits(merc.profile);
         const text = context.text.edt(`mercedt/${voice}.edt`, quote) ?? '';
         const { speech, subtitles } = context.settings;

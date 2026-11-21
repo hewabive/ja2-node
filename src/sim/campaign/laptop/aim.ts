@@ -4,11 +4,13 @@
 // @src DisplayMercChargeAmount, DisplayMercsFace, BtnAnsweringMachineButtonCallback, AimMemberHireMerc, AIM_VIDEO_INIT_MODE
 // @src (default contract and kit), BtnHireButtonCallback (the check at HIRE, before the funds), HandleMercAttitude (the
 // @src annoyance of a merc who hangs up and its reset event, 2026-11-14); Tactical/Dialogue_Control.h
-// @src (the quote ids); Tactical/Soldier_Profile.cc StartSomeMercsOnAssignment, DecideActiveTerrorists.
+// @src (the quote ids), Dialogue_Control.cc ExecuteCharacterDialogue (the conference lines of a merc of ours who cannot
+// @src talk are not played); Tactical/Soldier_Profile.cc StartSomeMercsOnAssignment, DecideActiveTerrorists.
 
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import { sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import { i8, idiv } from '../../../core/int.ts';
+import { speakerSilenced } from '../../narrative/dialogue-queue.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
@@ -30,6 +32,7 @@ export const AIM_CONTRACT_LENGTHS = [1, 7, 14] as const;
 export type AimContractLength = (typeof AIM_CONTRACT_LENGTHS)[number];
 export const DEFAULT_AIM_CONTRACT: AimContractLength = 7;
 const DAILY_DIE = 100;
+const ANSWERING_MACHINE_MSG = 84;
 const ASSIGNMENT_CHANCE_PER_LEVEL = 5;
 const AWAY_DAYS_BASE = 6;
 const EASY = 1;
@@ -103,6 +106,11 @@ export function aimQuote(name: QuoteName | null): AimQuote | null {
 export function aimContact(p: ProfileProgress): AimContact {
   if (p.mercStatus === MercStatus.ANNOYED_WONT_CONTACT) return 'unavailable';
   return isMercHireable(p) ? 'firstContact' : 'answeringMachine';
+}
+
+export function aimConferenceSilenced(ctx: LaptopContext, profile: number): boolean {
+  const m = ctx.roster.byProfile(profile);
+  return m !== undefined && speakerSilenced({ assignment: () => m.assignment }, m.soldier, ANSWERING_MACHINE_MSG);
 }
 
 export function aimFace(ctx: LaptopContext, profile: number, p: ProfileProgress): AimFace {

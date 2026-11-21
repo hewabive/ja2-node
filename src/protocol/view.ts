@@ -767,6 +767,7 @@ export interface AimMercView {
   readonly face: AimFaceView;
   readonly contact: AimContactView;
   readonly messageLeft: boolean;
+  readonly silenced: boolean;
 }
 
 export interface MercListingView {
