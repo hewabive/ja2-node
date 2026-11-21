@@ -116,8 +116,8 @@ chance to hit read the value of the soldier's last decision.
 **What changes a soldier's stat also changes his profile, but for the dying bleed.** `changeStat` copies the profile's
 stat into the soldier at every change (`combat/experience.ts`, `Tactical/Campaign.cc:577`), so the stat a critical hit
 costs goes into the profile as well (`exportStatToProfile`, `src/sim/tactical/profiles.ts`; `Tactical/Weapons.cc:2935`,
-`:2973`, `:3005`, `:3037`), though not into its delta. The point of maximum life a dying soldier bleeds away comes off the
-soldier alone (`combat/bleeding.ts`, `Tactical/Soldier_Control.cc:7874-7879`), so his next health gain gives it back
+`:2973`, `:3005`, `:3037`), though not into its delta. The point of maximum life a dying soldier bleeds away comes off
+the soldier alone (`combat/bleeding.ts`, `Tactical/Soldier_Control.cc:7874-7879`), so his next health gain gives it back
 (§3). Only `changeStat` moves the deltas (`ProfileProgress.deltas`, the original's `b*Delta`), for a merc on our team
 (`Tactical/Campaign.cc:566`); prof.dat holds zeros and a native save its own. The personnel page prints a delta beside
 its stat only above 0 (`Laptop/Personnel.cc:659`, `:697`), and Larry's swap adds the other profile's onto its stats

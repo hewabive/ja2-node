@@ -104,9 +104,9 @@ goes by `id` (`worldItemsByIndex`): a theft, the sector inventory's stash and th
 freed index as a record that does not exist. Visibility keeps the original's values (hidden, buried, inside a closed
 container, not yet seen, visible): sight reveals unseen items, a search on the tile reveals hidden ones. An item put on
 a generic structure marks it (`STRUCTURE_HASITEMONTOP`) until the tile's last item leaves: a merc standing on the tile
-turns to it to reach the items, a blast that wrecks it leaves them at its height (§3), and the client makes it an interactive
-tile from the shown items lying on it (`30`). Other sectors' items, clouds and flares live in the campaign's sector
-diffs (`campaign/sector-diff.ts`).
+turns to it to reach the items, a blast that wrecks it leaves them at its height (§3), and the client makes it an
+interactive tile from the shown items lying on it (`30`). Other sectors' items, clouds and flares live in the campaign's
+sector diffs (`campaign/sector-diff.ts`).
 
 **Explosions run on the tick.** Frame `k` of an explosion shows `k·(delay + 5)` ms after ignition and the damage lands
 at the damage key frame (deviation "Explosion timing"). Frame counts come from the graphics through the rule pack's
