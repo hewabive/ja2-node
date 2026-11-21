@@ -251,6 +251,7 @@ import {
   Body,
   inVehicle,
   isTank,
+  NO_PENDING_ANIMATION,
   NO_PROFILE,
   NOWHERE,
   OKBREATH,
@@ -745,14 +746,16 @@ export class TacticalSim {
     const content = this.state.content;
     const frozen = s.noAPToFinishMove && hasAnimFlag(content, s.state, AnimFlags.MOVING | AnimFlags.SPECIALMOVE);
     if (frozen) return false;
+    const loops = timelineLoops(content.timeline, s.state);
+    const pendingAnimationPlays = s.pendingAnimation !== NO_PENDING_ANIMATION && (s.turningUntilDone || !loops);
     return (
       !hasAnimFlag(content, s.state, AnimFlags.STATIONARY) ||
-      (!timelineLoops(content.timeline, s.state) && !hasAnimFlag(content, s.state, AnimFlags.MERCIDLE)) ||
+      (!loops && !hasAnimFlag(content, s.state, AnimFlags.MERCIDLE)) ||
       hasAnimFlag(content, s.state, AnimFlags.STANCECHANGEANIM) ||
       s.desiredDirection !== s.direction ||
       s.inNonInterruptibleAnimation ||
       s.delayedMovement !== 0 ||
-      s.pendingAnimation !== -1 ||
+      pendingAnimationPlays ||
       s.tempObject !== null ||
       s.breathCollapsed
     );

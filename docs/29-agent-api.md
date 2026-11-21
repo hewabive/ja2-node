@@ -111,7 +111,9 @@ Rules: `10`. Orders are accepted only on our turn, with no attack resolving, no 
 other merc of ours acting (deviation "Turn-based UI lock"). A gun attack starts with a queued `beginFireWeapon` game
 event, as the original locks the UI after the click, so every order and `endTurn` are refused with `orderQueued` until
 the agent advances. `advance {idle}` returns when it is our turn again and nobody of ours acts; it also waits for
-bullets, queued game events and our soldiers' one-shot animations (getting up, picking up, climbing).
+bullets, queued game events and our soldiers' one-shot animations (getting up, picking up, climbing). A pending
+animation that neither the animation in progress nor a turn will play, such as a stab halted by dropped items (`10` §3),
+does not count as acting.
 
 - An interrupt in our favour is a decision: only the mercs that have not moved may act (`OK_INTERRUPT_MERC`), and
   `endTurn` gives the turn back (deviation "Interrupt prompt").

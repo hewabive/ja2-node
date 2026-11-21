@@ -174,6 +174,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | Combat starts with a full turn plus the maximum carry-over, because real time never spends APs | `turns/turns.test.ts` |
 | End Turn judges a stopped merc's move by the first step of his path, not by the step he is on | `turns/turns.test.ts` |
 | End Turn cancels a halted walk-up but keeps its strike, so the merc finishes his step and strikes on the enemy's turn | `turns/end-turn.test.ts` |
+| Items a merc sees drop while he kneels to stab a prone target halt the stab but leave it pending (`Tactical/FOV.cc:627`, `Tactical/Soldier_Control.cc:7306-7316`, `:7346-7356`): he is free, and his next stance change kneels him down again and stabs the tile (`Tactical/Soldier_Ani.cc:1841-1846`, `Tactical/Soldier_Control.cc:972-978`) | `turns/end-turn.test.ts` "keeps the halted stab pending, …" |
 | Three teams in the interrupt queue cancel every interrupt, and the mover stops anyway | `turns/turns.test.ts` |
 | A tie in the interrupt duel goes to the mover | `turns/turns.test.ts` |
 | The point for an opponent seen before needs a second sighting: the first records −1, the test asks for `TRUE` | `turns/turns.test.ts` |

@@ -33,12 +33,12 @@ export interface HaltedStrike {
   readonly shooter: Soldier;
 }
 
-export function stabberHaltedOnHisWalkUp(content: TacticalContent): HaltedStrike {
+export function stabberHaltedOnHisWalkUp(content: TacticalContent, dyingLife = DYING_LIFE): HaltedStrike {
   const sim = newCombatSim(content);
   const t = sim.state;
   const stabber = spawnSoldier(sim, 0, Team.OUR, gridNo(83, 83), Direction.NORTHWEST, { gun: 'COMBAT_KNIFE' });
   const sighted = spawnSoldier(sim, 1, Team.OUR, gridNo(80, 95), Direction.SOUTH);
-  const dying = spawnSoldier(sim, 20, Team.ENEMY, gridNo(81, 81), Direction.SOUTHEAST, { life: DYING_LIFE });
+  const dying = spawnSoldier(sim, 20, Team.ENEMY, gridNo(81, 81), Direction.SOUTHEAST, { life: dyingLife });
   const shooter = spawnSoldier(sim, 21, Team.ENEMY, gridNo(80, 100), Direction.NORTH, { marksmanship: POOR_MARKSMANSHIP });
   sim.lookAround();
   runUntilIdle(sim);
