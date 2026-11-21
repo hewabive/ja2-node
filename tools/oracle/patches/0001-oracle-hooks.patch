@@ -14,15 +14,15 @@ wrapper around the static LineOfSightTest. Applied by tools/oracle/build.sh with
      ${CMAKE_CURRENT_SOURCE_DIR}/SaveLoadScreen.cc
 --- a/src/sgp/SGP.cc
 +++ b/src/sgp/SGP.cc
-@@ -22,6 +22,7 @@
+@@ -21,6 +21,7 @@
  #include "policy/GamePolicy.h"
  #include "RustInterface.h"
  #include "EnumCodeGen.h"
 +#include "Oracle.h"
  
  #include "Logger.h"
- #include <SDL3/SDL_events.h>
-@@ -301,6 +302,8 @@
+ #include <iostream>
+@@ -281,6 +282,8 @@
  		}
  		#endif
  
@@ -31,7 +31,7 @@ wrapper around the static LineOfSightTest. Applied by tools/oracle/build.sh with
  		// init locale and logging
  		{
  			std::vector<ST::string> problems = InitGlobalLocale();
-@@ -438,6 +441,13 @@
+@@ -414,6 +417,13 @@
  
  		gfGameInitialized = TRUE;
  
@@ -47,9 +47,9 @@ wrapper around the static LineOfSightTest. Applied by tools/oracle/build.sh with
  			SetIntroType(INTRO_SPLASH);
 --- a/src/game/Tactical/LOS.cc
 +++ b/src/game/Tactical/LOS.cc
-@@ -4239,3 +4239,14 @@
- 	// but we shouldn't(?) need to check it because the target is there!
+@@ -4621,3 +4621,14 @@
  
+ 	return( COLLISION_NONE );
  }
 +
 +

@@ -5,10 +5,10 @@ tools/oracle/creature-ai-compare.ts can drop the skip-list draws of the pathfind
 
 --- a/src/game/Tactical/PathAI.cc
 +++ b/src/game/Tactical/PathAI.cc
-@@ -524,11 +524,21 @@
+@@ -448,11 +448,21 @@
  	*pClosedHead = path_t{};
  }
-
+ 
 +#define ORACLE_MARK_PATH_BEGIN 301
 +#define ORACLE_MARK_PATH_END   302
 +

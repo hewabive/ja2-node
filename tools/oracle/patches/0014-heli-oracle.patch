@@ -27,7 +27,7 @@ after 0013.
  static BOOLEAN DoesSkyriderNoticeEnemiesInSector(UINT8 ubNumEnemies);
  static BOOLEAN HandleSAMSiteAttackOfHelicopterInSector(const SGPSector& sSector);
  static void HeliCharacterDialogue(UINT16 usQuoteNum);
-@@ -565,11 +570,21 @@
+@@ -563,11 +568,21 @@
  
  static void SkyriderDialogue(UINT16 const quote)
  {
@@ -49,7 +49,7 @@ after 0013.
  	class DialogueEventSkyriderMapScreenEvent : public DialogueEvent
  	{
  		public:
-@@ -1446,3 +1461,9 @@
+@@ -1444,3 +1459,9 @@
  {
  	return InHelicopter(s) && fHelicopterIsAirBorne;
  }
@@ -61,7 +61,7 @@ after 0013.
 +}
 --- a/src/game/Strategic/MapScreen.cc
 +++ b/src/game/Strategic/MapScreen.cc
-@@ -7246,6 +7246,9 @@
+@@ -7211,6 +7211,9 @@
  static UINT8 PlayerMercsInHelicopterSector();
  
  
@@ -71,7 +71,7 @@ after 0013.
  static BOOLEAN RequestGiveSkyriderNewDestination(void)
  {
  	// should we allow it?
-@@ -7256,7 +7259,7 @@
+@@ -7221,7 +7224,7 @@
  			( GetNumberInVehicle(GetHelicopter()) == 0 ) &&
  			( PlayerMercsInHelicopterSector() > 0 ) )
  		{
@@ -80,7 +80,7 @@ after 0013.
  			gfSkyriderEmptyHelpGiven = TRUE;
  			return( FALSE );
  		}
-@@ -7268,7 +7271,7 @@
+@@ -7233,7 +7236,7 @@
  		fPlotForHelicopter = TRUE;
  
  		// change cursor to the helicopter
@@ -89,7 +89,7 @@ after 0013.
  
  		// remember the helicopter's current path so we can restore it if need be
  		ClearStrategicPathList(g_prev_path, 0);
-@@ -8051,3 +8054,18 @@
+@@ -8015,3 +8018,18 @@
  	gMPanelRegion.ChangeCursor(EXTERN_CURSOR);
  	fMapInventoryItem = TRUE;
  }

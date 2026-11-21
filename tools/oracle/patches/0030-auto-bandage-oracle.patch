@@ -194,7 +194,7 @@ tools/oracle/build.sh after 0029.
 +}
 --- a/src/game/Tactical/Overhead.cc
 +++ b/src/game/Tactical/Overhead.cc
-@@ -6259,3 +6259,29 @@
+@@ -6332,3 +6332,29 @@
  	CheckIfNearbyGroundSeemsWrong(s, gridno, check_around, &keep_moving);
  	return keep_moving;
  }
@@ -217,7 +217,7 @@ tools/oracle/build.sh after 0029.
 +
 +size_t OracleAwaySlotCount()
 +{
-+	return AwaySlots.size();
++	return guiNumAwaySlots;
 +}
 +
 +SOLDIERTYPE const* OracleAwaySlot(size_t const i)

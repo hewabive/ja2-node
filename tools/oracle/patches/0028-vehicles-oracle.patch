@@ -8,7 +8,7 @@ attacks"). No behaviour change. Applied by tools/oracle/build.sh after 0027.
 
 --- a/src/game/Tactical/Soldier_Control.cc
 +++ b/src/game/Tactical/Soldier_Control.cc
-@@ -8856,11 +8856,13 @@
+@@ -8857,11 +8857,13 @@
  
  	// Pick a random sound
  	UINT8 random_snd;
@@ -35,7 +35,7 @@ attacks"). No behaviour change. Applied by tools/oracle/build.sh after 0027.
  
  /*
   * Smell & Blood system
-@@ -457,7 +461,9 @@
+@@ -463,7 +467,9 @@
  		INT8 const strength = BLOOD_FLOOR_STRENGTH(me.ubBloodInfo);
  		if (strength == 0) return;
  
@@ -47,7 +47,7 @@ attacks"). No behaviour change. Applied by tools/oracle/build.sh after 0027.
  			CREATUREBLOOD;
 --- a/src/game/Tactical/Turn_Based_Input.cc
 +++ b/src/game/Tactical/Turn_Based_Input.cc
-@@ -3407,3 +3407,9 @@
+@@ -3390,3 +3390,9 @@
  		}
  	}
  }
@@ -59,7 +59,7 @@ attacks"). No behaviour change. Applied by tools/oracle/build.sh after 0027.
 +}
 --- a/src/game/Tactical/Vehicles.cc
 +++ b/src/game/Tactical/Vehicles.cc
-@@ -40,6 +40,10 @@
+@@ -41,6 +41,10 @@
  #include <stdexcept>
  #include <vector>
  
@@ -68,9 +68,9 @@ attacks"). No behaviour change. Applied by tools/oracle/build.sh after 0027.
 +#define ORACLE_MARK_COSMETIC_END   4000
 +
  
- UINT8 gubVehicleMovementGroups[MAX_VEHICLES];
+ INT8 gubVehicleMovementGroups[ MAX_VEHICLES ];
  
-@@ -1004,7 +1008,11 @@
+@@ -989,7 +993,11 @@
  	SOLDIERTYPE* mercs_in_vehicle[20];
  	CFOR_EACH_PASSENGER(v, i) mercs_in_vehicle[n_mercs++] = *i;
  

@@ -8,7 +8,7 @@ probe is running. No behaviour change. Applied by tools/oracle/build.sh after 00
 
 --- a/src/game/Tactical/Handle_Items.cc
 +++ b/src/game/Tactical/Handle_Items.cc
-@@ -2303,6 +2303,13 @@
+@@ -2304,6 +2304,13 @@
  }
  
  
@@ -24,7 +24,7 @@ probe is running. No behaviour change. Applied by tools/oracle/build.sh after 00
  	INT8 bInvPos;
 --- a/src/game/TacticalAI/NPC.cc
 +++ b/src/game/TacticalAI/NPC.cc
-@@ -663,6 +663,8 @@
+@@ -662,6 +662,8 @@
  
  
  static UINT8 HandleNPCBeingGivenMoneyByPlayer(UINT8 ubNPC, UINT32 uiMoneyAmount);
@@ -33,7 +33,7 @@ probe is running. No behaviour change. Applied by tools/oracle/build.sh after 00
  
  
  static UINT8 NPCConsiderReceivingItemFromMerc(UINT8 const ubNPC, UINT8 const ubMerc, OBJECTTYPE const* const o, NPCQuoteInfo* const pNPCQuoteInfoArray, NPCQuoteInfo** const ppResultQuoteInfo, UINT8* const pubQuoteNum)
-@@ -1054,6 +1056,24 @@
+@@ -1053,6 +1055,24 @@
  }
  
  

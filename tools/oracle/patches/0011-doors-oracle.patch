@@ -5,7 +5,7 @@ OppList.cc. No behaviour change. Applied by tools/oracle/build.sh after 0010.
 
 --- a/src/game/Tactical/Handle_Doors.cc
 +++ b/src/game/Tactical/Handle_Doors.cc
-@@ -1120,3 +1120,9 @@
+@@ -1092,3 +1092,9 @@
  	}
  	}
  }
@@ -17,14 +17,15 @@ OppList.cc. No behaviour change. Applied by tools/oracle/build.sh after 0010.
 +}
 --- a/src/game/Tactical/OppList.cc
 +++ b/src/game/Tactical/OppList.cc
-@@ -60,5 +60,6 @@
+@@ -58,6 +58,7 @@
+ 
  #include <algorithm>
  #include <iterator>
 +#include <vector>
-
-
+ 
+ 
  static const BOOLEAN gbShowEnemies = FALSE; // XXX seems to be a debug switch
-@@ -5078,3 +5079,13 @@
+@@ -5093,3 +5094,13 @@
  		}
  	}
  }

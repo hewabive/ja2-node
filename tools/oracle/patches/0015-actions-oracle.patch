@@ -21,7 +21,7 @@ while the flag is clear and no trace is collected. Applied by tools/oracle/build
  
 --- a/src/game/Tactical/Interface_Dialogue.cc
 +++ b/src/game/Tactical/Interface_Dialogue.cc
-@@ -1568,6 +1568,14 @@
+@@ -1571,6 +1571,14 @@
  }
  
  
@@ -36,7 +36,7 @@ while the flag is clear and no trace is collected. Applied by tools/oracle/build
  void HandleNPCDoAction( UINT8 ubTargetNPC, UINT16 usActionCode, UINT8 ubQuoteNum )
  {
  	//ScreenMsg(FONT_MCOLOR_LTYELLOW, MSG_INTERFACE, ST::format("Handling {}, action {} at {}", gMercProfiles[ubTargetNPC].zNickname, usActionCode, GetJA2Clock());
-@@ -4167,6 +4175,7 @@
+@@ -4170,6 +4178,7 @@
  	ST::string zTemp2;
  
  	gusDialogueMessageBoxType = usMessageBoxType;
@@ -44,7 +44,7 @@ while the flag is clear and no trace is collected. Applied by tools/oracle/build
  	switch( gusDialogueMessageBoxType )
  	{
  		case NPC_ACTION_ASK_ABOUT_ESCORTING_EPC:
-@@ -4503,6 +4512,34 @@
+@@ -4506,6 +4515,34 @@
  	}
  }
  

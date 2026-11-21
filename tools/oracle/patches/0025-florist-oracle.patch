@@ -1,23 +1,13 @@
 Florist oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-10-24. See LICENSE (SFI-SCLA).
 The order number step of EnterFloristOrderForm moves into AdvanceFlowerOrderNumberOnEntry, the price computation of
 DisplayFlowerDynamicItems into CalcFlowerOrderPrice and the body of BtnFlowerOrderSendButtonCallback into SendFlowerOrder
-(same code, same call sites). Appends OracleFlowerOrder (the form's selection: flower, destination, the six check boxes;
-opens the gallery text when no florist page did), OracleFlowerOrderFormEntered, OracleFlowerOrderPrice and
-OracleFlowerOrderSend. No behaviour change. Applied by tools/oracle/build.sh after 0024.
+(same code, same call sites). Appends OracleFlowerOrder (the form's selection: flower, destination, the six check
+boxes), OracleFlowerOrderFormEntered, OracleFlowerOrderPrice and OracleFlowerOrderSend. No behaviour change. Applied
+by tools/oracle/build.sh after 0024.
 
 --- a/src/game/Laptop/Florist_Order_Form.cc
 +++ b/src/game/Laptop/Florist_Order_Form.cc
-@@ -26,7 +26,9 @@
- #include "ContentManager.h"
- #include "GameInstance.h"
- #include "ShippingDestinationModel.h"
-+#include "EDT.h"
- 
-+#include <optional>
- #include <string_theory/format>
- #include <string_theory/string>
- 
-@@ -235,6 +237,12 @@
+@@ -235,6 +235,12 @@
  
  static void InitFlowerOrderTextInputBoxes(void);
  static void SelectFloristCardGalleryLinkRegionCallBack(MOUSE_REGION* pRegion, UINT32 iReason);
@@ -30,7 +20,7 @@ OracleFlowerOrderSend. No behaviour change. Applied by tools/oracle/build.sh aft
  static void SelectFloristDisableDropDownRegionCallBack(MOUSE_REGION* pRegion, UINT32 iReason);
  static void SelectFloristDropDownRegionCallBack(MOUSE_REGION* pRegion, UINT32 iReason);
  static void SelectFloristGalleryLinkRegionCallBack(MOUSE_REGION* pRegion, UINT32 iReason);
-@@ -297,7 +305,7 @@
+@@ -297,7 +303,7 @@
  
  	InitFlowerOrderTextInputBoxes();
  
@@ -39,7 +29,7 @@ OracleFlowerOrderSend. No behaviour change. Applied by tools/oracle/build.sh aft
  
  	RenderFloristOrderForm();
  }
-@@ -469,32 +477,38 @@
+@@ -472,32 +478,38 @@
  }
  
  
@@ -98,7 +88,7 @@ OracleFlowerOrderSend. No behaviour change. Applied by tools/oracle/build.sh aft
  	}
  }
  
-@@ -607,47 +621,59 @@
+@@ -610,38 +622,30 @@
  }
  
  
@@ -106,6 +96,7 @@ OracleFlowerOrderSend. No behaviour change. Applied by tools/oracle/build.sh aft
 -static void DisplayFlowerDynamicItems(void)
 +static UINT32 CalcFlowerOrderPrice()
  {
+ 	UINT32	uiStartLoc=0;
 -	UINT16	usPosX;
  	ST::string sTemp;
  	UINT16	usPrice;
@@ -139,9 +130,10 @@ OracleFlowerOrderSend. No behaviour change. Applied by tools/oracle/build.sh aft
  
  	//price
 -	usPosX = StringPixLength( sOrderFormText[FLORIST_ORDER_PRICE], FLOWER_ORDEER_SMALL_FONT) + 5 + FLOWER_ORDER_BOUQUET_NAME_X;
- 	sTemp = GetFloristGalleryText(guiCurrentlySelectedFlower, 1);
+ 	uiStartLoc = FLOR_GALLERY_TEXT_TOTAL_SIZE * guiCurrentlySelectedFlower + FLOR_GALLERY_TEXT_TITLE_SIZE;
+ 	sTemp = GCM->loadEncryptedString(FLOR_GALLERY_TEXT_FILE, uiStartLoc, FLOR_GALLERY_TEXT_PRICE_SIZE);
  	sscanf(sTemp.c_str(), "%hu", &usPrice);
- 
+@@ -649,10 +653,30 @@
  	//if its the next day delivery
  	auto destination = GCM->getShippingDestination(gubCurrentlySelectedFlowerLocation);
  	if( gfFLoristCheckBox0Down )
@@ -174,17 +166,14 @@ OracleFlowerOrderSend. No behaviour change. Applied by tools/oracle/build.sh aft
  
  	sTemp = ST::format("${}.00 {}", guiFlowerPrice, pMessageStrings[MSG_USDOLLAR_ABBREVIATION]);
  	DrawTextToScreen(sTemp, usPosX, FLOWER_ORDER_BOUQUET_NAME_Y, 0, FLOWER_ORDEER_SMALL_FONT, FLOWER_ORDEER_SMALL_COLOR, FONT_MCOLOR_BLACK, LEFT_JUSTIFIED);
-@@ -980,3 +1006,35 @@
+@@ -988,3 +1012,32 @@
  	gsSentimentTextField.clear();
  	gsNameTextField.clear();
  }
 +
 +
-+extern std::optional<EDTFile> gFloristGalleryTexts;
-+
 +void OracleFlowerOrder(UINT32 const flower, UINT8 const location, BOOLEAN const next_day, BOOLEAN const crushed, BOOLEAN const black_roses, BOOLEAN const wilted, BOOLEAN const fruit_cake)
 +{
-+	if (!gFloristGalleryTexts) gFloristGalleryTexts = EDTFile(EDTFile::FLORIST_DESCRIPTIONS);
 +	guiCurrentlySelectedFlower         = flower;
 +	gubCurrentlySelectedFlowerLocation = location;
 +	gfFLoristCheckBox0Down             = next_day;

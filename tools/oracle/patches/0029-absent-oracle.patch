@@ -21,7 +21,7 @@ draws in explosions"). No behaviour change. Applied by tools/oracle/build.sh aft
 +}
 --- a/src/game/Strategic/StrategicMap.cc
 +++ b/src/game/Strategic/StrategicMap.cc
-@@ -3251,3 +3251,8 @@
+@@ -3246,3 +3246,8 @@
  {
  	HandleQuestCodeOnSectorExit(oldSector);
  }
@@ -49,7 +49,7 @@ draws in explosions"). No behaviour change. Applied by tools/oracle/build.sh aft
 +}
 --- a/src/game/Tactical/Dialogue_Control.cc
 +++ b/src/game/Tactical/Dialogue_Control.cc
-@@ -62,6 +62,8 @@
+@@ -63,6 +63,8 @@
  #include <queue>
  #include <string_theory/format>
  
@@ -58,7 +58,7 @@ draws in explosions"). No behaviour change. Applied by tools/oracle/build.sh aft
  
  #define DIALOGUE_DEFAULT_SUBTITLE_WIDTH	200
  #define TEXT_DELAY_MODIFIER			60
-@@ -678,6 +680,7 @@
+@@ -679,6 +681,7 @@
  			bool            const delayed_;
  	};
  

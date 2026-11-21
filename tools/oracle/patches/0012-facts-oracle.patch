@@ -22,7 +22,7 @@ change. Applied by tools/oracle/build.sh after 0011.
 +}
 --- a/src/game/Strategic/StrategicMap.cc
 +++ b/src/game/Strategic/StrategicMap.cc
-@@ -3245,3 +3245,9 @@
+@@ -3240,3 +3240,9 @@
  {
  	return SoldierOKForSectorExit(s, exitDirection, additional);
  }

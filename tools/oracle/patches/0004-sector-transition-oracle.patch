@@ -6,11 +6,10 @@ AddSoldierInitListEnemyDefenceSoldiers. Applied by tools/oracle/build.sh after 0
 
 --- a/src/game/Strategic/StrategicMap.cc
 +++ b/src/game/Strategic/StrategicMap.cc
-@@ -3229,3 +3229,19 @@
- 	if (!gWorldSector.IsValid()) return NO_SECTOR;
+@@ -3225,3 +3225,18 @@
  	return gWorldSector.AsByte();
  }
-+
+ 
 +
 +INT16 OraclePickGridNoNearestEdge(SOLDIERTYPE* const s, UINT8 const direction)
 +{
@@ -28,7 +27,7 @@ AddSoldierInitListEnemyDefenceSoldiers. Applied by tools/oracle/build.sh after 0
 +}
 --- a/src/game/Tactical/Soldier_Init_List.cc
 +++ b/src/game/Tactical/Soldier_Init_List.cc
-@@ -409,8 +409,18 @@
+@@ -416,8 +416,18 @@
  }
  
  
@@ -47,7 +46,7 @@ AddSoldierInitListEnemyDefenceSoldiers. Applied by tools/oracle/build.sh after 0
  	SOLDIERCREATE_STRUCT dp{};
  
  	// First check if this guy has a profile and if so check his location such that it matches
-@@ -1818,3 +1828,9 @@
+@@ -1825,3 +1835,9 @@
  		RandomizeRelativeLevel(&bp.bRelativeEquipmentLevel, bp.ubSoldierClass);
  	}
  }

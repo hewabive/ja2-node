@@ -8,7 +8,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
 
 --- a/src/game/Laptop/AIMMembers.cc
 +++ b/src/game/Laptop/AIMMembers.cc
-@@ -579,6 +579,10 @@
+@@ -578,6 +578,10 @@
  static void HandleVideoDistortion(void);
  static void StopMercTalking(void);
  
@@ -19,7 +19,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
  void HandleAIMMembers()
  {
  	//determine if the merc has a quote that is waiting to be said
-@@ -1183,7 +1187,7 @@
+@@ -1181,7 +1185,7 @@
  		return FALSE;
  	}
  
@@ -28,7 +28,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
  
  	MERC_HIRE_STRUCT h;
  	h = MERC_HIRE_STRUCT{};
-@@ -1367,6 +1371,29 @@
+@@ -1360,6 +1364,29 @@
  }
  
  
@@ -58,7 +58,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
  static void DisplayMercChargeAmount(void)
  {
  	if (gubVideoConferencingMode != AIM_VIDEO_HIRE_MERC_MODE) return;
-@@ -1378,25 +1405,7 @@
+@@ -1371,25 +1398,7 @@
  
  	if (FindSoldierByProfileIDOnPlayerTeam(gbCurrentSoldier) == NULL)
  	{
@@ -85,7 +85,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
  	}
  
  	ST::string wDollarTemp = SPrintMoney(giContractAmount);
-@@ -1637,6 +1646,11 @@
+@@ -1630,6 +1639,11 @@
  // InitVideoFaceTalking() is called to start a merc speaking a particular message
  static BOOLEAN InitVideoFaceTalking(UINT8 ubMercID, UINT16 usQuoteNum)
  {
@@ -97,7 +97,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
  	//Starts the merc talking
  	CharacterDialogue(ubMercID, usQuoteNum, giMercFaceIndex, DIALOGUE_CONTACTPAGE_UI, FALSE);
  
-@@ -2251,6 +2265,7 @@
+@@ -2244,6 +2258,7 @@
  
  static void StopMercTalking(void)
  {
@@ -105,7 +105,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
  	if( gfIsShutUpMouseRegionActive )
  	{
  		gSelectedShutUpMercRegion.Disable();
-@@ -2858,6 +2873,7 @@
+@@ -2851,6 +2866,7 @@
  
  static void WaitForMercToFinishTalkingOrUserToClick(void)
  {
@@ -113,7 +113,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
  	//if the region is not active
  	if( !gfIsShutUpMouseRegionActive )
  	{
-@@ -2942,3 +2958,30 @@
+@@ -2935,3 +2951,30 @@
  	DrawTextToScreen(AimMemberText[2], AIM_FI_RIGHT_CLICK_TEXT_X, AIM_FI_LEFT_CLICK_TEXT_Y,                                   AIM_FI_CLICK_TEXT_WIDTH, AIM_FI_HELP_TITLE_FONT, AIM_FONT_MCOLOR_WHITE, FONT_MCOLOR_BLACK, CENTER_JUSTIFIED);
  	DrawTextToScreen(AimMemberText[3], AIM_FI_RIGHT_CLICK_TEXT_X, AIM_FI_LEFT_CLICK_TEXT_Y + AIM_FI_CLICK_DESC_TEXT_Y_OFFSET, AIM_FI_CLICK_TEXT_WIDTH, AIM_FI_HELP_FONT,       AIM_FONT_MCOLOR_WHITE, FONT_MCOLOR_BLACK, CENTER_JUSTIFIED);
  }
@@ -146,7 +146,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
 +}
 --- a/src/game/Laptop/BobbyRGuns.cc
 +++ b/src/game/Laptop/BobbyRGuns.cc
-@@ -1383,3 +1383,9 @@
+@@ -1385,3 +1385,9 @@
  	}
  	return n_items;
  }
@@ -158,7 +158,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
 +}
 --- a/src/game/Laptop/BobbyRMailOrder.cc
 +++ b/src/game/Laptop/BobbyRMailOrder.cc
-@@ -1919,3 +1919,21 @@
+@@ -1931,3 +1931,21 @@
  }
  
  #endif
@@ -182,22 +182,22 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
 +}
 --- a/src/game/Laptop/IMP_Confirm.cc
 +++ b/src/game/Laptop/IMP_Confirm.cc
-@@ -154,65 +154,71 @@
- 	return HireMerc(HireMercStruct);
+@@ -193,57 +193,63 @@
+ 	}
  }
  
 -static void BtnIMPConfirmYes(GUI_BUTTON *btn, UINT32 reason)
 +static void IMPConfirmYes(void)
  {
 -	if (reason & MSYS_CALLBACK_REASON_POINTER_UP)
-+	if (!CanCreateAnotherIMPCharacter())
++	if (LaptopSaveInfo.fIMPCompletedFlag)
  	{
--		if (!CanCreateAnotherIMPCharacter())
+-		if (LaptopSaveInfo.fIMPCompletedFlag)
 -		{
--			// already made as many I.M.P. characters as allowed, leave
+-			// already here, leave
 -			return;
 -		}
-+		// already made as many I.M.P. characters as allowed, leave
++		// already here, leave
 +		return;
 +	}
  
@@ -212,86 +212,71 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
 +		return;
 +	}
  
--		// Taken before the slot is claimed, after which the first free slot is
--		// the next character's, not this one's.
--		ProfileID const profile = GetIMPSlotInProgress();
-+	// Taken before the slot is claimed, after which the first free slot is
-+	// the next character's, not this one's.
-+	ProfileID const profile = GetIMPSlotInProgress();
- 
 -		// line moved by CJC Nov 28 2002 to AFTER the check for money
--		if (!AddCharacterToPlayersTeam()) return; // only if merc hiring failed: no charge, give it another go
+-		LaptopSaveInfo.fIMPCompletedFlag = AddCharacterToPlayersTeam();
+-		if (!LaptopSaveInfo.fIMPCompletedFlag) return; // only if merc hiring failed: no charge, give it another go
 +	// line moved by CJC Nov 28 2002 to AFTER the check for money
-+	if (!AddCharacterToPlayersTeam()) return; // only if merc hiring failed: no charge, give it another go
- 
--		// holds the profile for the rest of the campaign
--		MarkIMPCharacterCreated(profile);
-+	// holds the profile for the rest of the campaign
-+	MarkIMPCharacterCreated(profile);
- 
--		SOLDIERTYPE* const pSoldier = FindSoldierByProfileID(profile);
--		if (!pSoldier) return;
-+	SOLDIERTYPE* const pSoldier = FindSoldierByProfileID(profile);
++	LaptopSaveInfo.fIMPCompletedFlag = AddCharacterToPlayersTeam();
++	if (!LaptopSaveInfo.fIMPCompletedFlag) return; // only if merc hiring failed: no charge, give it another go
++
++	SOLDIERTYPE* const pSoldier = FindSoldierByProfileID(PLAYER_GENERATED_CHARACTER_ID + LaptopSaveInfo.iVoiceId);
 +	if (!pSoldier) return;
++
++	if (fLoadingCharacterForPreviousImpProfile && gamepolicy(imp_load_keep_inventory))
++	{
++		IMPSavedProfileLoadInventory(gMercProfiles[PLAYER_GENERATED_CHARACTER_ID + LaptopSaveInfo.iVoiceId].zNickname, pSoldier);
++		// re-add letter, since it just got wiped and almost certainly is not present in the import
++		if (pSoldier->ubID == 0 && FindObj(pSoldier, LETTER) == NO_SLOT) {
++			CreateSpecialItem(pSoldier, LETTER);
++		}
++	}
+ 
+-		SOLDIERTYPE* const pSoldier = FindSoldierByProfileID(PLAYER_GENERATED_CHARACTER_ID + LaptopSaveInfo.iVoiceId);
+-		if (!pSoldier) return;
++	// charge the player
++	AddTransactionToPlayersBook(IMP_PROFILE, (UINT8)(PLAYER_GENERATED_CHARACTER_ID + LaptopSaveInfo.iVoiceId), GetWorldTotalMin(), -COST_OF_PROFILE);
++	AddHistoryToPlayersLog(HISTORY_CHARACTER_GENERATED, 0, GetWorldTotalMin(), SGPSector(-1, -1));
  
 -		if (fLoadingCharacterForPreviousImpProfile && gamepolicy(imp_load_keep_inventory))
 -		{
--			IMPSavedProfileLoadInventory(gMercProfiles[profile].zNickname, pSoldier);
+-			IMPSavedProfileLoadInventory(gMercProfiles[PLAYER_GENERATED_CHARACTER_ID + LaptopSaveInfo.iVoiceId].zNickname, pSoldier);
 -			// re-add letter, since it just got wiped and almost certainly is not present in the import
 -			if (pSoldier->ubID == 0 && FindObj(pSoldier, LETTER) == NO_SLOT) {
 -				CreateSpecialItem(pSoldier, LETTER);
 -			}
-+	if (fLoadingCharacterForPreviousImpProfile && gamepolicy(imp_load_keep_inventory))
-+	{
-+		IMPSavedProfileLoadInventory(gMercProfiles[profile].zNickname, pSoldier);
-+		// re-add letter, since it just got wiped and almost certainly is not present in the import
-+		if (pSoldier->ubID == 0 && FindObj(pSoldier, LETTER) == NO_SLOT) {
-+			CreateSpecialItem(pSoldier, LETTER);
- 		}
-+	}
- 
--		// charge the player
--		AddTransactionToPlayersBook(IMP_PROFILE, profile, GetWorldTotalMin(), -COST_OF_PROFILE);
--		AddHistoryToPlayersLog(HISTORY_CHARACTER_GENERATED, 0, GetWorldTotalMin(), SGPSector(-1, -1));
--
--		fButtonPendingFlag = TRUE;
--		iCurrentImpPage = IMP_HOME_PAGE;
--
--		// send email notice, naming the character it reports on: by the time the mail
--		// arrives a further I.M.P. may be the one iVoiceId points at
--		if (GCM->getIMPPolicy()->sendsProfileResultsEmail())
--		{
--			AddFutureDayStrategicEvent(EVENT_DAY2_ADD_EMAIL_FROM_IMP, 60 * 7, profile, 2);
 -		}
-+	// charge the player
-+	AddTransactionToPlayersBook(IMP_PROFILE, profile, GetWorldTotalMin(), -COST_OF_PROFILE);
-+	AddHistoryToPlayersLog(HISTORY_CHARACTER_GENERATED, 0, GetWorldTotalMin(), SGPSector(-1, -1));
-+
 +	fButtonPendingFlag = TRUE;
 +	iCurrentImpPage = IMP_HOME_PAGE;
-+
-+	// send email notice, naming the character it reports on: by the time the mail
-+	// arrives a further I.M.P. may be the one iVoiceId points at
-+	if (GCM->getIMPPolicy()->sendsProfileResultsEmail())
-+	{
-+		AddFutureDayStrategicEvent(EVENT_DAY2_ADD_EMAIL_FROM_IMP, 60 * 7, profile, 2);
-+	}
  
--		ResetCharacterStats();
+-		// charge the player
+-		AddTransactionToPlayersBook(IMP_PROFILE, (UINT8)(PLAYER_GENERATED_CHARACTER_ID + LaptopSaveInfo.iVoiceId), GetWorldTotalMin(), -COST_OF_PROFILE);
+-		AddHistoryToPlayersLog(HISTORY_CHARACTER_GENERATED, 0, GetWorldTotalMin(), SGPSector(-1, -1));
++	// send email notice
++	//AddEmail(IMP_EMAIL_PROFILE_RESULTS, IMP_EMAIL_PROFILE_RESULTS_LENGTH, IMP_PROFILE_RESULTS, GetWorldTotalMin());
++	AddFutureDayStrategicEvent(EVENT_DAY2_ADD_EMAIL_FROM_IMP, 60 * 7, 0, 2);
++	//RenderCharProfile();
+ 
+-		fButtonPendingFlag = TRUE;
+-		iCurrentImpPage = IMP_HOME_PAGE;
 +	ResetCharacterStats();
  
--		//Display a popup msg box telling the user when and where the merc will arrive
--		//DisplayPopUpBoxExplainingMercArrivalLocationAndTime();
+-		// send email notice
+-		//AddEmail(IMP_EMAIL_PROFILE_RESULTS, IMP_EMAIL_PROFILE_RESULTS_LENGTH, IMP_PROFILE_RESULTS, GetWorldTotalMin());
+-		AddFutureDayStrategicEvent(EVENT_DAY2_ADD_EMAIL_FROM_IMP, 60 * 7, 0, 2);
+-		//RenderCharProfile();
 +	//Display a popup msg box telling the user when and where the merc will arrive
 +	//DisplayPopUpBoxExplainingMercArrivalLocationAndTime();
  
--		//reset the id of the last merc so we dont get the DisplayPopUpBoxExplainingMercArrivalLocationAndTime() pop up box in another screen by accident
--		LaptopSaveInfo.sLastHiredMerc.iIdOfMerc = -1;
+-		ResetCharacterStats();
 +	//reset the id of the last merc so we dont get the DisplayPopUpBoxExplainingMercArrivalLocationAndTime() pop up box in another screen by accident
 +	LaptopSaveInfo.sLastHiredMerc.iIdOfMerc = -1;
 +}
-+
-+
+ 
+-		//Display a popup msg box telling the user when and where the merc will arrive
+-		//DisplayPopUpBoxExplainingMercArrivalLocationAndTime();
+ 
+-		//reset the id of the last merc so we dont get the DisplayPopUpBoxExplainingMercArrivalLocationAndTime() pop up box in another screen by accident
+-		LaptopSaveInfo.sLastHiredMerc.iIdOfMerc = -1;
 +static void BtnIMPConfirmYes(GUI_BUTTON *btn, UINT32 reason)
 +{
 +	if (reason & MSYS_CALLBACK_REASON_POINTER_UP)
@@ -300,9 +285,9 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
  	}
  }
  
-@@ -292,3 +298,9 @@
- 	p.usMouthX = portrait.mouthX;
- 	p.usMouthY = portrait.mouthY;
+@@ -436,3 +442,9 @@
+ 	p.usMouthX = fi->mouth_x;
+ 	p.usMouthY = fi->mouth_y;
  }
 +
 +
@@ -361,7 +346,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
 +}
 --- a/src/game/Laptop/Mercs_Files.cc
 +++ b/src/game/Laptop/Mercs_Files.cc
-@@ -476,3 +476,9 @@
+@@ -479,3 +479,9 @@
  	EnableButton(guiNextButton, gubCurMercIndex <= LaptopSaveInfo.gubLastMercIndex - 1);
  	EnableButton(guiPrevButton, gubCurMercIndex > 0);
  }
@@ -373,7 +358,7 @@ CompileQuestionsInStatsAndWhatNot and the I.M.P. confirm. No behaviour change. A
 +}
 --- a/src/game/Tactical/Soldier_Profile.cc
 +++ b/src/game/Tactical/Soldier_Profile.cc
-@@ -1079,3 +1079,9 @@
+@@ -1057,3 +1057,9 @@
  	MercProfile p(ubProfileID);
  	return p.isAIMMerc() || p.isMERCMerc();
  }

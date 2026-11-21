@@ -62,7 +62,7 @@ for the call and restore them afterwards. No behaviour change. Applied by tools/
  #endif
 --- a/src/game/Tactical/ShopKeeper_Interface.cc
 +++ b/src/game/Tactical/ShopKeeper_Interface.cc
-@@ -6445,3 +6445,103 @@
+@@ -6433,3 +6433,103 @@
  	DrawHatchOnInventory(FRAME_BUFFER, usPosX, usPosY, usSlotWidth, usSlotHeight);
  	InvalidateRegion(usPosX, usPosY, usPosX + usSlotWidth, usPosY + usSlotHeight);
  }

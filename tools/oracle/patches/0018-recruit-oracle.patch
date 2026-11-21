@@ -7,7 +7,7 @@ trace is collected. Applied by tools/oracle/build.sh after 0017.
 
 --- a/src/game/Strategic/Assignments.cc
 +++ b/src/game/Strategic/Assignments.cc
-@@ -6834,6 +6834,11 @@
+@@ -6684,6 +6684,11 @@
  }
  
  
@@ -19,7 +19,7 @@ trace is collected. Applied by tools/oracle/build.sh after 0017.
  static void InternalUnescortEPC(SOLDIERTYPE* const s)
  {
  	SetupProfileInsertionDataForSoldier(s);
-@@ -6844,7 +6849,7 @@
+@@ -6694,7 +6699,7 @@
  	if (GetInfoForAbandoningEPC(profile, &quote_num, &fact_to_set_to_true))
  	{
  		gMercProfiles[profile].ubMiscFlags |= PROFILE_MISC_FLAG_FORCENPCQUOTE;
@@ -28,7 +28,7 @@ trace is collected. Applied by tools/oracle/build.sh after 0017.
  		SetFactTrue(fact_to_set_to_true);
  	}
  
-@@ -6865,6 +6870,12 @@
+@@ -6715,6 +6720,12 @@
  			ProfileID const epc_;
  	};
  

@@ -17,11 +17,13 @@ fail() {
 }
 
 require_tool() {
-  command -v "$1" >/dev/null 2>&1 || fail "missing '$1'. On Ubuntu: sudo apt-get install build-essential cmake ninja-build pkg-config libsdl3-dev cargo rustc rsync patch"
+  command -v "$1" >/dev/null 2>&1 || fail "missing '$1'. On Ubuntu: sudo apt-get install build-essential cmake ninja-build pkg-config libsdl2-dev cargo rustc rsync patch"
 }
 
 for tool in cmake cargo rustc c++ pkg-config rsync patch; do require_tool "$tool"; done
-pkg-config --exists sdl3 || fail "SDL3 development files not found (sudo apt-get install libsdl3-dev)"
+if [ -z "${SDL2DIR:-}" ]; then
+  pkg-config --exists sdl2 || fail "SDL2 development files not found (sudo apt-get install libsdl2-dev, or SDL2DIR=<dir with include/SDL2 and lib>)"
+fi
 [ -f "$SOURCE_DIR/CMakeLists.txt" ] || fail "Stracciatella sources not found at $SOURCE_DIR"
 case "$WORK_DIR" in
   "$REPO_DIR"|"$REPO_DIR"/*) fail "JA2_ORACLE_DIR must be outside the repository ($WORK_DIR)" ;;

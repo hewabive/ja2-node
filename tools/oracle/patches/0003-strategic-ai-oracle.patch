@@ -14,7 +14,7 @@ Applied by tools/oracle/build.sh after 0002.
  
  /*
  STRATEGIC AI -- UNDERLYING PHILOSOPHY
-@@ -2457,6 +2459,7 @@
+@@ -2460,6 +2462,7 @@
  		InitStrategicMovementCosts();
  	}
  
@@ -22,7 +22,7 @@ Applied by tools/oracle/build.sh after 0002.
  	//KM : Aug 11, 1999 -- Patch fix:  Blindly update the airspace control.  There is a bug somewhere
  	//     that is failing to keep this information up to date, and I failed to find it.  At least this
  	//     will patch saves.
-@@ -2483,6 +2486,7 @@
+@@ -2486,6 +2489,7 @@
  
  	//Update the version number to the most current.
  	gubSAIVersion = SAI_VERSION;

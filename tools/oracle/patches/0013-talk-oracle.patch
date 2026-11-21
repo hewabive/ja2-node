@@ -7,7 +7,7 @@ NPCConsiderQuote and accessors for the record arrays. No behaviour change. Appli
 
 --- a/src/game/TacticalAI/NPC.cc
 +++ b/src/game/TacticalAI/NPC.cc
-@@ -42,6 +42,14 @@
+@@ -41,6 +41,14 @@
  #include <string_theory/format>
  #include <string_theory/string>
  
@@ -22,7 +22,7 @@ NPCConsiderQuote and accessors for the record arrays. No behaviour change. Appli
  
  #define NUM_CIVQUOTE_SECTORS   20
  #define MINERS_CIV_QUOTE_INDEX 16
-@@ -1312,6 +1320,7 @@
+@@ -1311,6 +1319,7 @@
  {
  	DialogueEvent::Add(new DialogueEventCallback<DeleteTalkingMenu>());
  }
@@ -30,7 +30,7 @@ NPCConsiderQuote and accessors for the record arrays. No behaviour change. Appli
  
  
  static void TalkingMenuGiveItem(ProfileID const npc, OBJECTTYPE* const object, INT8 const inv_pos)
-@@ -1339,6 +1348,7 @@
+@@ -1338,6 +1347,7 @@
  
  	DialogueEvent::Add(new DialogueEventGiveItem(npc, object, inv_pos));
  }
@@ -38,7 +38,7 @@ NPCConsiderQuote and accessors for the record arrays. No behaviour change. Appli
  
  
  static void ReturnItemToPlayer(ProfileID const merc, OBJECTTYPE* const o)
-@@ -2102,6 +2112,7 @@
+@@ -2106,6 +2116,7 @@
  
  	DialogueEvent::Add(new DialogueEventTriggerNPC(npc, record, approach, show_dialogue_menu));
  }
@@ -46,10 +46,12 @@ NPCConsiderQuote and accessors for the record arrays. No behaviour change. Appli
  
  
  void TriggerNPCRecord(UINT8 const ubTriggerNPC, UINT8 const record)
-@@ -2746,6 +2757,42 @@
+@@ -2747,3 +2758,39 @@
+ 
+ 	return -1;
  }
- 
- 
++
++
 +UINT8 OracleNPCConsiderTalking(UINT8 const npc, UINT8 const merc, Approach const approach, UINT8 const record, INT32* const index)
 +{
 +	NPCQuoteInfo* const quotes = EnsureQuoteFileLoaded(npc);
@@ -84,8 +86,3 @@ NPCConsiderQuote and accessors for the record arrays. No behaviour change. Appli
 +{
 +	return gpCivQuoteInfoArray[index];
 +}
-+
-+
- #ifdef WITH_UNITTESTS
- #include "DefaultContentManagerUT.h"
- #include "GameVersion.h"

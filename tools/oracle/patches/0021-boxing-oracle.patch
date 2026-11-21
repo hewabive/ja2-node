@@ -5,10 +5,10 @@ boxing match enters or leaves combat. No behaviour change. Applied by tools/orac
 
 --- a/src/externalized/DefaultContentManager.cc
 +++ b/src/externalized/DefaultContentManager.cc
-@@ -1094,9 +1094,15 @@
+@@ -1127,9 +1127,15 @@
  	return m_dealersInventory[dealerId];
  }
-
+ 
 +void OracleTraceMark(UINT32 code);
 +#define ORACLE_MARK_MUSIC_BEGIN 3001
 +#define ORACLE_MARK_MUSIC_END   3000
@@ -20,4 +20,4 @@ boxing match enters or leaves combat. No behaviour change. Applied by tools/orac
 +	OracleTraceMark(ORACLE_MARK_MUSIC_END);
  	auto lower = m_musicMap.lower_bound(mode);
  	std::advance(lower, index);
-
+ 

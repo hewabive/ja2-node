@@ -238,7 +238,7 @@ extern INT16 gsEnemyGainedControlOfSectorID;
 extern INT16 gsCiviliansEatenByMonsters;
 extern INT8 SquadMovementGroups[];
 extern INT16 sDeadMercs[NUMBER_OF_SQUADS][NUMBER_OF_DEAD_SOLDIERS_ON_SQUAD];
-extern UINT8 gubVehicleMovementGroups[];
+extern INT8 gubVehicleMovementGroups[];
 extern BOOLEAN gfExtraElites;
 extern INT32 giForcePercentage;
 extern INT32 giArmyAlertness;
@@ -4294,7 +4294,7 @@ std::string DescribeLaptopProfile(ProfileID const pid)
 		.raw("inventory", Numbers(inventory))
 		.raw("invStatus", Numbers(statuses))
 		.raw("invCount", Numbers(counts))
-		.flag("taken", p.impSlotState == IMPSlotState::TAKEN)
+		.flag("taken", LaptopSaveInfo.fIMPCompletedFlag && pid == PLAYER_GENERATED_CHARACTER_ID + LaptopSaveInfo.iVoiceId)
 		.text();
 }
 
@@ -4576,9 +4576,9 @@ void ProbeImpCreate(Command const& c)
 	INT32* const targets[] = {&iHealth, &iAgility, &iDexterity, &iStrength, &iWisdom, &iLeadership, &iMarksmanship, &iMedical,
 		&iMechanical, &iExplosives};
 	for (int i = 0; i < 10; ++i) *targets[i] = static_cast<INT32>(ParseInteger("attrs", attrs[i]));
-	iPortraitNumber = GetIMPPortraitIndex(male, static_cast<INT32>(Integer(c, "portrait", 0)));
-	LaptopSaveInfo.iVoiceId = GetIMPVoiceIndex(male, static_cast<INT32>(Integer(c, "voice", 0)));
-	ProfileID const slot = GetIMPSlotInProgress();
+	iPortraitNumber = static_cast<INT32>(Integer(c, "portrait", 0)) + (male ? 0 : 8);
+	LaptopSaveInfo.iVoiceId = static_cast<INT32>(Integer(c, "voice", 0)) + (male ? 0 : 3);
+	ProfileID const slot = static_cast<ProfileID>(PLAYER_GENERATED_CHARACTER_ID + LaptopSaveInfo.iVoiceId);
 	std::string const draws = TracedSaiDraws([&] {
 		ResetSkillsAttributesAndPersonality();
 		OracleCompileQuiz(quiz);
@@ -4843,7 +4843,7 @@ void ProbeMakeCivHostile(Command const& c)
 {
 	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
 	std::string const before = DescribeCivState();
-	std::string const draws = TracedSaiDraws([&] { MakeCivHostile(&s); });
+	std::string const draws = TracedSaiDraws([&] { MakeCivHostile(&s, 2); });
 	Emit(Json{}.str("probe", "makecivhostile").num("line", c.line).raw("args", DescribeArgs(c)).num("who", s.ubID).raw("before", before).raw("state", DescribeCivState()).raw("draws", draws));
 }
 
@@ -5713,7 +5713,7 @@ void ProbeGive(Command const& c)
 	giver->bPendingActionData5 = slot;
 	giver->sPendingActionData2 = target->sGridNo;
 	giver->uiPendingActionData4 = target->ubID;
-	SetTempObject(giver, o);
+	giver->pTempObject = new OBJECTTYPE{o};
 	INT16 const apBefore = giver->bActionPoints;
 	ResetTalkProbe();
 	GiveTraces traces;
@@ -5781,7 +5781,8 @@ void ProbeNpcGive(Command const& c)
 	if (pending)
 	{
 		EVENT_StopMerc(npcSoldier);
-		ClearTempObject(npcSoldier);
+		delete npcSoldier->pTempObject;
+		npcSoldier->pTempObject = NULL;
 		Soldier{npcSoldier}.removePendingAction();
 	}
 	npcSoldier->uiStatusFlags &= ~SOLDIER_ENGAGEDINACTION;
@@ -9837,8 +9838,7 @@ std::string DescribeSlotIds(std::vector<SOLDIERTYPE const*> const& slots)
 
 std::string DescribeMercSlots()
 {
-	std::vector<SOLDIERTYPE const*> slots;
-	for (SOLDIERTYPE const* s : ActiveMercs()) slots.push_back(s);
+	std::vector<SOLDIERTYPE const*> slots(MercSlots, MercSlots + guiNumMercSlots);
 	return DescribeSlotIds(slots);
 }
 
@@ -10049,7 +10049,7 @@ void ProbeAutoBandageTimer(Command const& c)
 
 void PlaceOnLevel(SOLDIERTYPE& s, GridNo const gridNo, INT8 const level)
 {
-	SetSoldierHeight(&s, level > 0 ? SECOND_LEVEL_Z_OFFSET : FIRST_LEVEL_Z_OFFSET);
+	SetSoldierHeight(&s, level > 0 ? SECOND_LEVEL_Z_OFFSET : FIRST_LEVEL_Z_OFFET);
 	EVENT_SetSoldierPosition(&s, gridNo, SSP_FORCE_DELETE);
 }
 
@@ -10556,9 +10556,9 @@ std::string DescribeDrawsWithoutPathfinder(std::vector<OracleDraw> const& draws)
 
 bool InMercSlots(SOLDIERTYPE const& s)
 {
-	for (SOLDIERTYPE const* m : ActiveMercs())
+	FOR_EACH_MERC(m)
 	{
-		if (m == &s) return true;
+		if (*m == &s) return true;
 	}
 	return false;
 }
@@ -11883,12 +11883,11 @@ void ProbeSceneSquad(Command const& c)
 
 void QueueEscapeKey()
 {
-	SDL_KeyboardEvent event{};
-	event.key = SDLK_ESCAPE;
-	event.type = SDL_EVENT_KEY_DOWN;
-	KeyDown(&event);
-	event.type = SDL_EVENT_KEY_UP;
-	KeyUp(&event);
+	SDL_Keysym key{};
+	key.sym = SDLK_ESCAPE;
+	key.scancode = SDL_SCANCODE_ESCAPE;
+	KeyDown(&key);
+	KeyUp(&key);
 }
 
 bool SceneFramesDone(std::string const& until)

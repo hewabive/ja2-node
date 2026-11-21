@@ -1,10 +1,13 @@
 # Native oracle (JA2 Stracciatella probe build)
 
 A patched JA2 Stracciatella build that runs headless on the original game data, executes a probe script and prints JSON
-lines; `compare.ts` rebuilds every probe with ja2-node and reports mismatches. Verification level 6 (`01` §8).
+lines; `compare.ts` rebuilds every probe with ja2-node and reports mismatches. Verification level 6 (`01` §8). The build
+is Stracciatella v0.22.1 (`11e9430`), the behaviour reference (`01` D1).
 
 Nothing in this directory contains or produces game data by itself, but probe **outputs** derive from the original data:
-keep them in the work dir outside the repository (default `~/ja2-oracle`), never commit them.
+keep them in the work dir outside the repository, never commit them. The v0.22.1 outputs live in `~/ja2-oracle-v0221`:
+set `JA2_ORACLE_DIR` to it for the scripts and the `oracle` gate, whose default `~/ja2-oracle` holds the outputs of the
+earlier master `ae6bf01` build.
 
 ## What is probed
 
@@ -71,10 +74,13 @@ probe outputs.
 ## Requirements
 
 Tested on Ubuntu 26.04 with GCC 15.2, CMake 4.2.3, Ninja, Rust/Cargo 1.93.1 (minimum in
-`reference/stracciatella/min-rust-version`) and SDL 3.4.2 from the distribution; `build.sh` names the packages it misses.
-The first configure downloads Stracciatella's pinned dependencies and the build fetches the Rust crates, so network
-access is needed once. The build turns off the launcher, the unit tests and the Rust tool binaries, so FLTK and gtest are
-not needed.
+`reference/stracciatella/min-rust-version`) and SDL 2.32.10 from the distribution (v0.22.1 builds on SDL2; master moved
+to SDL3); `build.sh` names the packages it misses. Without `libsdl2-dev` installed, `SDL2DIR` may name a folder with
+`include/SDL2` (the package's headers, its `_real_SDL_config.h` under `include/SDL2/SDL2`) and `lib/libSDL2.so` (a link
+to the installed `libSDL2-2.0.so.0`), which Stracciatella's `FindSDL2.cmake` searches first; `apt-get download
+libsdl2-dev` and `dpkg-deb -x` give the headers without root. The first configure downloads Stracciatella's pinned
+dependencies and the build fetches the Rust crates, so network access is needed once. The build turns off the launcher,
+the unit tests and the Rust tool binaries, so FLTK and gtest are not needed.
 
 ## Build
 
@@ -87,6 +93,27 @@ Every run re-creates the copy from `reference/stracciatella` (commit recorded in
 `$JA2_ORACLE_DIR/src` by content, so unchanged files keep their timestamps and a rebuild after a change to
 `src/Oracle.cc` takes seconds. Configure prints `fatal: not a git repository` once (Stracciatella asks git for a
 version hash; the copy has no `.git`): harmless.
+
+```sh
+JA2_ORACLE_DIR=~/ja2-oracle-v0221 JA2_ORACLE_JOBS=4 tools/oracle/build.sh
+```
+
+builds the v0.22.1 oracle (binary version `0.22.1-oracle.11e9430`). The patches and `src/` were moved from master
+`ae6bf01` to v0.22.1 on 2026-11-20; a hook only prints what v0.22.1 has and brings no master code into the copy:
+
+- Every patch is regenerated as the diff of its files on v0.22.1 with the earlier patches applied, so each applies
+  without offset or fuzz. 0004, 0012 and 0029 append their wrappers at the end of `StrategicMap.cc`, and 0013 at the end
+  of `NPC.cc`, which has no unit test block there in v0.22.1.
+- 0010: `IMPConfirmYes` takes v0.22.1's body of `BtnIMPConfirmYes` (one I.M.P., `fIMPCompletedFlag`, profile
+  `51 + iVoiceId`).
+- 0025: `CalcFlowerOrderPrice` reads the price as v0.22.1 does (`loadEncryptedString`), and `OracleFlowerOrder` opens no
+  gallery text, which v0.22.1 does not cache.
+- 0030: the away slots are v0.22.1's fixed array (`guiNumAwaySlots`).
+- `Oracle.cc`: `impcreate` sets the portrait and voice as v0.22.1's pages do (`+ 8` and `+ 3` for a woman) and its
+  slot is `51 + voice`; the laptop dump's `taken` is the completed I.M.P.'s profile; `mercSlots` and `awaySlots` print
+  the fixed arrays up to their counts, an empty slot as `-1`; Esc goes to SGP as an `SDL_Keysym`; the civilian
+  hostility, give and level probes call v0.22.1's `MakeCivHostile(s, 2)`, temp objects and `FIRST_LEVEL_Z_OFFET`. The
+  `sector` line's `structureHeights` reports v0.22.1's own height cache (`ubStructureHeight`).
 
 ## Run
 
@@ -235,7 +262,8 @@ target, effective stats, personality, opplist, inventory), `cth`, `bestshot`, `l
 A bare `sector` load uses the clock of a fresh process (00:00, `gubEnvLightValue` 0, every tile shade 1). `hour=<h>` sets
 the clock first, which decides which night and prime-time lights `LoadMapLights` powers; `ambient level=<n>` then renders
 the lights at a useful ambient level. The `sector` line reports the structures whose height is already cached
-(`ubStructureHeight`), because only those obstacles block light; after it the comparer reloads the map lights for that
+(`ubStructureHeight`), because only those obstacles block light under master's rule that ja2-node follows until #105
+(v0.22.1's walk ignores obstacles); after it the comparer reloads the map lights for that
 hour and takes the oracle's ambient level and height cache. `lights` is compared tile by tile with the light sprites
 (position, template, ON/PRIME/NIGHT flags; fake merc lights skipped).
 
@@ -999,7 +1027,8 @@ writes `save-probes/all-saves-draws.jsonl` ("Savegames"). Produce one with `mkdi
 
 - `ar/stress.jsonl` and `ar/smoke.jsonl` come from work-dir scripts with no generator in the repository (30 random
   battles over SaveGame01, 02, 07, 09 and 10 with militia, garrisons, codes, retreats and both `pre` modes; the first
-  battle of `autoresolve-d13.txt`); `compare-all.sh` requires them.
+  battle of `autoresolve-d13.txt`); `compare-all.sh` requires them. They are `ar/stress.txt` and `ar/smoke.txt` of the
+  first work dir, `~/ja2-oracle`, copied unchanged into `~/ja2-oracle-v0221/ar/`.
 - `attach` and `florist` are optional: `compare-all.sh` skips them with a hint when missing.
 - `auto-bandage.txt` writes `autobandage/autobandage-draws.jsonl` (on `SaveGame01`, B13).
 - `helidrop.txt` writes `helidrop/helidrop.jsonl` and the saves `OracleHeliDrop` (mid-drop) and `OracleHeliPassenger`
@@ -1026,7 +1055,10 @@ writes `save-probes/all-saves-draws.jsonl` ("Savegames"). Produce one with `mkdi
   sectors B13, C13, D13) on the English JA2 Gold 1.12 data (Steam): `SaveGame03` has no world loaded, its three mercs
   between C12 and C13; `SaveGame07` and `08` were saved in turn-based combat in D13, `SaveGame10` in D13 in real time;
   `09` and `10` are the sci-fi saves; all are on easy with 2–4 % progress. Other saves need other scripts
-  (`save-probes.ts` writes one for any saves).
+  (`save-probes.ts` writes one for any saves). They are save version 99, which v0.22.1 (version 102) loads; the saves
+  the setup scripts write come from the v0.22.1 build.
+- **Recording.** Record one script at a time. An unseeded script draws other values on every run and must match on
+  every run: the v0.22.1 outputs of the unseeded scripts were recorded twice and compared with the same counts.
 
 ## Hooks
 
@@ -1041,12 +1073,12 @@ command to a comparer's `*_PROBES` set, or register a new comparer in the per-fi
 `save` handling if it imports saves): a probe line no comparer claims is skipped without a word. A new script goes to
 `probes/`, its output into `PROBES` of `compare-all.sh`, its domain into "What is probed".
 
-**Changing a hook.** Edit the files in `$JA2_ORACLE_DIR/src`, rebuild with `cmake --build ~/ja2-oracle/build`, then
+**Changing a hook.** Edit the files in `$JA2_ORACLE_DIR/src`, rebuild with `cmake --build "$JA2_ORACLE_DIR/build"`, then
 regenerate the patch from the repo root as the diff of its files, keeping its header lines:
 
 ```sh
 for f in src/game/CMakeLists.txt src/sgp/SGP.cc src/game/Tactical/LOS.cc; do
-  diff -u --label "a/$f" --label "b/$f" "reference/stracciatella/$f" "$HOME/ja2-oracle/src/$f"
+  diff -u --label "a/$f" --label "b/$f" "reference/stracciatella/$f" "$JA2_ORACLE_DIR/src/$f"
 done > /tmp/hooks.patch
 ```
 

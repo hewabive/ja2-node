@@ -48,7 +48,7 @@ tools/oracle/build.sh after 0017.
 +}
 --- a/src/game/TacticalAI/DecideAction.cc
 +++ b/src/game/TacticalAI/DecideAction.cc
-@@ -2454,6 +2454,22 @@
+@@ -2432,6 +2432,22 @@
  }
  
  
@@ -71,7 +71,7 @@ tools/oracle/build.sh after 0017.
  static INT8 DecideActionBlack(SOLDIERTYPE* pSoldier)
  {
  	INT32	iCoverPercentBetter, iOffense, iDefense, iChance;
-@@ -2638,19 +2654,9 @@
+@@ -2616,19 +2632,9 @@
  
  	// offer surrender?
  
@@ -93,7 +93,7 @@ tools/oracle/build.sh after 0017.
  	}
  
  	////////////////////////////////////////////////////////////////////////////
-@@ -3871,3 +3877,13 @@
+@@ -3843,3 +3849,13 @@
  {
  	return DecideActionSchedule(s);
  }
@@ -109,7 +109,7 @@ tools/oracle/build.sh after 0017.
 +}
 --- a/src/game/Tactical/Overhead.cc
 +++ b/src/game/Tactical/Overhead.cc
-@@ -469,6 +469,19 @@
+@@ -539,6 +539,19 @@
  }
  
  

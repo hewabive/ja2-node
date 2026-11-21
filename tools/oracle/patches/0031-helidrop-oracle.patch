@@ -12,7 +12,7 @@ Applied by tools/oracle/build.sh after 0030.
 
 --- a/src/game/GameScreen.cc
 +++ b/src/game/GameScreen.cc
-@@ -267,6 +267,45 @@
+@@ -266,6 +266,45 @@
  static void TacticalScreenLocateToSoldier(void);
  
  
@@ -58,7 +58,7 @@ Applied by tools/oracle/build.sh after 0030.
  ScreenID MainGameScreenHandle(void)
  {
  	//DO NOT MOVE THIS FUNCTION CALL!!!
-@@ -346,21 +385,7 @@
+@@ -345,21 +384,7 @@
  		HandleStrategicTurn( );
  	}
  
@@ -81,7 +81,7 @@ Applied by tools/oracle/build.sh after 0030.
  
  
  	if ( InOverheadMap( ) )
-@@ -375,20 +400,7 @@
+@@ -374,20 +399,7 @@
  		gfGameScreenLocateToSoldier = FALSE;
  	}
  
@@ -247,7 +247,7 @@ Applied by tools/oracle/build.sh after 0030.
 +}
 --- a/src/game/Tactical/Overhead.cc
 +++ b/src/game/Tactical/Overhead.cc
-@@ -6285,3 +6285,8 @@
+@@ -6358,3 +6358,8 @@
  {
  	return AwaySlots[i];
  }
@@ -258,7 +258,7 @@ Applied by tools/oracle/build.sh after 0030.
 +}
 --- a/src/game/TileEngine/Tile_Animation.cc
 +++ b/src/game/TileEngine/Tile_Animation.cc
-@@ -507,3 +507,13 @@
+@@ -498,3 +498,13 @@
  		pAniTile->pLevelNode->uiFlags &= (~LEVELNODE_HIDDEN );
  	}
  }
@@ -274,7 +274,7 @@ Applied by tools/oracle/build.sh after 0030.
 +}
 --- a/src/game/Utils/Message.cc
 +++ b/src/game/Utils/Message.cc
-@@ -281,8 +281,12 @@
+@@ -296,8 +296,12 @@
  
  
  // new screen message
