@@ -8587,15 +8587,21 @@ void ProbeMinePath(Command const& c)
 #include "Bullets.h"
 #include "Event_Pump.h"
 #include "Handle_UI.h"
+#include "Physics.h"
 #include "Soldier_Ani.h"
 
 bool OracleVehicleInteractiveClick(SOLDIERTYPE& s, BOOLEAN fMovementMode);
+UINT32 OracleFlyingBulletCount();
+void OracleSimulateObjects();
+UINT32 OracleLiveObjectCount();
 
 namespace {
 
 constexpr UINT32 VEHICLE_STATUS_FLAGS = SOLDIER_VEHICLE | SOLDIER_DRIVER | SOLDIER_PASSENGER | SOLDIER_PAUSEANIMOVE;
 constexpr long long MAX_TURN_STEPS = 64;
 constexpr long long DEFAULT_ANIMATION_FRAMES = 40;
+constexpr long long DEFAULT_FLIGHT_FRAMES = 600;
+constexpr long long DEFAULT_FLIGHT_STEP_MS = 100;
 constexpr long long DEFAULT_ITEM_STATUS = 100;
 constexpr INT8 AVERAGE_RELATIVE_LEVEL = 2;
 
@@ -9188,6 +9194,143 @@ void ProbeVehicleFire(Command const& c)
 			.num("desiredDirection", s.bDesiredDirection)
 			.num("busy", gTacticalStatus.ubAttackBusyCount)
 			.raw("inv", DescribeBombInventory(s))
+			.text();
+	});
+}
+
+class TargetFieldsScope
+{
+public:
+	explicit TargetFieldsScope(SOLDIERTYPE& s) :
+		s_(s), level_(s.bTargetLevel), cube_(s.bTargetCubeLevel), target_(s.target), ctgtTarget_(s.CTGTTarget) {}
+
+	TargetFieldsScope(TargetFieldsScope const&) = delete;
+	TargetFieldsScope& operator=(TargetFieldsScope const&) = delete;
+
+	~TargetFieldsScope()
+	{
+		s_.bTargetLevel     = level_;
+		s_.bTargetCubeLevel = cube_;
+		s_.target           = target_;
+		s_.CTGTTarget       = ctgtTarget_;
+	}
+
+private:
+	SOLDIERTYPE& s_;
+	INT8 level_;
+	INT8 cube_;
+	SOLDIERTYPE* target_;
+	SOLDIERTYPE const* ctgtTarget_;
+};
+
+void ProbeShotPlace(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const gridNo = Has(c, "grid") ? GridArgument(c, "grid") : s.sGridNo;
+	INT8 const level = static_cast<INT8>(Integer(c, "level", s.bLevel));
+	SetSoldierHeight(&s, level > 0 ? SECOND_LEVEL_Z_OFFSET : FIRST_LEVEL_Z_OFFET);
+	EVENT_SetSoldierPosition(&s, gridNo, SSP_FORCE_DELETE);
+	SetIfGiven(c, "life", s.bLife);
+	SetIfGiven(c, "lifeMax", s.bLifeMax);
+	RunVehicleProbe(c, [&] { return Json{}.num("gridNo", s.sGridNo).num("level", s.bLevel).text(); });
+}
+
+void ProbeShotHeight(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const target = GridArgument(c, "target");
+	INT8 const level = static_cast<INT8>(Integer(c, "level", 0));
+	INT8 const cube = static_cast<INT8>(Integer(c, "cube", 0));
+	RunVehicleProbe(c, [&] {
+		TargetFieldsScope const restore(s);
+		UINT8 const ctgt = SoldierToLocationChanceToGetThrough(&s, target, level, cube, NULL);
+		UINT8 const aiCtgt = AISoldierToLocationChanceToGetThrough(&s, target, level, cube);
+		s.bTargetLevel = level;
+		s.bTargetCubeLevel = cube;
+		FLOAT x, y, z;
+		GetTargetWorldPositions(&s, target, &x, &y, &z);
+		return Json{}.num("ctgt", ctgt).num("aiCtgt", aiCtgt).real("x", x).real("y", y).real("z", z).text();
+	});
+}
+
+void ProbeTossHeight(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const target = GridArgument(c, "target");
+	INT8 const level = static_cast<INT8>(Integer(c, "level", 0));
+	INT16 const endZ = static_cast<INT16>(Integer(c, "endz", level * HEIGHT_UNITS));
+	BOOLEAN const armed = Integer(c, "armed", 1) != 0;
+	BOOLEAN const fromUI = Integer(c, "ui", 1) != 0;
+	OBJECTTYPE o = s.inv[HANDPOS];
+	if (Has(c, "item")) CreateItem(ItemArgument(Text(c, "item", "")), DEFAULT_ITEM_STATUS, &o);
+	RunVehicleProbe(c, [&] {
+		TargetFieldsScope const restore(s);
+		INT16 landing = NOWHERE;
+		INT8 landingLevel = 0;
+		BOOLEAN const ok = CalculateLaunchItemChanceToGetThrough(&s, &o, target, level, endZ, &landing, armed, &landingLevel, fromUI);
+		CalculateLaunchItemParamsForThrow(&s, target, level, endZ, &o, 0, armed ? THROW_ARM_ITEM : NO_THROW_ACTION, NULL);
+		THROW_PARAMS const params = *s.pThrowParams;
+		delete s.pThrowParams;
+		s.pThrowParams = NULL;
+		delete s.pTempObject;
+		s.pTempObject = NULL;
+		return Json{}
+			.flag("ok", ok != FALSE)
+			.num("gridNo", landing)
+			.num("level", landingLevel)
+			.real("z", params.dZ)
+			.real("forceX", params.dForceX)
+			.real("forceY", params.dForceY)
+			.real("forceZ", params.dForceZ)
+			.text();
+	});
+}
+
+std::string FlightSoldierRows()
+{
+	std::vector<std::string> rows;
+	FOR_EACH_SOLDIER(s)
+	{
+		if (s->bInSector) rows.push_back(Numbers({s->ubID, s->sGridNo, s->bLevel, s->bLife, s->bBreath}));
+	}
+	return JsonArray(rows);
+}
+
+void ProbeShotFlight(Command const& c)
+{
+	SOLDIERTYPE& s = ExistingSoldier(Required(c, "who"));
+	GridNo const target = GridArgument(c, "target");
+	INT8 const level = static_cast<INT8>(Integer(c, "level", 0));
+	long long const frames = Integer(c, "frames", DEFAULT_FLIGHT_FRAMES);
+	UINT32 const step = static_cast<UINT32>(Integer(c, "step", DEFAULT_FLIGHT_STEP_MS));
+	if (Has(c, "ap")) s.bActionPoints = static_cast<INT8>(Required(c, "ap"));
+	s.bTargetLevel = level;
+	s.bTargetCubeLevel = 0;
+	RunVehicleProbe(c, [&] {
+		ItemHandleResult const handled = HandleItem(&s, target, level, s.inv[HANDPOS].usItem, FALSE);
+		DequeAllGameEvents();
+		bool launched = false;
+		long long frame = 0;
+		while (frame < frames)
+		{
+			++frame;
+			guiBaseJA2Clock += step;
+			AdjustToNextAnimationFrame(&s);
+			if (gAnimControl[s.usAnimState].uiFlags & ANIM_TURNING) TurnSoldier(&s);
+			DequeAllGameEvents();
+			UpdateBullets();
+			OracleSimulateObjects();
+			bool const flying = OracleFlyingBulletCount() > 0 || OracleLiveObjectCount() > 0;
+			if (launched && !flying) break;
+			launched = launched || flying;
+		}
+		return Json{}
+			.num("handled", handled)
+			.flag("launched", launched)
+			.num("frames", frame)
+			.num("bullets", OracleFlyingBulletCount())
+			.num("objects", OracleLiveObjectCount())
+			.raw("soldiers", FlightSoldierRows())
 			.text();
 	});
 }
@@ -12240,6 +12383,10 @@ void Dispatch(Command const& c)
 	if (c.name == "tankshoot") return ProbeTankShoot(c);
 	if (c.name == "vehiclesteal") return ProbeVehicleSteal(c);
 	if (c.name == "vehiclefire") return ProbeVehicleFire(c);
+	if (c.name == "shotplace") return ProbeShotPlace(c);
+	if (c.name == "shotheight") return ProbeShotHeight(c);
+	if (c.name == "tossheight") return ProbeTossHeight(c);
+	if (c.name == "shotflight") return ProbeShotFlight(c);
 	if (c.name == "vehicleroute") return ProbeVehicleRoute(c);
 	if (c.name == "vehiclewarp") return ProbeVehicleWarp(c);
 	if (c.name == "vehicleleavesector") return ProbeVehicleLeaveSector(c);

@@ -1,0 +1,107 @@
+Height probe oracle hooks for JA2 Stracciatella (Strategy First SFI-SCLA), ja2-node 2026-11-20. See LICENSE (SFI-SCLA).
+Lets the shot-flight probe fly bullets and thrown objects frame by frame: appended accessors count the bullets still
+flying (Bullets.cc keeps gBullets static), run SimulateObject on every allocated physics slot without the PHYSICSUPDATE
+counter and count those slots (Physics.cc keeps ObjectSlots and SimulateObject static). Nothing calls them in the game.
+Marks three cosmetic Random draws 4001/4000 in the trace of 0002 (deviation "Cosmetic draws in attacks"): a missile
+trail's frame delay, the curse of a merc of ours at a miss and the miss sound of StructureHit. Applied by
+tools/oracle/build.sh after 0032.
+
+--- a/src/game/Tactical/Bullets.cc
++++ b/src/game/Tactical/Bullets.cc
+@@ -14,6 +14,10 @@
+ #include <algorithm>
+ #include <iterator>
+
++void OracleTraceMark(UINT32 code);
++#define ORACLE_MARK_COSMETIC_BEGIN 4001
++#define ORACLE_MARK_COSMETIC_END   4000
++
+ #define NUM_BULLET_SLOTS 50
+
+
+@@ -329,7 +333,9 @@
+ 	AniParams = ANITILE_PARAMS{};
+ 	AniParams.sGridNo = (INT16)pBullet->sGridNo;
+ 	AniParams.ubLevelID = ANI_STRUCT_LEVEL;
++	OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
+ 	AniParams.sDelay = (INT16)( 100 + Random( 100 ) );
++	OracleTraceMark(ORACLE_MARK_COSMETIC_END);
+ 	AniParams.sStartFrame = 0;
+ 	AniParams.uiFlags = ANITILE_FORWARD | ANITILE_ALWAYS_TRANSLUCENT;
+ 	AniParams.sX = FIXEDPT_TO_INT32( qCurrX );
+@@ -441,3 +447,13 @@
+
+ 	RecountBullets( );
+ }
++
++UINT32 OracleFlyingBulletCount()
++{
++	UINT32 count = 0;
++	for (BULLET const& b : gBullets)
++	{
++		if (b.fAllocated && !b.fToDelete && !(b.usFlags & BULLET_STOPPED)) ++count;
++	}
++	return count;
++}
+--- a/src/game/Tactical/Weapons.cc
++++ b/src/game/Tactical/Weapons.cc
+@@ -49,6 +49,10 @@
+ #include "Logger.h"
+ #include "GamePolicy.h"
+ 
++void OracleTraceMark(UINT32 code);
++#define ORACLE_MARK_COSMETIC_BEGIN 4001
++#define ORACLE_MARK_COSMETIC_END   4000
++
+ // NB this is arbitrary, chances in DG ranged from 1 in 6 to 1 in 20
+ #define BASIC_DEPRECIATE_CHANCE	15
+ 
+@@ -1624,12 +1628,14 @@
+ 		case SMGCLASS:
+ 		case MGCLASS:
+ 			// Guy has missed, play random sound
++			OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
+ 			if (attacker->bTeam == OUR_TEAM &&
+ 				!attacker->bDoBurst &&
+ 				Random(40) == 0)
+ 			{
+ 				DoMercBattleSound(attacker, BATTLE_SOUND_CURSE1);
+ 			}
++			OracleTraceMark(ORACLE_MARK_COSMETIC_END);
+ 			//fDoMissForGun = TRUE;
+ 			//break;
+ 			fDoMissForGun = TRUE;
+@@ -1712,7 +1718,9 @@
+ 				}
+ 				else
+ 				{
++					OracleTraceMark(ORACLE_MARK_COSMETIC_BEGIN);
+ 					PlayJA2Sample(SoundRange<MISS_1, MISS_8>(), uiMissVolume, 1, SoundDir(sGridNo));
++					OracleTraceMark(ORACLE_MARK_COSMETIC_END);
+ 				}
+ 
+ 				// Default hit is the ground
+--- a/src/game/TileEngine/Physics.cc
++++ b/src/game/TileEngine/Physics.cc
+@@ -2210,3 +2210,21 @@
+ 		}
+ 	}
+ }
++
++void OracleSimulateObjects()
++{
++	for (UINT32 i = 0; i < guiNumObjectSlots; ++i)
++	{
++		if (ObjectSlots[i].fAllocated) SimulateObject(&ObjectSlots[i]);
++	}
++}
++
++UINT32 OracleLiveObjectCount()
++{
++	UINT32 count = 0;
++	for (UINT32 i = 0; i < guiNumObjectSlots; ++i)
++	{
++		if (ObjectSlots[i].fAllocated) ++count;
++	}
++	return count;
++}

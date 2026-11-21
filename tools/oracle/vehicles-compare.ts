@@ -9,7 +9,7 @@ import type { CampaignSim } from '../../src/sim/campaign/campaign-sim.ts';
 import type { RosterMerc } from '../../src/sim/campaign/roster.ts';
 import { flowExitWorld, okForSectorExit } from '../../src/sim/campaign/sector-exits.ts';
 import type { SimEvent } from '../../src/sim/events.ts';
-import { createItem, deleteObject, type ItemObject, swapObjects } from '../../src/sim/items/object.ts';
+import { cloneObject, createItem, deleteObject, type ItemObject, swapObjects } from '../../src/sim/items/object.ts';
 import { doesVehicleNeedAnyRepairs, repairVehicle } from '../../src/sim/strategic/economy/vehicle-repair.ts';
 import { Assignment, VehicleSeat } from '../../src/sim/strategic/forces/constants.ts';
 import type { Group } from '../../src/sim/strategic/forces/groups.ts';
@@ -26,25 +26,37 @@ import {
   initNewSoldierAnim,
   setDesiredDirection,
   setSoldierDirection,
+  states,
   turnSoldier,
 } from '../../src/sim/tactical/animation.ts';
 import { totalArmourProtection } from '../../src/sim/tactical/combat/armour.ts';
-import { handleItem } from '../../src/sim/tactical/combat/attack.ts';
+import { getTargetWorldPositions, handleItem } from '../../src/sim/tactical/combat/attack.ts';
+import {
+  aiSoldierToLocationChanceToGetThrough,
+  BulletFlag,
+  soldierToLocationChanceToGetThrough,
+  updateBullets,
+} from '../../src/sim/tactical/combat/bullets.ts';
 import { soldierTakeDamage } from '../../src/sim/tactical/combat/hit.ts';
 import { soldierToSoldierLos } from '../../src/sim/tactical/combat/positions.ts';
 import { useHandToHandSteal } from '../../src/sim/tactical/combat/steal.ts';
 import { AimShot, DamageReason } from '../../src/sim/tactical/combat/types.ts';
 import { createFromPlacementParts } from '../../src/sim/tactical/creation.ts';
+import { HEIGHT_UNITS, simulateObject } from '../../src/sim/tactical/explosions/physics.ts';
+import { ThrowAction } from '../../src/sim/tactical/explosions/state.ts';
+import { calculateLaunchItemChanceToGetThrough, calculateLaunchItemParamsForThrow } from '../../src/sim/tactical/explosions/trajectory.ts';
 import { clearEventQueue, dequeueAllGameEvents } from '../../src/sim/tactical/game-events.ts';
 import { drawStandingFrame, NEUTRAL_POPULATION, soldierSlotTaken } from '../../src/sim/tactical/init-list.ts';
 import { addSoldierToSector, Insertion } from '../../src/sim/tactical/insertion.ts';
 import { InvSlot } from '../../src/sim/tactical/inventory.ts';
 import { setSoldierPosition, stopMerc } from '../../src/sim/tactical/movement.ts';
-import { isVehicleBody } from '../../src/sim/tactical/person-structure.ts';
+import { isVehicleBody, okToAddMercToWorld } from '../../src/sim/tactical/person-structure.ts';
 import { calcActionPoints, deductPoints } from '../../src/sim/tactical/points.ts';
+import { SECOND_LEVEL_Z_OFFSET, setSoldierHeight } from '../../src/sim/tactical/roofs.ts';
 import {
   Attitude,
   firstFreeSoldierId,
+  inSector,
   NOWHERE,
   Orders,
   onTheGrid,
@@ -53,8 +65,9 @@ import {
   SoldierStatusFlags,
   shownToPlayer,
   Team,
+  withOriginalNowhere,
 } from '../../src/sim/tactical/soldier.ts';
-import type { TacticalState } from '../../src/sim/tactical/state.ts';
+import { removeOccupant, type TacticalState } from '../../src/sim/tactical/state.ts';
 import type { TacticalSim } from '../../src/sim/tactical/tactical-sim.ts';
 import { beginMercTurn } from '../../src/sim/tactical/turns/turns.ts';
 import { BoardingCursor, enterVehicle, enterVehicleCheck, isBoardingRefusal } from '../../src/sim/tactical/vehicle-boarding.ts';
@@ -91,6 +104,10 @@ export const VEHICLE_PROBES: ReadonlySet<string> = new Set([
   'vehicleroute',
   'vehiclewarp',
   'vehicleleavesector',
+  'shotplace',
+  'shotheight',
+  'tossheight',
+  'shotflight',
 ]);
 
 const SEED = 1;
@@ -108,6 +125,8 @@ const ROOF_LEVEL_HEIGHT = 50;
 const AVERAGE_RELATIVE_LEVEL = 2;
 const DEFAULT_ITEM_STATUS = 100;
 const DEFAULT_ANIMATION_FRAMES = 40;
+const DEFAULT_FLIGHT_FRAMES = 600;
+const DEFAULT_FLIGHT_STEP_MS = 100;
 const MAX_TURN_STEPS = 64;
 const DEFAULT_TILE_SIGHT_LIMIT = 255;
 const SECONDS_PER_MINUTE = 60;
@@ -437,6 +456,14 @@ export class VehicleComparer {
         return done(this.#warp(session, c, p, a));
       case 'vehicleleavesector':
         return done({ problems: [], result: this.#leaveSector(c, a, p) }, VEHICLE_SECTOR_EXIT_DEVIATION);
+      case 'shotplace':
+        return done({ problems: [], result: this.#place(t, this.#soldier(c, a.who), a) });
+      case 'shotheight':
+        return done(replayed(() => this.#shotHeight(t, this.#soldier(c, a.who), a)));
+      case 'tossheight':
+        return done(replayed(() => this.#tossHeight(t, this.#soldier(c, a.who), a)));
+      case 'shotflight':
+        return done(replayed(() => this.#shotFlight(t, this.#soldier(c, a.who), a)));
       default:
         throw new Error('unknown vehicle probe');
     }
@@ -821,6 +848,101 @@ export class VehicleComparer {
       if (JSON.stringify(next) !== JSON.stringify(states[states.length - 1])) states.push(next);
     }
     return { handled, states, bullets: t.bullets.length, animState: s.state, ap: s.actionPoints, inv: inventoryRows(s) };
+  }
+
+  #place(t: TacticalState, s: Soldier, a: Json): Json {
+    const level = has(a, 'level') ? num(a.level) : s.level;
+    setSoldierHeight(t, s, level > 0 ? SECOND_LEVEL_Z_OFFSET : 0);
+    setSoldierPosition(t, s, has(a, 'grid') ? num(a.grid) : s.gridNo);
+    if (!okToAddMercToWorld(t, s, s.direction)) removeOccupant(t, s);
+    if (has(a, 'life')) s.life = num(a.life);
+    if (has(a, 'lifeMax')) s.lifeMax = num(a.lifeMax);
+    return { gridNo: s.gridNo, level: s.level };
+  }
+
+  #withTargetFields<T>(s: Soldier, action: () => T): T {
+    const kept = { targetLevel: s.targetLevel, targetCubeLevel: s.targetCubeLevel, target: s.target, ctgtTarget: s.ctgtTarget };
+    try {
+      return action();
+    } finally {
+      Object.assign(s, kept);
+    }
+  }
+
+  #shotHeight(t: TacticalState, s: Soldier, a: Json): Json {
+    const g = num(a.target);
+    const level = num(a.level);
+    const cube = num(a.cube);
+    return this.#withTargetFields(s, () => {
+      const ctgt = soldierToLocationChanceToGetThrough(t, s, g, level, cube, null);
+      const aiCtgt = aiSoldierToLocationChanceToGetThrough(t, s, g, level, cube, states(t.content.animations).STANDING);
+      s.targetLevel = level;
+      s.targetCubeLevel = cube;
+      const at = getTargetWorldPositions(t, s, g);
+      return { ctgt, aiCtgt, x: at.x, y: at.y, z: at.z };
+    });
+  }
+
+  #tossHeight(t: TacticalState, s: Soldier, a: Json): Json {
+    const g = num(a.target);
+    const level = num(a.level);
+    const endZ = has(a, 'endz') ? num(a.endz) : level * HEIGHT_UNITS;
+    const armed = has(a, 'armed') ? num(a.armed) !== 0 : true;
+    const fromUi = has(a, 'ui') ? num(a.ui) !== 0 : true;
+    const hand = s.inv[InvSlot.HAND] as ItemObject;
+    const launched = has(a, 'item') ? createItem(t.content.items, itemIndex(t, String(a.item)), DEFAULT_ITEM_STATUS) : cloneObject(hand);
+    return this.#withTargetFields(s, () => {
+      const landing = calculateLaunchItemChanceToGetThrough(t, s, launched, g, level, endZ, armed, fromUi);
+      const action = armed ? ThrowAction.ARM_ITEM : ThrowAction.NONE;
+      const params = calculateLaunchItemParamsForThrow(t, s, g, level, endZ, launched, 0, action, null);
+      s.tempObject = null;
+      t.explosives.throwParams.delete(s.id);
+      return {
+        ok: landing.ok,
+        gridNo: landing.gridNo,
+        level: landing.level,
+        z: params.z,
+        forceX: params.forceX,
+        forceY: params.forceY,
+        forceZ: params.forceZ,
+      };
+    });
+  }
+
+  #shotFlight(t: TacticalState, s: Soldier, a: Json): Json {
+    if (has(a, 'ap')) s.actionPoints = num(a.ap);
+    const level = num(a.level);
+    const frames = has(a, 'frames') ? num(a.frames) : DEFAULT_FLIGHT_FRAMES;
+    const step = has(a, 'step') ? num(a.step) : DEFAULT_FLIGHT_STEP_MS;
+    s.targetLevel = level;
+    s.targetCubeLevel = 0;
+    const hand = s.inv[InvSlot.HAND] as ItemObject;
+    const handled = handleItem(t, s, num(a.target), level, hand.item);
+    dequeueAllGameEvents(t);
+    const flyingBullets = () => t.bullets.filter((b) => !(b.flags & BulletFlag.STOPPED) && !b.toDelete).length;
+    const liveObjects = () => t.explosives.objects.filter((o) => o !== null).length;
+    let launched = false;
+    let frame = 0;
+    while (frame < frames) {
+      frame++;
+      t.clockMs += step;
+      adjustToNextAnimationFrame(t, s);
+      if (hasAnimFlag(t.content, s.state, AnimFlags.TURNING)) turnSoldier(t, s);
+      dequeueAllGameEvents(t);
+      updateBullets(t);
+      const slots = t.explosives.objects.length;
+      for (let slot = 0; slot < slots; slot++) {
+        const o = t.explosives.objects[slot];
+        if (o) simulateObject(t, o);
+      }
+      const flying = flyingBullets() > 0 || liveObjects() > 0;
+      if (launched && !flying) break;
+      launched = launched || flying;
+    }
+    const soldiers = t.soldiers
+      .filter((x): x is Soldier => !!x && inSector(x))
+      .map((x) => [x.id, withOriginalNowhere(x.gridNo), x.level, x.life, x.breath]);
+    return { handled, launched, frames: frame, bullets: flyingBullets(), objects: liveObjects(), soldiers };
   }
 
   #route(c: CampaignSim, id: number, to: Sector | null): Json {

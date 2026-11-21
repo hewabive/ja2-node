@@ -47,6 +47,7 @@ earlier master `ae6bf01` build.
 | Helicopter drop and passengers | a new game's first drop frame by frame (the seats, the script and its rounds, the fades, the lock and the pause, `HELIDROP` and the step away at 467, the end of the first run), Esc in three phases, the fades without a sample, later arrivals, combat mid-drop, the stall, a save mid-drop and its loads; the helicopter's passengers over the loaded sector (boarding in tactical, turn starts, quotes from anybody, damage, the losing check, a save and its load) | `helidrop.txt`, `helidrop-load.txt` | `helidrop-compare.ts` (the drop and the loads of its save), `heli-passengers-compare.ts` (the passengers) | 0031 | `25` |
 | Savegame bombs and explosions | the bomb queue and the explosions in flight after a native load, on saves the native build writes: a queue saved running whose slot names another bomb, an explosion with its owner in real time, two in combat | `save-bombs-setup.txt` (writes the saves), `save-bombs.txt` | `bombs-compare.ts` | 0027, 0031 | `14` |
 | Savegame bullets and thrown objects | the bullets and thrown objects in flight after a native load, on saves the native build writes: a bullet flown on frame by frame into its target, a grenade loaded where it left the thrower's hand | `save-flight-setup.txt` (writes the saves), `save-flight.txt` | `vehicles-compare.ts` (the shots), `save-flight-compare.ts` | 0028, 0031 | `14` |
+| Heights of shots, throws and missiles | on raised land (D13): where a shot at an empty tile aims and its chance to get through, landing checks and launches of grenades, launched grenades and mortar shells, and whole attacks in flight frame by frame: a thrown grenade, a LAW at a wall, shots up at a roof and from roof to roof, grenade launchers, a mortar, a shot at a door | `heights.txt` | `vehicles-compare.ts` | 0028, 0033 | `11`, `34` |
 | Savegame temp files | the loaded sector's temp files on saves the native build writes: a tear gas cloud spread again at the load, aged and gassing over two turns; the map modifications flag with no record written back and with two window hits; the other sectors' files: every sector's item and corpse records, four sector entries after a load (flags, init list, doors, costs, lights, soldiers) | `save-effects-setup.txt` (writes the saves), `save-effects.txt`, `save-sectors.txt` | `absent-compare.ts`, `strategic-compare.ts`, `vehicles-compare.ts`, `save-sectors-compare.ts` | 0028, 0029, 0030, 0031 | `14` |
 
 Comparers that replay draws rely on the draw trace of 0002; the narrative comparers also on the `CheckFact` and dialogue
@@ -225,7 +226,7 @@ Most comparers replay the native random draws instead of seeding ja2-node:
 | 2001 / 2000 | 0016 | `PostSchedules` |
 | 3001 / 3000 | 0021 | the music pick of `getMusicForMode`, dropped (ja2-node plays no music) |
 | 5101 / 5100, 5201 / 5200 | 0032 (in `Oracle.cc`) | a fade-out and a fade-in callback run by a scene frame (`mwframes`): the loads of a palace scene's trip there and back |
-| 4001 / 4000 | 0027, 0028, 0029 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant (0027); the passenger who speaks a vehicle's battle sound, the footstep variant and the blood pool graphic (0028); a smoke tile's start frame and delay (0029); dropped by the bomb, vehicle, absent and auto-bandage comparers (deviations "Cosmetic draws in attacks", "Cosmetic draws of doors", "Cosmetic draws in explosions", "Footstep variants") |
+| 4001 / 4000 | 0027, 0028, 0029, 0033 | the explosion sound, a failed skill check's curse, the stat-change quote and the battle sound variant (0027); the passenger who speaks a vehicle's battle sound, the footstep variant and the blood pool graphic (0028); a smoke tile's start frame and delay (0029); a missile trail's delay, the miss curse and the miss sound (0033); dropped by the bomb, vehicle, absent and auto-bandage comparers (deviations "Cosmetic draws in attacks", "Cosmetic draws of doors", "Cosmetic draws in explosions", "Footstep variants") |
 
 - **Cosmetic draws** ja2-node does not make are dropped or skipped: the `InitFace` draws of faces opened by a hire or an
   action ("Cosmetic face and frame draws") and, in comparers that match `Random` in order rather than strictly, the
@@ -349,6 +350,26 @@ animations after each load, runs the frames as campaign steps with each frame's 
 and breath of every soldier whose native row changes, frame by frame, and that no bullet is left. Not reached: a thrown
 object's flight after the load (no command runs `SimulateWorld`, and no probe prints the physics table), a thrown
 knife's status from the hand, the item cursor (`14` §4).
+
+### Heights
+
+Commands (0033, with the vehicle state of 0028): `shotplace` puts a soldier on a tile and level and may set his life;
+`shotheight` prints `SoldierToLocationChanceToGetThrough`, `AISoldierToLocationChanceToGetThrough` and the point
+`GetTargetWorldPositions` aims at, for an empty tile, and restores the target fields; `tossheight` prints
+`CalculateLaunchItemChanceToGetThrough` (the landing tile and level, as the toss cursor asks or with `ui=0` as the AI
+does) and the launch `CalculateLaunchItemParamsForThrow` makes with no miss, for the hand item or `item=`; `shotflight`
+runs `HandleItem` (not from the interface, the target level set first, as the AI does) and then frames of 100 ms (the
+shooter's animation frame, the game events, `UpdateBullets`, every physics object through 0033's
+`OracleSimulateObjects`) until what it launched has stopped. The miss tile's release of the attacker and an
+explosion's frames need tile animations, which the oracle never runs: a bullet stopped at a structure stays allocated
+and counts as stopped, and an explosion stays at frame 0 with its busy count. 0033 marks three cosmetic `Random`
+draws (a missile trail's delay, the miss curse and the miss sound) as 4001/4000, which the comparer drops.
+
+`heights.txt` runs on `SaveGame07`, D13 in turn-based combat, where the land lies 80 px (409 height units) above the
+map's zero almost everywhere: every scenario is on raised land, where the v0.22.1 model (absolute heights, the roof
+line at one storey of absolute height, the bullet's ceiling at two storeys) and master's height fixes (#108) part.
+`vehicles-compare.ts` replays every draw strictly and compares the results, the soldiers' tiles, levels, life and
+breath, the vehicle state and the ignited explosions.
 
 ### Sector transitions
 
@@ -1043,6 +1064,7 @@ writes `save-probes/all-saves-draws.jsonl` ("Savegames"). Produce one with `mkdi
 - `save-sectors.txt` writes `save-sectors/entries.jsonl` ("Savegame temp files").
 - `meanwhile-scenes.txt` writes `meanwhile-scenes/scenes.jsonl` ("Meanwhile scenes"); it needs a build with 0032.
 - `map-entry.txt` writes `map-entry/map-entry.jsonl` ("Map-to-sector entry"); it needs a build with 0032.
+- `heights.txt` writes `heights/heights.jsonl` ("Heights"); it needs a build with 0033.
 - `save-bombs-setup.txt` writes `save-bombs/setup.jsonl` and the saves `OracleExplosion`, `OracleBombQueue` and
   `OracleCombatBlast` into the oracle's home; `save-bombs.txt` reads them from there, so it runs after it, and writes
   `save-bombs/loads.jsonl`. The work dir keeps copies of the saves in `save-bombs/`, where `compare.ts` finds them.

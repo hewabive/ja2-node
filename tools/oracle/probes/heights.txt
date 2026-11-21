@@ -1,0 +1,86 @@
+# Heights of shots, throws and missiles (README "Heights"), on SaveGame07: D13 in turn-based combat on our turn. D13
+# lies 80 px (409 height units) above the map's zero almost everywhere, so every shot and throw here runs on raised
+# land. Ira (2) crouches at 12867; enemy 23 crouches at 12397. Buildings with flat roofs: the east one has its west wall
+# on column 82 (12882) and roof tiles from 83 to 89 on rows 76-83 (12885); the north-east one roofs columns 93-100 on
+# rows 66-75 (11296); a door stands at 12858. Each block loads the save again, seeded, so it repeats.
+#
+# shotplace puts a soldier on a tile and level (SetSoldierHeight, EVENT_SetSoldierPosition) and may set his life.
+# shotheight prints SoldierToLocationChanceToGetThrough, AISoldierToLocationChanceToGetThrough and the point
+# GetTargetWorldPositions aims at, for an empty tile; it draws nothing and restores the target fields.
+# tossheight prints CalculateLaunchItemChanceToGetThrough (the landing tile and level, as the toss cursor or the AI asks)
+# and the launch of CalculateLaunchItemParamsForThrow with no miss, for the hand item or item=; it draws nothing.
+# shotflight runs HandleItem with the hand item at a tile and level, then frames of 100 ms: the shooter's animation
+# frame, the game events, UpdateBullets and every physics object, until what it launched has stopped.
+
+# 1. Where a shot at an empty tile aims, from the ground and from a roof: a door, a roof, open ground.
+seed value=11 pre=reseed
+save SaveGame07
+shotheight who=2 target=12875 level=0
+shotheight who=2 target=12858 level=0
+shotheight who=2 target=12858 level=1
+shotheight who=2 target=12885 level=0
+shotheight who=2 target=12885 level=1
+shotplace who=2 grid=12885 level=1
+shotheight who=2 target=11296 level=1
+shotheight who=2 target=12875 level=0
+
+# 2. Landing checks and launches on raised land: a grenade at open ground and at a roof, as the cursor and as the AI
+# asks, a launched grenade, a mortar shell; then from the east roof.
+seed value=12 pre=reseed
+save SaveGame07
+vehicleinv who=2 slot=5 item=HAND_GRENADE status=100
+tossheight who=2 target=12875 level=0
+tossheight who=2 target=12875 level=0 ui=0
+tossheight who=2 target=12871 level=0
+tossheight who=2 target=12885 level=1
+tossheight who=2 target=12877 level=0 item=GL_HE_GRENADE
+tossheight who=2 target=12877 level=0 item=GL_HE_GRENADE endz=0 ui=0
+tossheight who=2 target=16067 level=0 item=MORTAR_SHELL
+tossheight who=2 target=12875 level=0 armed=0 item=ROCK
+shotplace who=2 grid=12885 level=1
+tossheight who=2 target=12875 level=0
+tossheight who=2 target=11296 level=1
+
+# 3. A thrown grenade at open ground eight tiles east.
+seed value=13 pre=reseed
+save SaveGame07
+vehicleinv who=2 slot=5 item=HAND_GRENADE status=100
+shotflight who=2 target=12875 level=0 ap=80
+
+# 4. A LAW at the west wall of the east building.
+seed value=14 pre=reseed
+save SaveGame07
+vehicleinv who=2 slot=5 item=ROCKET_LAUNCHER status=100
+shotflight who=2 target=12882 level=0 ap=80
+
+# 5. A shot from the ground up at an empty tile of the east roof: it aims at the roof and flies up past the roof line.
+seed value=15 pre=reseed
+save SaveGame07
+shotflight who=2 target=12885 level=1 ap=80
+
+# 6. A shot from the east roof at an empty tile of the north-east roof.
+seed value=16 pre=reseed
+save SaveGame07
+shotplace who=2 grid=12885 level=1
+shotflight who=2 target=11296 level=1 ap=80
+
+# 7. A grenade launcher at open ground ten tiles east, and at the east roof.
+seed value=17 pre=reseed
+save SaveGame07
+vehicleinv who=2 slot=5 item=GLAUNCHER status=100 attach=GL_HE_GRENADE
+shotflight who=2 target=12877 level=0 ap=80
+seed value=18 pre=reseed
+save SaveGame07
+vehicleinv who=2 slot=5 item=GLAUNCHER status=100 attach=GL_HE_GRENADE
+shotflight who=2 target=12886 level=1 ap=80
+
+# 8. A mortar at open ground twenty tiles south.
+seed value=19 pre=reseed
+save SaveGame07
+vehicleinv who=2 slot=5 item=MORTAR status=100 attach=MORTAR_SHELL
+shotflight who=2 target=16067 level=0 ap=80
+
+# 9. A shot at the door at 12858: where a shot at a door aims.
+seed value=20 pre=reseed
+save SaveGame07
+shotflight who=2 target=12858 level=0 ap=80
