@@ -26,6 +26,7 @@ import { NEUTRAL_POPULATION } from '../../src/sim/tactical/init-list.ts';
 import { addSoldierToSector, Insertion } from '../../src/sim/tactical/insertion.ts';
 import { InvSlot } from '../../src/sim/tactical/inventory.ts';
 import { directionToward, setSoldierPosition } from '../../src/sim/tactical/movement.ts';
+import { randomIdleFor } from '../../src/sim/tactical/random-anims.ts';
 import { removeSoldierFromTacticalSector } from '../../src/sim/tactical/sector-presence.ts';
 import { Body, inSector, NO_PENDING_ANIMATION, NOWHERE, type Soldier, TEAM_FIRST_ID, Team } from '../../src/sim/tactical/soldier.ts';
 import type { TacticalState } from '../../src/sim/tactical/state.ts';
@@ -59,6 +60,8 @@ const SAVED =
   'the probe’s own save, which the server refuses in a drop (helicopterDrop) and whose snapshot changes nothing; the native SaveGame’s header draw only moves the generator the frames are fed from';
 const RANDOM_IDLES_TAKEN =
   'idle checks (code 491) of ours fed the dice of their frame that started their random idle animation natively: the replay’s A9 garrison stands and moves elsewhere (no placement outcome), so its idle checks draw in other frames and ours could take a garrison soldier’s dice';
+const GARRISON_IDLE_DICE_PASSED =
+  'idle checks (code 491) of ours passed over the dice of their frame that would have started their random idle animation, in a frame whose native rows show the A9 garrison acting and none of ours starting one: those dice went to a garrison soldier, whose idle checks the replay (no placement outcome) makes in other frames';
 const IMPORT_LANDS_THE_SEATS =
   'original-bugs "Helicopter drop in a native save": the import lands the seats a save made in mid-drop holds and selects the first, and the drop’s statics start fresh (deviation "Helicopter drop statics"), so the seats, the run, the selection, the last step’s time and the mercs it lands are not compared';
 const RUN_AFTER_A_FADE_OUT_SKIP =
@@ -110,7 +113,7 @@ const grid = (g: number) => (g === NOWHERE ? NATIVE_NOWHERE : g);
 const args = (p: Json): Record<string, string> => (p.args ?? {}) as Record<string, string>;
 
 function nativeIdleDice(t: TacticalState, f: Json | undefined): Map<number, number> {
-  const rolls = ((f?.draws as Draw[] | undefined) ?? []).filter((d) => d[0] === MAIN_STREAM && d[1] === IDLE_DICE).map((d) => d[2]);
+  const rolls = nativeIdleRolls(f);
   const dice = new Map<number, number>();
   for (const r of (f?.changed as unknown[][] | undefined) ?? []) {
     const s = num(r[0]) < FIRST_OTHER_ID ? t.soldiers[num(r[0])] : null;
@@ -120,6 +123,62 @@ function nativeIdleDice(t: TacticalState, f: Json | undefined): Map<number, numb
     if (s && roll !== undefined) dice.set(s.id, roll);
   }
   return dice;
+}
+
+function nativeIdleRolls(f: Json | undefined): number[] {
+  return ((f?.draws as Draw[] | undefined) ?? []).filter((d) => d[0] === MAIN_STREAM && d[1] === IDLE_DICE).map((d) => d[2]);
+}
+
+function garrisonActs(f: Json | undefined): boolean {
+  return ((f?.changed as unknown[][] | undefined) ?? []).some((r) => num(r[0]) >= FIRST_OTHER_ID);
+}
+
+class FrameIdleRolls {
+  readonly #rolls: readonly number[];
+  #taken = 0;
+  passed = 0;
+
+  constructor(rolls: readonly number[]) {
+    this.#rolls = rolls;
+  }
+
+  counted<T>(t: TacticalState, act: () => T): T {
+    const rng = t.rng as unknown as Record<string, unknown>;
+    const own = rng.int as (k: number) => number;
+    rng.int = (k: number) => {
+      if (k === IDLE_DICE) this.#taken++;
+      return own(k);
+    };
+    try {
+      return act();
+    } finally {
+      rng.int = own;
+    }
+  }
+
+  passingOverIdleStarts<T>(t: TacticalState, s: Soldier, act: () => T): T {
+    const rng = t.rng as unknown as Record<string, unknown>;
+    const counting = rng.int as (k: number) => number;
+    rng.int = (k: number) => {
+      rng.int = counting;
+      if (k !== IDLE_DICE) return counting(k);
+      while (this.#startsAnIdle(t, s)) {
+        counting(k);
+        this.passed++;
+      }
+      return counting(k);
+    };
+    try {
+      return act();
+    } finally {
+      rng.int = counting;
+    }
+  }
+
+  #startsAnIdle(t: TacticalState, s: Soldier): boolean {
+    const roll = this.#rolls[this.#taken];
+    return roll !== undefined && (randomIdleFor(t, s, roll)?.state ?? null) !== null;
+  }
 }
 
 function withNextDraw<T>(t: TacticalState, n: number, value: number, act: () => T): T {
@@ -626,13 +685,16 @@ export class HeliDropComparer {
     return report(label, problems.length === 0, problems.join('; ') || SAVED);
   }
 
-  #withNativeIdleDice(t: TacticalState, dice: Map<number, number>, act: () => void): number {
+  #withNativeIdleDice(t: TacticalState, dice: Map<number, number>, garrison: FrameIdleRolls | null, act: () => void): number {
     const hooks = t.hooks;
     let taken = 0;
     t.hooks = {
       ...hooks,
       opcode: (state, s, code) => {
-        const roll = code === RANDOM_ANIM_CHECK ? dice.get(s.id) : undefined;
+        if (code !== RANDOM_ANIM_CHECK) return hooks.opcode(state, s, code);
+        const roll = dice.get(s.id);
+        if (roll === undefined && garrison && s.id < FIRST_OTHER_ID)
+          return garrison.passingOverIdleStarts(state, s, () => hooks.opcode(state, s, code));
         if (roll === undefined) return hooks.opcode(state, s, code);
         dice.delete(s.id);
         taken++;
@@ -682,16 +744,22 @@ export class HeliDropComparer {
     let last = this.#rows(t);
     let nativeCombat = t.inCombat;
     let idlesTaken = 0;
+    let idlesPassed = 0;
     for (let frame = 1; frame <= count && problems.length === 0; frame++) {
       const f = byFrame.get(frame);
       if (f) nativeCombat = num((f.globals as number[])[GLOBAL.inCombat]) !== 0;
       const before = this.#tactical();
+      const rolls = new FrameIdleRolls(nativeIdleRolls(f));
       const lines = queuedLines(c, () =>
-        inOrder(c.state, (f?.draws as Draw[] | undefined) ?? [], () => {
-          if (frame === 1 && a.esc === '1') skipHelicopterDropOf(c);
-          idlesTaken += this.#withNativeIdleDice(before, nativeIdleDice(before, f), () => c.step());
-        }),
+        inOrder(c.state, (f?.draws as Draw[] | undefined) ?? [], () =>
+          rolls.counted(before, () => {
+            if (frame === 1 && a.esc === '1') skipHelicopterDropOf(c);
+            const garrison = garrisonActs(f) ? rolls : null;
+            idlesTaken += this.#withNativeIdleDice(before, nativeIdleDice(before, f), garrison, () => c.step());
+          }),
+        ),
       );
+      idlesPassed += rolls.passed;
       const rows = this.#rows(this.#tactical());
       if (this.#tactical().inCombat !== nativeCombat) {
         this.#skipping = COMBAT_BY_THE_GARRISON;
@@ -703,7 +771,8 @@ export class HeliDropComparer {
     if (problems.length === 0)
       differences(this.#asImported(this.#teamState()), this.#asImported(this.#nativeTeamState(p)), 'state', problems);
     const idles = idlesTaken > 0 ? `; ${idlesTaken} ${RANDOM_IDLES_TAKEN}` : '';
-    return report(label, problems.length === 0, problems.join('; ') || `${count} frames${idles}`);
+    const passed = idlesPassed > 0 ? `; ${idlesPassed} ${GARRISON_IDLE_DICE_PASSED}` : '';
+    return report(label, problems.length === 0, problems.join('; ') || `${count} frames${idles}${passed}`);
   }
 
   #frameDifferences(frame: number, f: Json | undefined, last: Map<number, Row>, rows: Map<number, Row>, lines: number[][]): string[] {

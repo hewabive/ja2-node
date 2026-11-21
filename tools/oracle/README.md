@@ -1005,7 +1005,12 @@ dice: after `hdsave` a native frame draws the dice 74, for the garrison soldier 
 the range of `FEM_WIPE` (`Tactical/Animation_Control.cc:1881`) that merc 1 starts, while in the replay merc 1 takes the
 74 and stands. Where a merc of ours starts a random idle animation natively, the comparer feeds his idle check of that
 frame the frame's dice in the animation's range, and ja2-node's own check picks the animation (labelled with their
-count). Labelled, not compared: the facing, destination and position of a merc with no tile, the other soldiers, the
+count). The other way round, in a frame whose native rows show a garrison soldier acting while no merc of ours starts
+an idle animation, an idle check of ours passes over each next die of the frame that would start one of his idle
+animations (`randomIdleFor`), as such a die went to the garrison soldier, and takes the first that starts none (labelled
+with their count): in block 9, the save made in mid-drop, the frame 2868 draws 10 and 62 while the garrison soldier 20
+acts, and merc 1, who starts nothing natively, would take the 10, the range of `FEM_KICKSN`, and start it. Labelled,
+not compared: the facing, destination and position of a merc with no tile, the other soldiers, the
 "has arrived" messages (the event `mercDropped`), a block's rest once the A9 garrison's AI begins combat (the dump
 carries no placement outcome and no AI pass state to replay it), the block with `live=0` (the fades ramp as with a
 sample playing, `25`), and a block's rest from an arrival after an Esc skip in the fade-out (the next run plays in full,

@@ -50,14 +50,15 @@ function dueForCheck(s: Soldier): boolean {
   return true;
 }
 
+export function randomIdleFor(t: TacticalState, s: Soldier, roll: number): RandomAnim | undefined {
+  const hand = randomHandIndex(t, s);
+  if (hand === null) return undefined;
+  return t.content.animations.randomAnims[s.bodyType]?.find((a) => allowed(t, s, a, hand) && roll >= a.firstRoll && roll <= a.lastRoll);
+}
+
 function randomAnimCheck(t: TacticalState, s: Soldier): OpOutcome {
   if (s.life < OKLIFE || !dueForCheck(s) || mercInWater(s)) return 'continue';
-  const roll = t.rng.int(DICE);
-  const hand = randomHandIndex(t, s);
-  if (hand === null) return 'continue';
-  const chosen = t.content.animations.randomAnims[s.bodyType]?.find(
-    (a) => allowed(t, s, a, hand) && roll >= a.firstRoll && roll <= a.lastRoll,
-  );
+  const chosen = randomIdleFor(t, s, t.rng.int(DICE));
   if (!chosen) return 'continue';
   if (chosen.state !== null) changeSoldierState(t, s, chosen.state);
   return 'stop';
