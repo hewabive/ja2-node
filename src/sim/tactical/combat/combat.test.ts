@@ -19,15 +19,17 @@ import { ProfileFlag } from '../../narrative/narrative-ids.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { Fact } from '../../strategic/narrative/fact-ids.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
-import { adjustNoAPToFinishMove, hasAnimFlag, states } from '../animation.ts';
+import { AnimHeight, adjustNoAPToFinishMove, changeSoldierStance, hasAnimFlag, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
+import { calcThrownChanceToHit } from '../explosions/throwing.ts';
 import { InvSlot, itemIn } from '../inventory.ts';
+import { NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { landHeightUnits, ZPos } from '../perception/los.ts';
 import { Opp } from '../perception/opp.ts';
 import { Body, SoldierClass, Team } from '../soldier.ts';
 import { NO_CAMPAIGN_PORT } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
-import { checkForGunJam, FireResult, handleItem, ItemHandle } from './attack.ts';
+import { checkForGunJam, FireResult, gunfireVolume, handleItem, ItemHandle } from './attack.ts';
 import { chanceOfBulletHittingStructure, fireBulletGivenTarget, soldierToSoldierChanceToGetThrough } from './bullets.ts';
 import { calcChanceToHitGun, ENEMY_TO_HIT_MOD, gunRange, soldierDifficultyLevel } from './chance.ts';
 import type { RandomStream } from './context.ts';
@@ -364,6 +366,63 @@ describe('gun attacks', () => {
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
     run(sim);
     expect(rolls).toEqual([{ soldier: 0, chance: MEANWHILE_HIT_CHANCE, hit: true }]);
+  });
+
+  it('gives sun goggles their range bonus for a shot and a throw in plain daylight, not only in glare (Weapons.cc:2204, :3614)', () => {
+    const sim = newSim();
+    const t = sim.state;
+    const items = t.content.items;
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 92), Direction.NORTH);
+    sim.setAmbientLight(NORMAL_LIGHTLEVEL_DAY);
+    merc.attackingWeapon = itemIn(merc.inv, InvSlot.HAND);
+    const shot = () => calcChanceToHitGun(t, merc, enemy.gridNo, 0, AimShot.TORSO, false);
+    const gun = merc.inv[InvSlot.HAND] as ItemObject;
+    const thrown = () => {
+      merc.inv[InvSlot.HAND] = createItem(items, items.byName.get('HAND_GRENADE')?.index ?? 0, 100);
+      const chance = calcThrownChanceToHit(t, merc, enemy.gridNo, 0);
+      merc.inv[InvSlot.HAND] = gun;
+      return chance;
+    };
+    const bare = [shot(), thrown()];
+    merc.inv[InvSlot.HEAD1] = createItem(items, items.byName.get('SUNGOGGLES')?.index ?? 0, 100);
+    const [shotWithGoggles, thrownWithGoggles] = [shot(), thrown()];
+    expect(shotWithGoggles).toBeGreaterThan(bare[0] ?? 0);
+    expect(thrownWithGoggles).toBeGreaterThan(bare[1] ?? 0);
+  });
+
+  it("muffles a second-hand shot by the main hand's silencer, never by its own: the volume reads HANDPOS (Weapons.cc:874-879)", () => {
+    const GUN_VOLUME = 20;
+    const sim = newSim();
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    const items = sim.state.content.items;
+    const silenced = (o: ItemObject) => {
+      o.attachments[0] = { item: items.byName.get('SILENCER')?.index ?? 0, status: 100 };
+      return o;
+    };
+    merc.inv[InvSlot.SECOND_HAND] = silenced(createItem(items, items.byName.get('GLOCK_17')?.index ?? 0, 100));
+    merc.attackingHand = InvSlot.SECOND_HAND;
+    expect(gunfireVolume(sim.state, merc, GUN_VOLUME, false)).toBe(GUN_VOLUME);
+    silenced(merc.inv[InvSlot.HAND] as ItemObject);
+    expect(gunfireVolume(sim.state, merc, GUN_VOLUME, false)).toBe(1);
+  });
+
+  it("rolls the hit before a crouched shooter's random aim location: GetTargetWorldPositions draws after the roll (Weapons.cc:689-695)", () => {
+    const NO_JAM = 50;
+    const MISSING_ROLL = 99;
+    const LEGS_ROLL = 0;
+    const sim = newSim();
+    const merc = spawn(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    changeSoldierStance(sim.state, merc, AnimHeight.CROUCH);
+    run(sim);
+    const enemy = spawn(sim, 20, Team.ENEMY, gridNo(80, 86), Direction.NORTH);
+    sim.lookAround();
+    Object.assign(sim.state, { pre: new ScriptedStream([NO_JAM, NO_JAM, MISSING_ROLL, LEGS_ROLL], 0) });
+    const rolls = recordAttackRolls(sim);
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toEqual({ ok: true });
+    run(sim);
+    expect(rolls).toMatchObject([{ soldier: 0, hit: false }]);
+    expect(merc.aimShotLocation).toBe(AimShot.LEGS);
   });
 
   it('charges the estimated APs, rolls the chance the estimate gives under show_hit_chance, fires one bullet and releases the attack barrier', () => {

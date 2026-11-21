@@ -6,7 +6,8 @@ import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
 import { createItem } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
-import { states } from '../animation.ts';
+import { anim } from '../anim-states.ts';
+import { initNewSoldierAnim, states } from '../animation.ts';
 import { AiMorale } from '../combat/types.ts';
 import type { TacticalContent } from '../content.ts';
 import { SmokeTile } from '../explosions/smoke.ts';
@@ -17,7 +18,7 @@ import type { SectorRef } from '../state.ts';
 import type { TacticalSim } from '../tactical-sim.ts';
 import { enterCombatMode } from '../turns/turns.ts';
 import { AiAction } from './actions.ts';
-import { type CombatDeciderHooks, decideActionBlack, decideActionRed, decideActionYellow } from './combat-decide.ts';
+import { type CombatDeciderHooks, crouchAndShotReserve, decideActionBlack, decideActionRed, decideActionYellow } from './combat-decide.ts';
 import { determineMovementMode } from './decide.ts';
 
 let content: TacticalContent;
@@ -273,5 +274,17 @@ describe("a tank's look-around in red (DecideAction.cc DecideActionRed)", () => 
     expect(
       lookAround({ turnBased: false, lastAction: AiAction.CHANGE_FACING, pre: [Direction.EAST, TURNS_NOW], rng: [DELAY_DRAW] }),
     ).toMatchObject({ ...turnTo(Direction.EAST), next: [AiAction.WAIT, REALTIME_AI_DELAY], pre: [8, 100], rng: [1000] });
+  });
+});
+
+describe("the AI's reserve for a crouch and a shot after its move (DecideAction.cc:2015, :2153)", () => {
+  it('leaves out the raise of a gun the soldier aims now, though the move will lower it', () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 80), Direction.SOUTH, { gun: 'COMMANDO' });
+    const target = gridNo(80, 90);
+    const lowered = crouchAndShotReserve(t, enemy, target);
+    initNewSoldierAnim(t, enemy, anim(t.content, 'AIM_RIFLE_STAND'), 0, true);
+    expect(crouchAndShotReserve(t, enemy, target)).toBeLessThan(lowered);
   });
 });

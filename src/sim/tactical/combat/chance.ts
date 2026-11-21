@@ -10,7 +10,6 @@ import { i8, idiv, u32 } from '../../../core/int.ts';
 import { createItem, findAttachment, type ItemObject, USABLE_STATUS } from '../../items/object.ts';
 import { AnimHeight, endHeight, height, states } from '../animation.ts';
 import { isValidSecondHandShot, wearsHeadGear } from '../inventory.ts';
-import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { isRobot } from '../narrative/robot.ts';
 import { Opp } from '../perception/opp.ts';
 import { distanceVisible } from '../perception/sight.ts';
@@ -202,7 +201,7 @@ export function calcChanceToHitGun(t: TacticalState, s: Soldier, g: number, aim:
   }
   if (sight > 0) {
     const sunGoggles = items.byName.get('SUNGOGGLES')?.index ?? -2;
-    if (wearsHeadGear(s.inv, sunGoggles) && lightTrueLevel(t, g, s.targetLevel) < NORMAL_LIGHTLEVEL_DAY) sight -= idiv(range, 10);
+    if (wearsHeadGear(s.inv, sunGoggles)) sight -= idiv(range, 10);
     const scope = findAttachment(gun, items.byName.get('SNIPERSCOPE')?.index ?? -2);
     if (scope !== -1 && range > MIN_SCOPE_RANGE && aim > 0) {
       let bonus = idiv(SNIPERSCOPE_AIM_BONUS * aim * (range - MIN_SCOPE_RANGE), 100);

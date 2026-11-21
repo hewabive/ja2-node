@@ -124,10 +124,13 @@ function attackRating(t: TacticalState, att: Soldier, aim: number, mode: number)
   return Math.max(a, 1);
 }
 
-function tentacleDefence(def: Soldier, stance: number): number {
-  let bonus = def.bodyType === Body.LARVAE_MONSTER || def.bodyType === Body.INFANT_MONSTER ? KIDS_SPARED_DEFENCE : 0;
-  if (stance < AnimHeight.STAND) bonus += stance === AnimHeight.PRONE ? PRONE_TENTACLE_DEFENCE : 2 * BAD_DODGE_POSITION_PENALTY;
-  return bonus;
+function sparedKid(def: Soldier, queenTentacles: boolean): boolean {
+  return (queenTentacles && def.bodyType === Body.LARVAE_MONSTER) || def.bodyType === Body.INFANT_MONSTER;
+}
+
+function tentacleDefence(stance: number): number {
+  if (stance >= AnimHeight.STAND) return 0;
+  return stance === AnimHeight.PRONE ? PRONE_TENTACLE_DEFENCE : 2 * BAD_DODGE_POSITION_PENALTY;
 }
 
 function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: number): number {
@@ -143,7 +146,9 @@ function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: num
   if (d > 0 && def.life < def.lifeMax) d -= idiv(2 * d * injuryForPenaltiesOfUnsignedBandage(def), 3 * def.lifeMax);
   if (d > 0 && def.breath < 100) d -= idiv(d * (100 - def.breath), 200);
   const stance = endHeight(t.content, def.state);
-  if (weapon === itemIndex(t, 'CREATURE_QUEEN_TENTACLES')) d += tentacleDefence(def, stance);
+  const queenTentacles = weapon === itemIndex(t, 'CREATURE_QUEEN_TENTACLES');
+  if (sparedKid(def, queenTentacles)) d += KIDS_SPARED_DEFENCE;
+  if (queenTentacles) d += tentacleDefence(stance);
   else if (stance < AnimHeight.STAND) {
     d -= BAD_DODGE_POSITION_PENALTY;
     if (stance === AnimHeight.PRONE) d -= BAD_DODGE_POSITION_PENALTY;
@@ -570,11 +575,8 @@ export function useHandToHand(t: TacticalState, s: Soldier, g: number): void {
       statChange(t, s, StatKind.STRENGTH, xp, cause);
       statChange(t, s, StatKind.DEXTERITY, xp, cause);
     } else if (!hit) agilityForEnemyMissingPlayer(t, s, tgt, HTH_DODGE_AGILITY);
-    if (hit || inMeanwhile(t)) {
-      let impact = hthImpact(t, s, tgt, chance - roll, false);
-      impact = adjustImpactByHitLocation(impact, s.aimShotLocation).impact;
-      queueWeaponHit(t, s, tgt, Math.max(impact, 1));
-    } else freeUpAttacker(t, s);
+    if (hit || inMeanwhile(t)) queueWeaponHit(t, s, tgt, hthImpact(t, s, tgt, chance - roll, false));
+    else freeUpAttacker(t, s);
   } else freeUpAttacker(t, s);
   reduceMonsterSmell(t, s);
 }

@@ -575,11 +575,6 @@ function soldierGotHitGunFire(t: TacticalState, s: Soldier, direction: number, a
 function soldierGotHitExplosion(t: TacticalState, s: Soldier, weapon: number, direction: number, range: number): void {
   if (s.dead) return;
   cancelAllServices(t, s);
-  if (hasAnimFlag(t.content, s.state, AnimFlags.HITSTART) && endHeight(t.content, s.state) !== AnimHeight.PRONE) {
-    s.pendingAnimation = -1;
-    s.inNonInterruptibleAnimation = false;
-    s.rtNonInterruptible = false;
-  }
   const goreDeath = explosionGoreDeath(t, s, weapon, range);
   if (goreDeath) {
     initNewSoldierAnim(t, s, anim(t.content, goreDeath), 0, false);
@@ -788,7 +783,7 @@ export function soldierTakeDamage(
   if (!isRobot(s) && blood !== 0 && s.placed) dropBlood(t, s, blood);
   if (s.placed) checkForBreathCollapse(t, s);
   if (attacker && attacker.team === Team.OUR && s.team !== Team.OUR && reason === DamageReason.EXPLOSION)
-    statChange(t, attacker, StatKind.EXPLOSIVES, 10 * combined, StatCause.SUCCESS);
+    statChange(t, attacker, StatKind.EXPLOSIVES, 10 * combined, StatCause.FAILURE);
   if (s.team === Team.OUR) {
     statChange(t, s, StatKind.EXPERIENCE, 5 * combined, StatCause.FAILURE);
     if (!s.pummeledQuoteSaid && attacker && attacker !== s) countHitForBeatingQuote(t, s);

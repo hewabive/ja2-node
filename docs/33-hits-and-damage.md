@@ -213,6 +213,9 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A body laid in an unloaded sector, by the map screen's strategic death or by autoresolve, carries profile 0, not the dead soldier's: the definition is zeroed and the profile never set (`Tactical/Tactical_Save.cc:882`), so a search for a corpse by profile misses it | `src/sim/campaign/sector-loot.test.ts` "lays the corpse of a soldier with a profile under profile 0 …" |
 | Bandaging a wound worsens the injury penalties of the turn APs and of the chances to hit with a gun, in melee and with a throw: they count the bandaged part of the damage one and a half times (`Tactical/Soldier_Control.cc:348`, `Tactical/Weapons.cc:2454`, `:3262`, `:3331`, `:3652`) | `src/sim/tactical/points.test.ts` "counts bandaged damage one and a half times …" |
 | The next bleed comes after a whole number of turns: the effective life is divided as integers before the float cast (`Tactical/Soldier_Control.cc:8055`) | `bleeding.test.ts` "waits a whole number of turns for the next bleed …" |
+| A blast leaves a standing soldier in the hit animation he plays: no explosion cancels it (`Tactical/Soldier_Control.cc:3255-3259`) | `hit-locked.test.ts` "lets a blast leave a standing soldier …" |
+| The wounds a blast of our merc causes count as a failure for his explosives, so they never complete his next point (`Tactical/Soldier_Control.cc:5797`) | `experience.test.ts` "counts the wounds a blast of our merc causes as a failure …" |
+| A suppression stance change leaves a medic on his first aid (`Tactical/Overhead.cc:5383-5408`) | `src/sim/tactical/first-aid.test.ts` "keeps a medic giving first aid on it …" |
 
 Not pinned yet:
 - A melee hit lands on the target's own aim location, not the attacker's (`game-events.ts`).

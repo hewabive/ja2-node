@@ -30,7 +30,7 @@ beforeAll(async () => {
 const KNIFE_STATUS_IN_POCKET = 77;
 const TABLE_AT_SECOND_CUBE = { cubes: 0b0010, height: 25 };
 const SHELF_AT_TOP_CUBE = { cubes: 0b1000, height: 50 };
-const MISSED_KNIFE_SEED = 1;
+const MISSED_KNIFE_SEED = 2;
 const MAX_FLIGHT_TICKS = 1000;
 
 function simWith(place: Parameters<typeof syntheticWorld>[1]): TacticalSim {

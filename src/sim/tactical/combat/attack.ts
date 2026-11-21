@@ -161,7 +161,7 @@ function handleThrowOrLaunch(t: TacticalState, s: Soldier, g: number, level: num
     if (!mortarHasRoom(t, s, targetGrid)) return ItemHandle.NOROOM;
     s.dontChargeAPsForStanceChange = true;
   } else if (d.itemClass === ItemClass.LAUNCHER) {
-    const charge = apChargeForShootOrStab(t, s, targetGrid, true, false);
+    const charge = apChargeForShootOrStab(t, s, targetGrid, true);
     if (height(t.content, s.state) === AnimHeight.STAND) {
       if (charge.raise) s.dontChargeTurningAPs = true;
     } else if (charge.turning) s.dontChargeReadyAPs = true;
@@ -224,7 +224,7 @@ function handleGunAttack(
   const targetGrid = tgt ? tgt.gridNo : g;
   if (fromUi && t.inCombat && !s.doSpread && holdsShotWithoutLineOfFire(t, s, tgt, targetGrid, level)) return ItemHandle.OK;
   const apCost = calcTotalAPsToAttack(t, s, targetGrid, true, s.aimTime);
-  const charge = apChargeForShootOrStab(t, s, targetGrid, true, false);
+  const charge = apChargeForShootOrStab(t, s, targetGrid, true);
   if (height(t.content, s.state) === AnimHeight.STAND) {
     if (charge.raise) s.dontChargeTurningAPs = true;
   } else if (charge.turning) s.dontChargeReadyAPs = true;
@@ -480,8 +480,8 @@ function shotSound(t: TacticalState, s: Soldier, item: number): { item: number; 
 
 const SILENCER_FULL_STATUS = 85;
 
-function gunfireVolume(t: TacticalState, s: Soldier, attackVolume: number, unsilenceable: boolean): number {
-  const gun = s.inv[s.attackingHand] as ItemObject;
+export function gunfireVolume(t: TacticalState, s: Soldier, attackVolume: number, unsilenceable: boolean): number {
+  const gun = s.inv[InvSlot.HAND] as ItemObject;
   const silencer = findAttachment(gun, itemIndex(t, 'SILENCER'));
   if (unsilenceable || silencer === -1) return attackVolume;
   const status = gun.attachments[silencer]?.status ?? 0;
@@ -500,7 +500,6 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
   } else if (isValidSecondHandShot(items, s) && (hand.status[0] ?? 0) >= USABLE_STATUS && hand.gunAmmoStatus > 0) {
     if (s.attackingHand === InvSlot.HAND) deductPoints(t, s, ap, 0);
   } else deductPoints(t, s, ap, 0);
-  const pos = getTargetWorldPositions(t, s, target);
   const knife = d?.itemClass === ItemClass.THROWING_KNIFE;
   const calculated = knife
     ? calcThrownChanceToHit(t, s, target, s.aimTime)
@@ -508,6 +507,7 @@ function useGun(t: TacticalState, s: Soldier, target: number): void {
   const chance = inMeanwhile(t) ? MEANWHILE_HIT_CHANCE : calculated;
   const roll = t.pre.int(100);
   const hit = roll <= chance;
+  const pos = getTargetWorldPositions(t, s, target);
   t.hooks.attackRolled(t, s, { chance, hit });
   let buckshot = false;
   if (!knife) {

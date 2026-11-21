@@ -77,4 +77,17 @@ describe('a hit that lands while the target plays a non-interruptible animation'
     expect(t.turn.attackBusyCount).toBe(1);
     expect(civilian.beingAttackedCount).toBe(1);
   });
+
+  it('lets a blast leave a standing soldier in the hit animation he plays, which no explosion cancels (Soldier_Control.cc:3255-3259)', () => {
+    const BLAST = 15;
+    const { sim, shooter } = cowering();
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 1, Team.OUR, gridNo(84, 80), Direction.SOUTH);
+    initNewSoldierAnim(t, merc, anim(t.content, 'GENERIC_HIT_STAND'), 0, false);
+    expect(merc.inNonInterruptibleAnimation).toBe(true);
+    const grenade = t.content.items.byName.get('HAND_GRENADE')?.index ?? 0;
+    eventSoldierGotHit(t, merc, grenade, BLAST, 0, Direction.SOUTH, 1, shooter, Special.NONE, 0);
+    expect(merc.life).toBeGreaterThan(0);
+    expect(animName(t.content, merc.state)).toBe('GENERIC_HIT_STAND');
+  });
 });

@@ -9,6 +9,8 @@ import type { TacticalContent } from '../content.ts';
 import { StatKind } from '../profiles.ts';
 import { Team } from '../soldier.ts';
 import { processUpdateStats, profileUpdateStats, StatCause, statChange } from './experience.ts';
+import { soldierTakeDamage } from './hit.ts';
+import { DamageReason } from './types.ts';
 
 let content: TacticalContent;
 
@@ -31,6 +33,23 @@ describe('stat gains (Campaign.cc ProcessStatChange)', () => {
     statChange(sim.state, s, StatKind.MARKSMANSHIP, 3, StatCause.SUCCESS);
     expect(pre.requested).toEqual([100, 100, 100]);
     expect(p.gains.marksmanship).toBe(0);
+  });
+});
+
+describe('the explosives gain for wounds (Soldier_Control.cc SoldierTakeDamage)', () => {
+  const ONE_SHORT_OF_A_POINT = 24;
+  const WOUND = 10;
+
+  it('counts the wounds a blast of our merc causes as a failure, so they never complete his next point (Soldier_Control.cc:5797)', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH, { profile: MERC_PROFILE });
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 90), Direction.NORTH);
+    const p = progressFor(MERC_PROFILE);
+    sim.state.profiles.set(MERC_PROFILE, p);
+    p.gains.explosives = ONE_SHORT_OF_A_POINT;
+    Object.assign(sim.state, { pre: new ScriptedStream([], 0) });
+    soldierTakeDamage(sim.state, enemy, WOUND, 0, DamageReason.EXPLOSION, merc);
+    expect(p.gains.explosives).toBe(ONE_SHORT_OF_A_POINT);
   });
 });
 

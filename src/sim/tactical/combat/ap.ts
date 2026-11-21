@@ -57,26 +57,19 @@ export function baseAPsToShootOrStab(t: TacticalState, aps: number, skill: numbe
   return baseAPsToShootOrStabWith(t.content.items, aps, skill, o);
 }
 
-export function apChargeForShootOrStab(
-  t: TacticalState,
-  s: Soldier,
-  g: number,
-  addTurning: boolean,
-  afterMoving: boolean,
-): { turning: boolean; raise: boolean } {
+export function apChargeForShootOrStab(t: TacticalState, s: Soldier, g: number, addTurning: boolean): { turning: boolean; raise: boolean } {
   let turning = false;
   if (addTurning) turning = g !== NOWHERE ? directionToward(s.gridNo, g) !== s.direction : true;
   const hand = t.content.items.byIndex.get(s.inv[InvSlot.HAND]?.item ?? NOTHING);
-  const raise =
-    hand?.itemClass !== ItemClass.THROWING_KNIFE && (afterMoving || !hasAnimFlag(t.content, s.state, AnimFlags.FIREREADY | AnimFlags.FIRE));
+  const raise = hand?.itemClass !== ItemClass.THROWING_KNIFE && !hasAnimFlag(t.content, s.state, AnimFlags.FIREREADY | AnimFlags.FIRE);
   return { turning, raise };
 }
 
-export function minAPsToShootOrStab(t: TacticalState, s: Soldier, g: number, addTurning: boolean, afterMoving = false): number {
+export function minAPsToShootOrStab(t: TacticalState, s: Soldier, g: number, addTurning: boolean): number {
   const items = t.content.items;
   const inHand = s.inv[InvSlot.HAND] as ItemObject;
   const item = s.weaponMode === WeaponMode.ATTACHED ? itemIndex(t, 'UNDER_GLAUNCHER') : inHand.item;
-  const charge = apChargeForShootOrStab(t, s, g, addTurning, afterMoving);
+  const charge = apChargeForShootOrStab(t, s, g, addTurning);
   let turning = charge.turning;
   let raise = charge.raise;
   let cost = AP.MIN_AIM_ATTACK;
@@ -90,7 +83,7 @@ export function minAPsToShootOrStab(t: TacticalState, s: Soldier, g: number, add
   if (turning) cost += cls === ItemClass.THROWING_KNIFE ? AP.LOOK_STANDING : apsToLook(t.content, s);
   if (raise) {
     cost += apsToReadyWeapon(t.content, s);
-    if (!afterMoving) s.dontChargeReadyAPs = false;
+    s.dontChargeReadyAPs = false;
   }
   if (g !== s.lastTarget && !rocketLauncher) cost += AP.CHANGE_TARGET;
   const full = calcActionPoints(t, s);
@@ -112,7 +105,7 @@ export function minAPsToShootOrStab(t: TacticalState, s: Soldier, g: number, add
   return Math.min(Math.max(cost, 1), full > 0 ? full : 1);
 }
 
-export function minAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurning: boolean, afterMoving = false): number {
+export function minAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurning: boolean): number {
   const inHand = s.inv[InvSlot.HAND] as ItemObject;
   let item = inHand.item;
   if (s.weaponMode === WeaponMode.ATTACHED && findAttachment(inHand, itemIndex(t, 'UNDER_GLAUNCHER')) !== -1)
@@ -123,7 +116,7 @@ export function minAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurni
     case ItemClass.LAUNCHER:
     case ItemClass.TENTACLES:
     case ItemClass.THROWING_KNIFE:
-      return minAPsToShootOrStab(t, s, g, addTurning, afterMoving);
+      return minAPsToShootOrStab(t, s, g, addTurning);
     case ItemClass.GRENADE:
     case ItemClass.THROWN:
       return minAPsToThrow(t, s, g);

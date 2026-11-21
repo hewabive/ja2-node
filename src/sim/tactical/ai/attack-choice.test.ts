@@ -21,7 +21,7 @@ import { AP, calcActionPoints } from '../points.ts';
 import { setSoldierHeight } from '../roofs.ts';
 import { createSoldier, type Soldier, Team, Visible } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
-import { CAN_ATTACK, calcBestShot, canNPCAttack, checkIfTossPossible, NoShoot } from './attack-choice.ts';
+import { CAN_ATTACK, calcBestShot, canNPCAttack, checkIfTossPossible, estimateThrowDamage, NoShoot } from './attack-choice.ts';
 
 let content: TacticalContent;
 
@@ -264,6 +264,22 @@ describe('calcBestThrow (Attacks.cc CalcBestThrow)', () => {
     const toss = checkIfTossPossible(sim.state, enemy);
     expect(toss.possible).toBe(true);
     expect(toss.target).toBe(merc.gridNo);
+  });
+});
+
+describe('EstimateThrowDamage (Attacks.cc)', () => {
+  it('reads the armour and the standing bonus off the thrower, not the soldier the grenade is for (Attacks.cc:1462, :1470)', () => {
+    const t = newState();
+    const thrower = spawn(t, 20, Team.ENEMY, gridNo(80, 80), Direction.SOUTH);
+    const merc = spawn(t, 0, Team.OUR, gridNo(80, 88), Direction.NORTH);
+    thrower.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('HAND_GRENADE'), 100);
+    const estimate = () => estimateThrowDamage(t, thrower, InvSlot.BIGPOCK1, merc, merc.gridNo);
+    const standing = estimate();
+    initNewSoldierAnim(t, thrower, states(content.animations).CROUCHING, 0, true);
+    expect(estimate()).toBeLessThan(standing);
+    const crouched = estimate();
+    thrower.inv[InvSlot.VEST] = createItem(content.items, item('KEVLAR_VEST'), 100);
+    expect(estimate()).toBeLessThan(crouched);
   });
 });
 

@@ -63,15 +63,15 @@ export interface CreatureDeciderHooks {
 export const Mobility = { MOBILE: 0, CRAWLER: 1, IMMOBILE: 2 } as const;
 export const CreatureCallKind = { NONE: 0, ONE_PREY: 1, MULTIPLE_PREY: 2, ATTACKED: 3, CRIPPLED: 4 } as const;
 
-const CallerKind = { FEMALE: 0, MALE: 1, QUEEN: 2 } as const;
+const CallerKind = { FEMALE: 0, MALE: 1, INFANT: 2, QUEEN: 3 } as const;
 const CALL_PRIORITY: readonly (readonly number[])[] = [
-  [0, 0, 0],
-  [3, 5, 12],
-  [5, 9, 12],
-  [4, 7, 12],
-  [6, 9, 12],
+  [0, 0, 0, 0],
+  [3, 5, 12, 0],
+  [5, 9, 12, 0],
+  [4, 7, 12, 0],
+  [6, 9, 12, 0],
 ];
-const HUNT_CALL_PRIORITY: readonly number[] = [0, 4, 5, 7, 8];
+const HUNT_CALL_PRIORITY: readonly number[] = [4, 5, 7, 8, 0];
 const NUM_CREATURE_CALLS = 5;
 const PRIORITY_DECR_DISTANCE = 30;
 const FRENZY_THRESHOLD = 8;
@@ -249,7 +249,7 @@ export function findNearestRottingCorpse(t: TacticalState, s: Soldier): number {
 }
 
 function advanceToFiringRange(t: TacticalState, s: Soldier, closest: number): number {
-  const attackCost = i8(minAPsToAttack(t, s, closest, true, true));
+  const attackCost = i8(minAPsToAttack(t, s, closest, true));
   if (attackCost >= s.actionPoints) return goAsFarAsPossibleTowards(t, s, closest, AiAction.SEEK_OPPONENT, mode(t));
   const trueActionPoints = s.actionPoints;
   s.actionPoints -= attackCost;

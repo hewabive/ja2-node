@@ -17,7 +17,6 @@ import { rangeInUnits } from '../combat/chance.ts';
 import { StatCause, statChange } from '../combat/experience.ts';
 import { Aim, CTH_MAXIMUM, CTH_MINIMUM, WeaponMode, weaponStatusMod } from '../combat/types.ts';
 import { findObjWithin, InvSlot, NUM_INV_SLOTS, wearsHeadGear } from '../inventory.ts';
-import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
 import { directionToward } from '../movement.ts';
 import { deductPoints } from '../points.ts';
 import { StatKind } from '../profiles.ts';
@@ -111,8 +110,7 @@ export function calcThrownChanceToHit(t: TacticalState, s: Soldier, g: number, a
   if (s.serviceCount > 0) c -= Aim.PENALTY_GETTINGAID;
   if (s.shock) c -= s.shock * Aim.PENALTY_PER_SHOCK;
   let range = rangeInUnits(s.gridNo, g);
-  if (wearsHeadGear(s.inv, itemIndex(t, 'SUNGOGGLES')) && lightTrueLevel(t, g, s.targetLevel) < NORMAL_LIGHTLEVEL_DAY)
-    range -= idiv(range, 10);
+  if (wearsHeadGear(s.inv, itemIndex(t, 'SUNGOGGLES'))) range -= idiv(range, 10);
   if (hand === itemIndex(t, 'MORTAR') && range < MIN_MORTAR_RANGE) return 0;
   const maxRange = calcMaxTossRange(t, s, hand, true) * 10;
   c += idiv(50 * 2 * (idiv(maxRange, 2) - range), maxRange);

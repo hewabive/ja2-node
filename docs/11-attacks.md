@@ -67,8 +67,9 @@ player sees no number after the attack, and the melee one reads the defender's h
 to match the estimate under `show_hit_chance` against the chance the attack rolls.
 
 **A random aim location is rolled once.** With `AimShot.RANDOM` whichever of `selectFireAnimation` (a standing single
-shot) and `useGun` comes first rolls the body part, and the attack keeps it. The chance to hit is computed after the
-roll, so a roll on the head takes the head penalty the estimate did not show.
+shot) and `useGun` comes first rolls the body part, and the attack keeps it. A standing shot rolls it before the chance
+to hit, so a roll on the head takes the head penalty the estimate did not show; `useGun` rolls it after the hit roll
+(`Tactical/Weapons.cc:689-695`), so the chance of any other shot counts no body part.
 
 **Fixed tick, the original's frame order.** Each 5 ms tick runs physics (every 20 ms), bullets, explosions, the
 miss-animation releases and the real-time turn, then the soldier pass with the animation opcodes, then the event pump
@@ -149,6 +150,11 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `comba
 | A shot at an empty tile aims at the roof under it on the roof level and at a door's third cube on either level, and its chance to get through aims a cube higher than the shot (`TileEngine/Structure.cc:1041-1089`, `Tactical/LOS.cc:2962`, `Tactical/Weapons.cc:522-532`) | `heights.test.ts` |
 | An attack not ordered from the interface keeps the target level of the soldier's last attack (`Tactical/Handle_Items.cc:392`): a civilian firing back at an attacker on another level aims at the old one (`Tactical/Overhead.cc:5562`) | `heights.test.ts` |
 | A missile trail takes the bullet's absolute height (`Tactical/Bullets.cc:337`), so over raised land it is drawn a land height too high | `impacts.test.ts` |
+| A shooter who does not stand rolls his random aim location after the hit roll, so his chance counts no body part (`Tactical/Weapons.cc:689-695`) | `combat.test.ts` "rolls the hit before a crouched shooter's random aim location …" |
+| A second-hand shot is muffled by the main hand's silencer, never by its own (`Tactical/Weapons.cc:874-879`) | `combat.test.ts` "muffles a second-hand shot …" |
+| Sun goggles shorten the range of a shot and a throw in any light (`Tactical/Weapons.cc:2204`, `:3614`) | `combat.test.ts` "gives sun goggles their range bonus …" |
+| Fists take no hit location factor: a punch to the head hurts as much as one to the legs (`Tactical/Weapons.cc:1244-1257`) | `melee.test.ts` "deals a surprise punch to the head …" |
+| An infant monster cannot be struck by fists or a blade: the defence meant to keep the queen's tentacles off the young holds whoever strikes (`Tactical/Weapons.cc:3340-3345`) | `melee.test.ts` "spares an infant monster from every fist …" |
 
 Not pinned yet:
 - A prone shooter's close-range penalty against a standing target turns into a bonus at four and five tiles

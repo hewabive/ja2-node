@@ -4,7 +4,6 @@
 // @src the Tixa gas mask draw; the panic branches and NeedToRadioAboutPanicTrigger in the radio chances, 2026-11-04; a
 // @src tank's look-around in DecideActionRed, 2026-11-05).
 
-import { AnimFlags } from '../../../content/anim/tables.ts';
 import { ItemClass, NOTHING } from '../../../content/items/items.ts';
 import { DIRECTION_COUNT, DIRECTION_INCREMENT, newGridNo, pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
 import { Terrain } from '../../../content/world/terrain.ts';
@@ -13,7 +12,7 @@ import { ObjectFlags, USABLE_STATUS } from '../../items/object.ts';
 import { civGroupHostility } from '../../strategic/narrative/civ-groups.ts';
 import { Quest } from '../../strategic/narrative/fact-ids.ts';
 import { QuestStatus } from '../../strategic/narrative/facts.ts';
-import { AnimHeight, endHeight, hasAnimFlag, height } from '../animation.ts';
+import { AnimHeight, endHeight, height } from '../animation.ts';
 import { calcAPsToBurst, minAPsToAttack } from '../combat/ap.ts';
 import { rangeInUnits, soldierDifficultyLevel } from '../combat/chance.ts';
 import { okFallDirection } from '../combat/hit.ts';
@@ -623,6 +622,10 @@ function tankLooksAround(t: TacticalState, s: Soldier): number {
   return AiAction.CHANGE_FACING;
 }
 
+export function crouchAndShotReserve(t: TacticalState, s: Soldier, target: number): number {
+  return i8(minAPsToAttack(t, s, target, true) + AP_CROUCH);
+}
+
 function redMainChoice(t: TacticalState, s: Soldier): number | null {
   const ai = s.ai;
   let seek = 0;
@@ -694,7 +697,7 @@ function redMainChoice(t: TacticalState, s: Soldier): number | null {
               pythSpacesAway(ai.actionData, d.gridNo) < 5 ||
               locationToLocationLos(t, ai.actionData, s.level, d.gridNo, s.level, MAX_DISTANCE_VISIBLE, true)
             ) {
-              const reserve = i8(minAPsToAttack(t, s, d.gridNo, true, true) + AP_CROUCH);
+              const reserve = crouchAndShotReserve(t, s, d.gridNo);
               ai.actionData = internalGoAsFarAsPossibleTowards(t, s, d.gridNo, reserve, AiAction.SEEK_OPPONENT, GoFlag.CAUTIOUS, mode(t));
               if (ai.actionData !== NOWHERE) {
                 ai.cautious = true;
@@ -751,7 +754,7 @@ function redMainChoice(t: TacticalState, s: Soldier): number | null {
             d.gridNo !== NOWHERE &&
             (spacesAway(ai.actionData, d.gridNo) < 5 || spacesAway(ai.actionData, d.gridNo) + 5 < spacesAway(s.gridNo, d.gridNo))
           ) {
-            const reserve = i8(minAPsToAttack(t, s, opponent, true, true) + AP_CROUCH);
+            const reserve = crouchAndShotReserve(t, s, opponent);
             if (internalGoAsFarAsPossibleTowards(t, s, ai.actionData, reserve, AiAction.TAKE_COVER, 0, mode(t)) === ai.actionData)
               return AiAction.TAKE_COVER;
           } else return AiAction.TAKE_COVER;
@@ -1194,9 +1197,7 @@ function executeAttackChoice(
     const burstCapable = (t.content.items.byIndex.get(gun?.item ?? NOTHING)?.weapon?.shotsPerBurst ?? 0) > 0;
     if (burstCapable && (bestShot.opponent?.life ?? 0) >= OKLIFE && (gun?.gunShotsLeft ?? 0) > 1 && s.team !== Team.OUR && gun) {
       const burstAPs = calcAPsToBurst(t, calcActionPoints(t, s), gun);
-      let reraise = 0;
-      if (changeStanceFirst && weaponRaised(t, s)) reraise = t.content.items.byIndex.get(gun.item)?.weapon?.readyTime ?? 0;
-      if (s.actionPoints - (best.apCost - best.aimTime) - reraise >= burstAPs) {
+      if (s.actionPoints - (best.apCost - best.aimTime) >= burstAPs) {
         let chance: number;
         if (isTank(s)) chance = 100;
         else {
@@ -1257,8 +1258,4 @@ function queueThrowAfterLoweringGun(s: Soldier, best: AttackChoice): void {
   s.ai.nextAction = AiAction.THROW_KNIFE;
   s.ai.nextActionData = best.target;
   s.ai.nextTargetLevel = best.targetLevel;
-}
-
-function weaponRaised(t: TacticalState, s: Soldier): boolean {
-  return hasAnimFlag(t.content, s.state, AnimFlags.FIREREADY | AnimFlags.FIRE);
 }

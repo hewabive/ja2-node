@@ -6,6 +6,7 @@ import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { createItem } from '../items/object.ts';
 import { animName } from './anim-states.ts';
+import { reduceAttackBusyCount } from './combat/barrier.ts';
 import type { TacticalContent } from './content.ts';
 import { soldierDressWound } from './first-aid.ts';
 import { InvSlot } from './inventory.ts';
@@ -83,11 +84,29 @@ describe('first aid in tactical', () => {
     expect(medic.inv[InvSlot.HAND]?.status[0]).toBeLessThan(100);
   });
 
+  it('keeps a medic giving first aid on it while suppression lays him prone: the stance change cancels no service (Overhead.cc:5383-5408)', () => {
+    const SUPPRESSING_BURST = 12;
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const { medic, patient } = bleedingSquad(sim);
+    const shooter = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 120), Direction.NORTH, { gun: 'NOTHING' });
+    medic.inv[InvSlot.HAND] = createItem(content.items, item('FIRSTAIDKIT'), 100);
+    t.inCombat = true;
+    expect(sim.dispatch({ type: 'bandage', soldier: 0, target: 1 })).toMatchObject({ ok: true });
+    runUntilIdle(sim);
+    expect(animName(t.content, medic.state)).toBe('GIVING_AID');
+    medic.suppressionPoints = SUPPRESSING_BURST;
+    t.turn.attackBusyCount = 1;
+    reduceAttackBusyCount(t, shooter, false);
+    expect(medic.changingStanceDueToSuppression).toBe(true);
+    expect([medic.servicePartner, patient.serviceCount]).toEqual([patient.id, 1]);
+  });
+
   it('charges the crouch and AP_START_FIRST_AID in turn-based combat and dresses the wound with the APs left at the end of the round', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     const { medic, patient } = bleedingSquad(sim);
-    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH);
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH, { gun: 'NOTHING' });
     sim.lookAround();
     expect(t.inCombat).toBe(true);
     expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket1', to: 'hand' })).toMatchObject({ ok: true });

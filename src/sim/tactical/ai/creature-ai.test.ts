@@ -65,16 +65,16 @@ describe('CreatureCall', () => {
   it('raises hearing creatures to RED with a priority that falls with distance and frenzies close females', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
-    const queen = spawnCreature(sim, 52, Body.QUEENMONSTER, gridNo(80, 80), Direction.SOUTH);
+    const male = spawnCreature(sim, 52, Body.AM_MONSTER, gridNo(80, 80), Direction.SOUTH);
     const near = spawnCreature(sim, 53, Body.ADULTFEMALEMONSTER, gridNo(80, 90), Direction.NORTH);
     const far = spawnCreature(sim, 54, Body.YAM_MONSTER, gridNo(80, 140), Direction.NORTH);
     const infant = spawnCreature(sim, 55, Body.INFANT_MONSTER, gridNo(82, 82), Direction.NORTH);
-    queen.ai.actionData = CreatureCallKind.ATTACKED;
-    queen.visible = SEEN;
-    creatureCall(t, queen);
+    male.ai.actionData = CreatureCallKind.CRIPPLED;
+    male.visible = SEEN;
+    creatureCall(t, male);
     expect(t.perception.awareOfOpposition[Team.CREATURE]).toBe(true);
-    expect(animName(content, queen.state)).toBe('QUEEN_CALL');
-    expect(t.events.filter((e) => e.type === 'creatureCall')).toMatchObject([{ soldier: queen.id, call: 'attacked' }]);
+    expect(animName(content, male.state)).toBe('MONSTER_UP');
+    expect(t.events.filter((e) => e.type === 'creatureCall')).toMatchObject([{ soldier: male.id, call: 'crippled' }]);
     t.events.length = 0;
     near.ai.actionData = CreatureCallKind.ONE_PREY;
     near.visible = UNSEEN;
@@ -83,10 +83,38 @@ describe('CreatureCall', () => {
     expect(unseen).toMatchObject([{ call: 'onePrey', unseen: { bodyType: Body.ADULTFEMALEMONSTER } }]);
     expect(unseen[0]).not.toHaveProperty('soldier');
     expect(unseen[0]).not.toHaveProperty('heard');
-    expect(near).toMatchObject({ ai: { callPriority: 12, alertStatus: AlertStatus.RED, caller: queen.id, frenzied: true } });
-    expect(near.ai.callerGridNo).toBe(queen.gridNo);
-    expect(far.ai).toMatchObject({ callPriority: 10, alertStatus: AlertStatus.RED, frenzied: false });
+    expect(near).toMatchObject({ ai: { callPriority: 9, alertStatus: AlertStatus.RED, caller: male.id, frenzied: true } });
+    expect(near.ai.callerGridNo).toBe(male.gridNo);
+    expect(far.ai).toMatchObject({ callPriority: 7, alertStatus: AlertStatus.RED, frenzied: false });
     expect(infant.ai).toMatchObject({ callPriority: 0, caller: NOBODY });
+  });
+
+  it("raises nobody with the queen's call: the table fills three columns of four and CALLER_INFANT puts the queen in the empty one (CreatureDecideAction.cc:24-50)", () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const queen = spawnCreature(sim, 52, Body.QUEENMONSTER, gridNo(80, 80), Direction.SOUTH);
+    const near = spawnCreature(sim, 53, Body.ADULTFEMALEMONSTER, gridNo(80, 90), Direction.NORTH);
+    queen.ai.actionData = CreatureCallKind.ATTACKED;
+    queen.visible = SEEN;
+    creatureCall(t, queen);
+    expect(animName(content, queen.state)).toBe('QUEEN_CALL');
+    expect(t.events.filter((e) => e.type === 'creatureCall')).toMatchObject([{ soldier: queen.id, call: 'attacked' }]);
+    expect(near.ai).toMatchObject({ callPriority: 0, caller: NOBODY, frenzied: false });
+    expect(near.ai.alertStatus).not.toBe(AlertStatus.RED);
+  });
+
+  it("gives a hunting female's call the next kind's priority and a crippled one none: the hunt table lacks CALL_NONE (CreatureDecideAction.cc:52-58, :101)", () => {
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const hunter = spawnCreature(sim, 52, Body.ADULTFEMALEMONSTER, gridNo(80, 80), Direction.SOUTH);
+    const near = spawnCreature(sim, 53, Body.YAM_MONSTER, gridNo(80, 90), Direction.NORTH);
+    hunter.hunting = true;
+    hunter.ai.actionData = CreatureCallKind.CRIPPLED;
+    creatureCall(t, hunter);
+    expect(near.ai).toMatchObject({ callPriority: 0, caller: NOBODY });
+    hunter.ai.actionData = CreatureCallKind.ONE_PREY;
+    creatureCall(t, hunter);
+    expect(near.ai).toMatchObject({ callPriority: 5, caller: hunter.id });
   });
 
   it('tells the call of a creature out of sight in full while every soldier is shown (SHOW_ALL_MERCS)', () => {

@@ -13,6 +13,7 @@ import { PreRandom, Rng } from '../../../core/rng.ts';
 import type { SimEvent } from '../../events.ts';
 import { plotWalk } from '../../hints/walk-plot.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
+import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { anim, animName } from '../anim-states.ts';
 import { AnimHeight, initNewSoldierAnim, soldierGotoStationaryStance, states } from '../animation.ts';
@@ -30,6 +31,7 @@ import { soldierDifficultyLevel } from './chance.ts';
 import { addCorpseStructure } from './death.ts';
 import { weaponHit } from './hit.ts';
 import {
+  calcChanceToPunch,
   calcChanceToStab,
   eventSoldierBeginBladeAttack,
   eventSoldierBeginPunchAttack,
@@ -38,7 +40,7 @@ import {
   useBlade,
   useHandToHand,
 } from './melee.ts';
-import { AiMorale, AimShot, WeaponMode } from './types.ts';
+import { AiMorale, AimShot, CTH_MINIMUM, WeaponMode } from './types.ts';
 
 let content: TacticalContent;
 
@@ -350,6 +352,33 @@ describe('punches', () => {
     expect(before - merc.actionPoints).toBe(apCost);
     expect(t.turn.attackBusyCount).toBe(0);
     expect(animName(t.content, merc.state)).toBe('PUNCH_BREATH');
+  });
+
+  it('deals a surprise punch to the head the damage of one to the legs: fists take no hit location factor (Weapons.cc:1244-1257)', () => {
+    const HITTING_ROLL = 0;
+    const NO_FLUKE = 25;
+    const punchAt = (bodyPart: 'head' | 'legs') => {
+      const { sim, merc, enemy } = duel(null, gridNo(80, 81), Direction.SOUTH);
+      master(merc);
+      novice(enemy);
+      enemy.oppList[merc.id] = Opp.NOT_HEARD_OR_SEEN;
+      Object.assign(sim.state, { pre: new ScriptedStream([HITTING_ROLL, NO_FLUKE], 0) });
+      expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo, bodyPart })).toEqual({ ok: true });
+      return first(runUntilIdle(sim), 'soldierHit')?.damage;
+    };
+    const head = punchAt('head');
+    expect(head).toBeGreaterThan(0);
+    expect(punchAt('legs')).toBe(head);
+  });
+
+  it("spares an infant monster from every fist, not only the queen's tentacles: its kids' defence holds whoever strikes (Weapons.cc:3340-3345)", () => {
+    const { sim, merc } = duel(null, gridNo(80, 90), Direction.SOUTH);
+    const t = sim.state;
+    const infant = spawnCreature(sim, 40, Body.INFANT_MONSTER, gridNo(81, 81), Direction.NORTH);
+    const larva = spawnCreature(sim, 41, Body.LARVAE_MONSTER, gridNo(79, 81), Direction.NORTH);
+    merc.aimShotLocation = AimShot.TORSO;
+    expect(calcChanceToPunch(t, merc, infant, 0)).toBe(CTH_MINIMUM);
+    expect(calcChanceToPunch(t, merc, larva, 0)).toBeGreaterThan(CTH_MINIMUM);
   });
 
   it('turns a target who did not see the punch coming toward the attacker, where a blade turns one who saw it', () => {

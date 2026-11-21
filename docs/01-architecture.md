@@ -335,8 +335,6 @@ ja2-node follows are in this table, its minor rows only there.
 | Hearing | Sleeping listener −5 | Disabled (`OppList.cc:3853`) |
 | Gun hit chance | Barrel extenders wear on every shot | Wear only on real shots. Kept: the agility dodge applies only against `QUEENMONSTER` (`Weapons.cc:2414`) |
 | Carried weight | Strength halved with integer division | Minor fix (`Items.cc:845`) |
-| Blast during a hit animation (**master**, #115) | The soldier keeps his non-interruptible hit animation | The blast knocks him down anyway (`M:Soldier_Control.cc:3254-3262`) |
-| AI burst choice (**master**, #115) | Affordability without re-raise AP | Re-raise AP included (`M:DecideAction.cc:3245-3300`) |
 | PD placement pass | `AddSoldierInitListEnemyDefenceSoldiers` examines every priority-and-detailed node (`V:Tactical/SoldierInitList.c:787-806`) | Every second one: the body advances `curr` as well as `FOR_EACH` (`Tactical/Soldier_Init_List.cc:718-749`; confirmed by the oracle `defence` probes on A9, `17`) |
 | Enemy elites | Capped by difficulty like the others | Clamped to 6..10 (`enemy_elite_*`) and exempt from the cap: stronger elites (`Soldier_Create.cc:1125, 2146`) |
 | Autoresolve | Stale damage; its replay helper restored the `PreRandom` index | Stale-damage fix (**master**, #110; `M:Auto_Resolve.cc:2918`); the index is saved but never restored |

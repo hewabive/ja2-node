@@ -502,7 +502,7 @@ function tossTargets(t: TacticalState, s: Soldier, inHand: number, grenade: numb
   return targets;
 }
 
-function estimateThrowDamage(t: TacticalState, s: Soldier, slot: number, opp: Soldier, g: number): number {
+export function estimateThrowDamage(t: TacticalState, s: Soldier, slot: number, opp: Soldier, g: number): number {
   const payload = (s.inv[slot] as ItemObject).item;
   if (payload === itemIndex(t, 'SMOKE_GRENADE') || payload === itemIndex(t, 'GL_SMOKE_GRENADE')) return SMOKE_THROW_VALUE;
   const explosive = itemDef(t, payload === itemIndex(t, 'ROCKET_LAUNCHER') ? itemIndex(t, 'C1') : payload)?.explosive;
@@ -521,10 +521,10 @@ function estimateThrowDamage(t: TacticalState, s: Soldier, slot: number, opp: So
     if (mask === InvSlot.HEAD1 || mask === InvSlot.HEAD2)
       breath = idiv(breath * (100 - ((opp.inv[mask] as ItemObject).status[0] ?? 0)), 100);
   } else if (explosion) {
-    explosion -= idiv(explosion * armourVersusExplosivesPercent(t, opp), 100);
+    explosion -= idiv(explosion * armourVersusExplosivesPercent(t, s), 100);
     if (explosion < 1) explosion = 1;
   }
-  let damage = endHeight(t.content, opp.state) === AnimHeight.STAND ? KNOCKDOWN_BONUS : 0;
+  let damage = endHeight(t.content, s.state) === AnimHeight.STAND ? KNOCKDOWN_BONUS : 0;
   if (opp.breath < OKBREATH || opp.bodyType === Body.ROBOTNOWEAPON) breath = 0;
   damage += explosion + idiv(breath, 3);
   return idiv(damage * ((s.inv[slot] as ItemObject).status[0] ?? 0), 100);
