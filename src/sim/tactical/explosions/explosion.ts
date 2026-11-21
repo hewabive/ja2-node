@@ -18,7 +18,6 @@ import { isDoorTravelCost, recompileLocalMovementCosts, TravelCost } from '../..
 import {
   has,
   ORIENT_LEFT,
-  ORIENT_RIGHT,
   STRUCTURE_ON_GROUND,
   STRUCTURE_ON_ROOF,
   StructureFlags,
@@ -266,12 +265,6 @@ interface BlockingInfo {
 
 const NOTHING_BLOCKING: BlockingInfo = { blocking: Blocking.NOTHING, height: 0, structure: null };
 
-function wallFacesRay(s: StructureInstance, dir: number): boolean {
-  if (dir >= Direction.NORTH && dir <= Direction.SOUTH && s.wallOrientation & ORIENT_RIGHT) return false;
-  if (dir >= Direction.EAST && dir <= Direction.WEST && s.wallOrientation & ORIENT_LEFT) return false;
-  return true;
-}
-
 function windowBlocking(s: StructureInstance): number {
   const open = has(s.flags, StructureFlags.OPEN);
   if (s.wallOrientation & ORIENT_LEFT) return open ? Blocking.TOPLEFT_OPEN_WINDOW : Blocking.TOPLEFT_WINDOW;
@@ -283,7 +276,7 @@ function doorBlocking(s: StructureInstance): number {
   return s.wallOrientation & ORIENT_LEFT ? Blocking.TOPLEFT_DOOR : Blocking.TOPRIGHT_DOOR;
 }
 
-function blockingStructureInfo(t: TacticalState, g: number, dir: number, level: number): BlockingInfo {
+function blockingStructureInfo(t: TacticalState, g: number, level: number): BlockingInfo {
   const desired = level === 0 ? STRUCTURE_ON_GROUND : STRUCTURE_ON_ROOF;
   let ok = false;
   let minimum = false;
@@ -295,10 +288,6 @@ function blockingStructureInfo(t: TacticalState, g: number, dir: number, level: 
     if (has(s.flags, StructureFlags.ROOF) && level === 1) ok = false;
     if (has(s.flags, StructureFlags.CORPSE | StructureFlags.PERSON)) ok = false;
     if (has(s.flags, StructureFlags.TREE | StructureFlags.ANYFENCE)) minimum = true;
-    if (has(s.flags, StructureFlags.WALL)) {
-      ok = wallFacesRay(s, dir);
-      if (ok) break;
-    }
     if (has(s.flags, StructureFlags.WALLNWINDOW)) return { blocking: windowBlocking(s), height: structureHeight(s), structure: s };
     if (has(s.flags, StructureFlags.ANYDOOR)) return { blocking: doorBlocking(s), height: structureHeight(s), structure: s };
   }
@@ -335,7 +324,7 @@ export function getRayStopInfo(
   let range = rangeIn;
   let obstacle = travelCostObstacle(t, g, dir, level);
   let reduce = true;
-  const first = blockingStructureInfo(t, g, dir, level);
+  const first = blockingStructureInfo(t, g, level);
   let height = first.height;
   if (first.structure) {
     if (has(first.structure.flags, StructureFlags.CAVEWALL)) obstacle = true;
@@ -348,7 +337,7 @@ export function getRayStopInfo(
     if (OPEN_WINDOWS.has(first.blocking)) obstacle = false;
     for (const side of [Direction.WEST, Direction.NORTH]) {
       if (!obstacle) break;
-      const info = blockingStructureInfo(t, newGridNo(g, inc(side)), dir, level);
+      const info = blockingStructureInfo(t, newGridNo(g, inc(side)), level);
       height = info.height;
       if (OPEN_WINDOWS.has(info.blocking)) obstacle = false;
       if (isThin(info.structure)) {
@@ -360,7 +349,7 @@ export function getRayStopInfo(
     if (CLOSED_WINDOWS.has(first.blocking) && first.structure) windowHit(t, g, first.structure.id, BLOWN_SOUTH.has(dir));
     for (const side of [Direction.WEST, Direction.NORTH]) {
       const neighbour = newGridNo(g, inc(side));
-      const info = blockingStructureInfo(t, neighbour, dir, level);
+      const info = blockingStructureInfo(t, neighbour, level);
       height = info.height;
       if (isThin(info.structure)) {
         obstacle = false;

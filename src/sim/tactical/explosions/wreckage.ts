@@ -180,9 +180,9 @@ function replaceStructIndex(t: TacticalState, tiles: readonly TileElement[], g: 
   addWallToStructLayer(t, tiles, g, tile, false);
 }
 
-function wallOfSameOrientationAt(t: TacticalState, g: number, side: number): StructureInstance | null {
+function wallOfSameOrientationAt(t: TacticalState, g: number, orientation: number): StructureInstance | null {
   for (const s of t.world.structures.at(g)) {
-    if (!has(s.flags, StructureFlags.WALLSTUFF) || !(s.wallOrientation & side)) continue;
+    if (!has(s.flags, StructureFlags.WALLSTUFF) || s.wallOrientation !== orientation) continue;
     const base = t.world.structures.findBase(s);
     if (base) return base;
   }
@@ -198,7 +198,7 @@ function wallEndTile(tables: TileTables, node: number, subIndex: number): number
 function replaceWall(t: TacticalState, g: number, orientation: number, subIndex: number, changes: StructureChanges): void {
   const { tables, tiles } = t.world;
   if (!tables || !tiles) return;
-  const wall = wallOfSameOrientationAt(t, g, orientation & ORIENT_LEFT ? ORIENT_LEFT : ORIENT_RIGHT);
+  const wall = wallOfSameOrientationAt(t, g, orientation);
   if (!wall || !has(wall.flags, StructureFlags.WALL)) return;
   const node = levelNodeTile(t, wall);
   const tile = node === null ? null : wallEndTile(tables, node, subIndex);
@@ -258,7 +258,9 @@ export function wreckSurroundings(t: TacticalState, w: Wreck, changes: Structure
   if (w.destructionPartner > 0) {
     if (tables) leaveDebris(t, tables, w);
   } else if (has(w.current.flags, StructureFlags.FENCE)) damageFencePartners(t, w, changes);
-  if (tables && has(w.current.flags, StructureFlags.WALLSTUFF | StructureFlags.WIREFENCE)) removeWallDecals(t, tables, w.base.gridNo);
-  if (has(w.current.flags, StructureFlags.WALLSTUFF)) breakWall(t, w, changes);
+  if (has(w.current.flags, StructureFlags.WALLSTUFF)) {
+    if (tables) removeWallDecals(t, tables, w.base.gridNo);
+    breakWall(t, w, changes);
+  }
   if (tables && tiles) drainFountain(t, tables, tiles, w);
 }

@@ -519,6 +519,19 @@ describe('heights on raised land (Physics.cc:162-167 CreatePhysicalObject: an ob
     expect(crossings(raisedSim(new Set([roofed])), RAISED_LAND_UNITS)).toEqual([Collision.NONE, Collision.ROOF]);
   });
 
+  it('leaves a flare that comes to rest on raised land unlit, as an item: any height above 0 counts as off the ground, where no light is made (Physics.cc:2084-2094)', () => {
+    const target = gridNo(80, 86);
+    const flareAt = (sim: TacticalSim) => {
+      const s = grenadier(sim);
+      s.inv[InvSlot.HAND] = objectOf(sim.state, 'BREAK_LIGHT');
+      throwAndLand(sim, s, target);
+      const flares = sim.state.worldItems.filter((wi) => wi.object.item === itemId(sim.state, 'BREAK_LIGHT'));
+      return { levels: flares.map((wi) => wi.level), lit: sim.state.explosives.lights.some((light) => light !== null) };
+    };
+    expect(flareAt(newCombatSim(content))).toEqual({ levels: [], lit: true });
+    expect(flareAt(raisedSim())).toEqual({ levels: [0], lit: false });
+  });
+
   it('plays no impact for an object that comes to rest on a roof, only for one on the ground', () => {
     const impacts = (roofed: boolean) => {
       const at = gridNo(80, 84);

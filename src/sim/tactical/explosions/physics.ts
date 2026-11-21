@@ -357,7 +357,7 @@ function handleArmedObjectImpact(t: TacticalState, o: RealObject): void {
   const level = objectLevelAboveLand(t, o.position.z, o.gridNo);
   const causesExplosion = explosive.blast !== null || explosive.stun !== null || explosive.smoke !== null;
   if (explosive.light) {
-    if (level > 0) {
+    if (o.position.z > 0) {
       if (!causesExplosion) addItemToPool(t, o.gridNo, obj, Visibility.VISIBLE, 1, 0, FORCE_ON_GROUND);
     } else newLightEffect(t, o.gridNo, explosive.light.radius, explosive.light.duration);
   }

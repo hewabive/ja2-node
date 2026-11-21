@@ -3,7 +3,7 @@
 // @src src/game/TileEngine/Explosion_Control.cc ExplosiveDamageStructureAtGridNo (what wreckage.ts does not cover),
 // @src ExplosiveDamageGridNo;
 // @src TileEngine/Structure.cc DamageStructure (explosion branch); Tactical/Weapons.cc WindowHit;
-// @src Tactical/Handle_Items.cc RemoveAllUnburiedItems, PutItemPoolOnGround; Tactical/End_Game.cc HandleStatueDamaged (the
+// @src Tactical/Handle_Items.cc RemoveAllUnburiedItems; Tactical/End_Game.cc HandleStatueDamaged (the
 // @src BeforeStructureDamaged listener); Tactical/Overhead.cc HandleBrothelWallDestroyed and Strategic/SAM_Sites.cc
 // @src UpdateAndDamageSAMIfFound (the OnStructureDamaged listeners, in key order); Tactical/Rotting_Corpses.cc VaporizeCorpse.
 
@@ -91,10 +91,6 @@ function removeAllUnburiedItems(t: TacticalState, g: number, level: number): voi
   for (const wi of itemsAt(t, g, level)) if (wi.visible !== Visibility.BURIED) removeWorldItem(t, wi);
 }
 
-function putItemPoolOnGround(t: TacticalState, g: number, level: number): void {
-  for (const wi of itemsAt(t, g, level)) wi.zHeight = 0;
-}
-
 function standing(t: TacticalState, base: StructureInstance): boolean {
   return t.world.structures.findById(base.gridNo, base.id) === base;
 }
@@ -145,7 +141,6 @@ function explosiveDamageStructureAtGridNo(
   const swap = result === StructureDamage.DAMAGED && partner < 0;
   if (result !== StructureDamage.DESTROYED && !swap) return true;
   wreckSurroundings(t, { current, base, destructionPartner: partner, baseTile: levelNodeTile(t, base) }, changes);
-  if (has(current.flags, StructureFlags.HASITEMONTOP)) putItemPoolOnGround(t, g, level);
   if (standing(t, base)) {
     recordStructureRemoved(t, base);
     t.world.structures.remove(base);

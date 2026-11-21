@@ -230,6 +230,22 @@ describe('blasts and structures', () => {
     expect(sheltered.life).toBe(100);
     expect(exposed.life).toBeLessThan(100);
   });
+
+  it('stops the blast at a wall whichever way the wall faces the ray: every wall blocks (Structure.cc:1774-1780)', () => {
+    const along = south(2);
+    const base = syntheticWorld(testDoorCosts(), (structures) => {
+      structures.add(along, 0, {
+        ...syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT, { armour: MATERIAL_CONCRETE1 }),
+        hitPoints: 100,
+      });
+    });
+    const sim = new TacticalSim({ ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld, content, 3);
+    const t = sim.state;
+    const behind = bystander(sim, 0, south(4));
+    igniteExplosion(t, null, 0, BOMB, itemId(t, 'HAND_GRENADE'), 0);
+    runExplosivesUntilIdle(sim);
+    expect(behind.life).toBe(100);
+  });
 });
 
 describe('structure damage listeners (OnStructureDamaged)', () => {
@@ -341,18 +357,18 @@ describe('items in the blast', () => {
 });
 
 describe('items on a wrecked structure', () => {
-  it('puts the items lying on a table the blast destroys on the floor (PutItemPoolOnGround)', () => {
+  it('leaves the items lying on a table the blast destroys at the table top, over the bare floor (Explosion_Control.cc:568-575)', () => {
     const sim = simWith();
     const t = sim.state;
     const table = { ...syntheticStructure(StructureFlags.GENERIC, Orientation.NONE, { height: 2 }), hitPoints: 1 };
     t.world.structures.add(north(1), 0, table);
-    const lying = addItemToPool(t, north(1), objectOf(t, 'CROWBAR'), Visibility.VISIBLE, 0);
-    expect(lying?.zHeight).toBeGreaterThan(0);
+    const tableTop = addItemToPool(t, north(1), objectOf(t, 'CROWBAR'), Visibility.VISIBLE, 0)?.zHeight ?? 0;
+    expect(tableTop).toBeGreaterThan(0);
     expect(t.world.structures.find(north(1), StructureFlags.HASITEMONTOP)).not.toBeNull();
     igniteExplosion(t, null, 0, BOMB, itemId(t, 'HAND_GRENADE'), 0);
     runExplosivesUntilIdle(sim);
     expect(t.world.structures.find(north(1), StructureFlags.GENERIC)).toBeNull();
-    expect(itemsAt(t, north(1), 0).map((wi) => [wi.object.item, wi.zHeight])).toEqual([[itemId(t, 'CROWBAR'), 0]]);
+    expect(itemsAt(t, north(1), 0).map((wi) => [wi.object.item, wi.zHeight])).toEqual([[itemId(t, 'CROWBAR'), tableTop]]);
   });
 });
 

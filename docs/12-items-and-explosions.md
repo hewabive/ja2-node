@@ -104,7 +104,7 @@ goes by `id` (`worldItemsByIndex`): a theft, the sector inventory's stash and th
 freed index as a record that does not exist. Visibility keeps the original's values (hidden, buried, inside a closed
 container, not yet seen, visible): sight reveals unseen items, a search on the tile reveals hidden ones. An item put on
 a generic structure marks it (`STRUCTURE_HASITEMONTOP`) until the tile's last item leaves: a merc standing on the tile
-turns to it to reach the items, a blast that wrecks it puts them on the floor, and the client makes it an interactive
+turns to it to reach the items, a blast that wrecks it leaves them at its height (§3), and the client makes it an interactive
 tile from the shown items lying on it (`30`). Other sectors' items, clouds and flares live in the campaign's sector
 diffs (`campaign/sector-diff.ts`).
 
@@ -164,6 +164,11 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | A blast's side branches run to the full blast range, even where a low structure shortened their ray | `explosions/explosion.test.ts` |
 | The end piece beside a destroyed wall replaces a decal on the same side of its wall | `explosions/wreckage.test.ts` |
 | A drained fountain loses each of its first three water pieces twice, so a doubled piece goes too | `explosions/wreckage.test.ts` |
+| Items lying on a structure a blast wrecks stay at its height over the bare floor (`TileEngine/Explosion_Control.cc:568-575`) | `explosions/explosion.test.ts` "leaves the items lying on a table …" |
+| Every wall on its ray stops a blast, whichever way the wall faces (`TileEngine/Structure.cc:1774-1780`) | `explosions/explosion.test.ts` "stops the blast at a wall whichever way …" |
+| Only a wall of the exact orientation beside a destroyed wall gets an end piece: an inside wall beside an outside one stays whole (`TileEngine/Explosion_Control.cc:303-306`, `Tactical/Structure_Wrap.cc:76-88`) | `explosions/wreckage.test.ts` "leaves a wall of the same side but the other orientation …" |
+| A destroyed wire fence keeps the decals on its tile: only a wall takes them off (`TileEngine/Explosion_Control.cc:508-514`) | `explosions/wreckage.test.ts` "keeps the decals on its tile …" |
+| A flare that comes to rest above height 0, on raised land too, stays an unlit item: no light is made off the ground (`TileEngine/Physics.cc:2084-2094`) | `explosions/physics.test.ts` "leaves a flare that comes to rest on raised land unlit …" |
 | Creature gas has no explosion animation: igniting it would raise the busy count for good (spit lays its gas directly) | `explosions/explosion.test.ts` |
 | Once one cloud is due to age in real time, every later cloud ages too, by the same count | `explosions/smoke.test.ts` |
 | A tile keeps the first cloud's gas: tear gas over smoke leaves it smoky | `explosions/smoke.test.ts` |

@@ -34,6 +34,7 @@ const WALL_DEBRIS_PARTNER = 5;
 const FOUNTAIN_DEBRIS_PARTNER = 1;
 const DAMAGED_FENCE = 2;
 const WALL_END_FRAMES = 55;
+const DECORATION_FRAMES = 10;
 
 const LEFT = Orientation.OUTSIDE_LEFT;
 const RIGHT = Orientation.OUTSIDE_RIGHT;
@@ -87,7 +88,12 @@ const SURFACES: readonly TileSurface[] = [
     2: wall(RIGHT, { hitPoints: STURDY }),
     3: wall(LEFT, { destructionPartner: WALL_DEBRIS_PARTNER }),
     4: wall(LEFT, { hitPoints: STURDY }),
+    5: wall(Orientation.INSIDE_LEFT, { hitPoints: STURDY }),
     ...WALL_ENDS,
+  }),
+  surface('FIRSTDECORATIONS', 'walldec1.sti', DECORATION_FRAMES, { 1: wall(LEFT, { hitPoints: STURDY }) }),
+  surface('THIRDOSTRUCT', 'wirefence.sti', 1, {
+    1: { ...syntheticStructure(StructureFlags.WIREFENCE, RIGHT, { edge: true }), hitPoints: FRAIL },
   }),
   surface('FIRSTWALLDECAL', 'decal1.sti', 10, {}, { 1: LEFT }),
   surface('FIFTHWALLDECAL', 'decal5.sti', 10),
@@ -294,6 +300,42 @@ describe('wall end pieces (ReplaceWall, Explosion_Control.cc:303)', () => {
     const entered = simOver(structs);
     applyMapChanges(entered, t.mapChanges);
     expect(structLayerAt(entered, west)).toEqual([tile('FIRSTWALL', 48)]);
+  });
+});
+
+describe('wall end pieces of v0.22.1 (ReplaceWall, Explosion_Control.cc:303-313)', () => {
+  it('leaves a wall of the same side but the other orientation beside a destroyed wall as it is: the lookup takes the exact one', () => {
+    const west = WALL - 1;
+    const t = simOver(
+      new Map([
+        [west, [tile('FIRSTWALL', 5)]],
+        [WALL, [tile('FIRSTWALL', 1)]],
+      ]),
+    );
+    blast(t, WALL);
+    expect(structLayerAt(t, west)).toEqual([tile('FIRSTWALL', 5)]);
+  });
+
+  it('ends a wall drawn from a decoration type with the end piece of its wall type, not a tile past the decorations (original-bugs "Wall ends of decorated walls")', () => {
+    const west = WALL - 1;
+    const t = simOver(
+      new Map([
+        [west, [tile('FIRSTDECORATIONS', 1)]],
+        [WALL, [tile('FIRSTWALL', 1)]],
+      ]),
+    );
+    blast(t, WALL);
+    expect(structLayerAt(t, west)).toEqual([tile('FIRSTWALL', 48)]);
+  });
+});
+
+describe('a destroyed wire fence (Explosion_Control.cc:508-514)', () => {
+  it('keeps the decals on its tile: only a wall takes them off', () => {
+    const wire = gridNo(100, 60);
+    const decal = tile('FIRSTWALLDECAL', 2);
+    const t = simOver(new Map([[wire, [tile('THIRDOSTRUCT', 1), decal]]]));
+    blast(t, wire);
+    expect(structLayerAt(t, wire)).toEqual([decal]);
   });
 });
 
