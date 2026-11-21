@@ -402,7 +402,7 @@ function armourItem(o: Json): ItemDef {
     armourClass,
     protection,
     explosivesProtection: num(o, 'explosivesProtection', protection),
-    degradePercentage: VANILLA_DEGRADE_PERCENTAGES[str(o, 'internalName')] ?? num(o, 'degradePercentage'),
+    degradePercentage: VANILLA_DEGRADE_PERCENTAGES[str(o, 'internalName') ?? ''] ?? num(o, 'degradePercentage'),
     ignoreForMaxProtection: bool(o, 'ignoreForMaxProtection'),
   };
   return { ...baseItem(o, ItemClass.ARMOUR, ItemCursor.INVALID), ...EMPTY_KINDS, armour };
