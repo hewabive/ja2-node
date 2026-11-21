@@ -53,7 +53,7 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('action and inventory hints on the original 
   }
 
   function itemSpread(): number[] {
-    return client.content.items.ordered.filter((_, k) => k % ITEM_SPREAD_STEP === 0).map((d) => d.index);
+    return client.content.items.inIndexOrder.filter((_, k) => k % ITEM_SPREAD_STEP === 0).map((d) => d.index);
   }
 
   it('agree on A9 in real time, doors, containers and a spread of the item table included', async () => {

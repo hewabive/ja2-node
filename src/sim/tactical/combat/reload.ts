@@ -36,7 +36,7 @@ function findAmmo(items: ItemTable, c: Carrier, calibre: number, magSize: number
 }
 
 function findLaunchableAmmo(items: ItemTable, c: Carrier, calibre: string): number {
-  for (const def of items.ordered) {
+  for (const def of items.inIndexOrder) {
     if (def.explosive?.calibre !== calibre) continue;
     const slot = findObjExcludingSlot(c, def.index, NO_SLOT);
     if (slot !== NO_SLOT) return slot;

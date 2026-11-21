@@ -221,7 +221,7 @@ async function buildBobbyRayText(out: string, layouts: EdtLayouts): Promise<stri
   const items = await loadItemTable(dataJson);
   const texts = asObject(asObject(await stubJson(ITEM_TEXT_FILE), 'stub item text').items, 'stub item text.items');
   const records: string[][] = [];
-  for (const def of items.ordered) {
+  for (const def of items.inIndexOrder) {
     if (!def.weapon && !def.armour && !def.explosive) continue;
     const own = texts[def.name];
     const name = own === undefined ? catalogueName(def.name) : (strings(own, `stub item text.${def.name}`)[0] ?? catalogueName(def.name));

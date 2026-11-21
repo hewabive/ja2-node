@@ -9,8 +9,8 @@ glyphs blockfont 122,73 n=4 fg=169
 glyphs blockfont 128,89 n=3 fg=169
 image interface/mdguns.sti#1 186,37 outlineShadow
 image interface/mdguns.sti#1 188,35 outline
-line 167,51 167,47 #8c8877
-line 168,51 168,47 #8c8877
+line 167,51 167,32 #8c8877
+line 168,51 168,32 #8c8877
 hatch checker 165,30 67x31
 image interface/mdguns.sti#7 260,37 outlineShadow
 image interface/mdguns.sti#7 262,35 outline
@@ -34,28 +34,28 @@ line 463,51 463,32 #8c8877
 line 464,51 464,32 #8c8877
 glyphs smallcompfont 486,54 n=3 fg=208
 glyphs blockfont2 514,45 n=2 fg=208
-image interface/mdp1items.sti#8 192,71 outlineShadow
-image interface/mdp1items.sti#8 194,69 outline
+image interface/mdp1items.sti#19 192,71 outlineShadow
+image interface/mdp1items.sti#19 194,69 outline
 line 167,87 167,68 #8c8877
 line 168,87 168,68 #8c8877
-glyphs smallcompfont 188,90 n=4 fg=208
-glyphs blockfont2 218,81 n=2 fg=208
+glyphs smallcompfont 190,90 n=3 fg=208
 image interface/mdp1items.sti#13 266,71 outlineShadow
 image interface/mdp1items.sti#13 268,69 outline
 line 241,87 241,68 #8c8877
 line 242,87 242,68 #8c8877
 glyphs smallcompfont 264,90 n=3 fg=208
-image interface/mdp1items.sti#14 340,71 outlineShadow
-image interface/mdp1items.sti#14 342,69 outline
+glyphs blockfont2 292,81 n=2 fg=208
+image interface/mdp1items.sti#11 340,71 outlineShadow
+image interface/mdp1items.sti#11 342,69 outline
 line 315,87 315,68 #8c8877
 line 316,87 316,68 #8c8877
 glyphs smallcompfont 339,90 n=3 fg=208
 glyphs blockfont2 366,81 n=2 fg=208
-image interface/mdp1items.sti#35 414,71 outlineShadow
-image interface/mdp1items.sti#35 416,69 outline
+image interface/mdp1items.sti#14 414,71 outlineShadow
+image interface/mdp1items.sti#14 416,69 outline
 line 389,87 389,68 #8c8877
 line 390,87 390,68 #8c8877
-glyphs smallcompfont 412,90 n=3 fg=208
+glyphs smallcompfont 413,90 n=3 fg=208
 glyphs blockfont2 440,81 n=2 fg=208
 image interface/mdp1items.sti#32 488,71 outlineShadow
 image interface/mdp1items.sti#32 490,69 outline
@@ -71,20 +71,20 @@ glyphs smallcompfont 191,126 n=3 fg=208
 glyphs blockfont2 218,117 n=2 fg=208
 image interface/mdp1items.sti#79 261,111 outlineShadow
 image interface/mdp1items.sti#79 263,109 outline
-line 241,123 241,104 #8c8877
-line 242,123 242,104 #8c8877
-glyphs smallcompfont 262,126 n=4 fg=208
-image interface/mdp1items.sti#102 337,108 outlineShadow
-image interface/mdp1items.sti#102 339,106 outline
+line 241,123 241,113 #8c8877
+line 242,123 242,113 #8c8877
+glyphs smallcompfont 264,126 n=3 fg=208
+image interface/mdp1items.sti#90 337,108 outlineShadow
+image interface/mdp1items.sti#90 339,106 outline
 line 315,123 315,104 #8c8877
 line 316,123 316,104 #8c8877
 glyphs smallcompfont 338,126 n=3 fg=208
 image interface/mdguns.sti#1 112,158 outlineShadow
 image interface/mdguns.sti#1 114,156 outline
-line 93,172 93,168 #8c8877
-line 94,172 94,168 #8c8877
-glyphs smallcompfont 114,175 n=4 fg=208
-glyphs blockfont 38,199 n=4 fg=208
+line 93,172 93,153 #8c8877
+line 94,172 94,153 #8c8877
+glyphs smallcompfont 113,175 n=4 fg=208
+glyphs blockfont 37,199 n=4 fg=208
 glyphs blockfont 43,315 n=2 fg=208
 image interface/tradescrollarrows.sti#0 121,35 normal
 hatch checker 121,35 30x22

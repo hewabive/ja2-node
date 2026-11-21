@@ -166,7 +166,7 @@ function defenceRating(t: TacticalState, def: Soldier, mode: number, weapon: num
 function weaponFitsMode(t: TacticalState, weapon: number, mode: number): boolean {
   const def = itemDef(t, weapon);
   if (mode === MeleeMode.STAB) return def?.weapon?.weaponClass === WeaponClass.KNIFE;
-  return ((def?.itemClass ?? ItemClass.NONE) & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
+  return def?.itemClass === ItemClass.PUNCH;
 }
 
 function calcChanceHTH(t: TacticalState, att: Soldier, def: Soldier, aim: number, mode: number): number {

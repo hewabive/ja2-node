@@ -21,7 +21,7 @@ Paths are under `src/sim/tactical/` unless stated.
 
 | Module | Holds |
 |---|---|
-| `src/content/items/items.ts`, `rules.ts`, `slot-limit.ts` | `ItemTable` in container order, the kind records (weapon, magazine, armour, explosive), attachment and merge rules, slot limits |
+| `src/content/items/items.ts`, `rules.ts`, `slot-limit.ts` | `ItemTable` by item index, placeholders included, with item 0 the punch `weapons.json` defines; the kind records (weapon, magazine, armour, explosive), attachment and merge rules, slot limits |
 | `src/content/items/explosions.ts` | Explosion animations with their frame counts, smoke effect types |
 | `src/content/formats/object.ts`, `src/sim/items/object.ts` | The 36-byte `OBJECTTYPE` record; `ItemObject` without a soldier: creation, stacks, magazines, attachments, unloading |
 | `inventory.ts`, `soldier-inventory.ts`, `hand-item.ts` | Slots, placing and auto-placing, reloading, carried weight, the items of hired mercs and NPC profiles; what a hand change does |

@@ -23,7 +23,7 @@ const IVAN = 7;
 const NOT_A_DEALER = 3;
 
 describe('dead dealers', () => {
-  it('drop their stock in pocket-sized stacks, then specials and cash, and go out of business', () => {
+  it('drop their stock item by item in index order, each in pocket-sized stacks then its specials, then cash, and go out of business', () => {
     const { ctx } = merchantFixture(t);
     const jar = itemId(t, 'JAR');
     const crowbar = itemId(t, 'CROWBAR');
@@ -35,10 +35,10 @@ describe('dead dealers', () => {
     expect(addDeadArmsDealerItemsToWorld(ctx, NOT_A_DEALER, (o) => dropped.push(o))).toBe(false);
     expect(addDeadArmsDealerItemsToWorld(ctx, SAM_PROFILE, (o) => dropped.push(o))).toBe(true);
     expect(dropped.map((o) => [t.items.byIndex.get(o.item)?.name, o.count, o.status[0], o.money])).toEqual([
+      ['CROWBAR', 1, 40, 0],
       ['JAR', 2, 100, 0],
       ['JAR', 2, 100, 0],
       ['JAR', 1, 100, 0],
-      ['CROWBAR', 1, 40, 0],
       ['MONEY', 1, 100, 3000],
     ]);
     expect(status).toMatchObject({ outOfBusiness: true, cash: 0 });

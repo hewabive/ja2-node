@@ -3,7 +3,7 @@
 // @src src/game/TacticalAI/FindLocations.cc SearchForItems, IsGunUsable; AIUtils.cc FindBetterSpotForItem;
 // @src Tactical/Items.cc ValidAmmoType, TotalPoints.
 
-import { ItemClass, NOTHING } from '../../../content/items/items.ts';
+import { ItemClass, isWeapon, NOTHING } from '../../../content/items/items.ts';
 import { pythSpacesAway, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { idiv } from '../../../core/int.ts';
 import { deleteObject, type ItemObject, ObjectFlags } from '../../items/object.ts';
@@ -86,10 +86,11 @@ function ammoValue(t: TacticalState, o: ItemObject, wantedGun: number, s: Soldie
 function weaponValue(t: TacticalState, o: ItemObject, s: Soldier): number | null {
   const items = t.content.items;
   const def = items.byIndex.get(o.item);
-  if (!def?.weapon || (o.status[0] ?? 0) < MINIMUM_REQUIRED_STATUS) return null;
+  if (!isWeapon(items, o.item) || !def?.weapon || (o.status[0] ?? 0) < MINIMUM_REQUIRED_STATUS) return null;
   if (def.itemClass === ItemClass.GUN && !isGunUsable(t, o, s)) return null;
-  const inHand = items.byIndex.get((s.inv[InvSlot.HAND] as ItemObject).item);
-  if (inHand?.weapon) {
+  const handItem = (s.inv[InvSlot.HAND] as ItemObject).item;
+  const inHand = items.byIndex.get(handItem);
+  if (isWeapon(items, handItem) && inHand?.weapon) {
     if (def.weapon.deadliness <= inHand.weapon.deadliness) return null;
     return idiv(100 * def.weapon.deadliness, inHand.weapon.deadliness || 1);
   }

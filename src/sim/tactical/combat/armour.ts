@@ -141,14 +141,14 @@ export interface MaxArmour {
 export function maxArmourPerClass(items: ItemTable): MaxArmour {
   const plates = Math.max(
     0,
-    ...items.ordered
+    ...items.inIndexOrder
       .filter((i) => i.armour?.armourClass === ArmourClass.PLATE && !i.armour.ignoreForMaxProtection)
       .map((i) => i.armour?.protection ?? 0),
   );
   const best = (cls: number) =>
     Math.max(
       0,
-      ...items.ordered
+      ...items.inIndexOrder
         .filter((i) => i.armour?.armourClass === cls && !i.armour.ignoreForMaxProtection)
         .map((i) => (i.armour?.protection ?? 0) + (items.rules.plateVests.has(i.index) ? plates : 0)),
     );

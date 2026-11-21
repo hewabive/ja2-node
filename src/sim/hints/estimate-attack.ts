@@ -135,7 +135,7 @@ const CURSOR_NAMES: Readonly<Record<number, AttackCursor>> = {
   [ItemCursor.REFUEL]: 'refuel',
 };
 
-const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
+const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || cls === ItemClass.PUNCH;
 const NO_AMMO_STATE: AmmoState = { empty: false, canReload: false, reloadAp: 0 };
 
 function itemIndex(t: TacticalState, name: string): number {
@@ -233,7 +233,7 @@ function estimateStrike(
   const victim = whoIsThere(t, target, level);
   const hand = s.inv[InvSlot.HAND] as ItemObject;
   const def = t.content.items.byIndex.get(hand.item);
-  const melee = hand.item === NOTHING || (def !== undefined && isMeleeItemClass(def.itemClass));
+  const melee = def !== undefined && isMeleeItemClass(def.itemClass);
   const blade = def?.itemClass === ItemClass.BLADE;
   const walkUp = melee ? meleeWalkUp(t, s, victim, target, level, directPath) : null;
   if (melee && (level !== s.level || (!victim && !blade))) return { ...nobodyToStrike(t, s, cursor, base, policy), ...walkUp };

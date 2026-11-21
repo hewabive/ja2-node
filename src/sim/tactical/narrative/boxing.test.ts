@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { estimateAttack, newCombatSim, spawnSoldier } from '../../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../../tests/support/tactical.ts';
+import { NOTHING } from '../../../content/items/items.ts';
 import { WORLD_COLS } from '../../../content/world/grid.ts';
 import { createItem, emptyObject } from '../../items/object.ts';
 import { ScriptedStream } from '../../strategic/forces/autoresolve/replay-rng.ts';
@@ -243,6 +244,14 @@ describe('disqualification', () => {
       expect(sim.state.boxing.state).toBe(expected);
       if (expected === BoxingState.NOT_BOXING) expect((boxers[0] as Soldier).neutral).toBe(true);
     }
+  });
+
+  it('disqualifies a merc outside the fight who punches a boxer bare-handed, as the item NOTHING is a punch (Overhead.cc:5433-5442)', () => {
+    const { sim, boxers } = fight();
+    const outsider = unarmed(spawnSoldier(sim, 1, Team.OUR, OUTSIDE_RING, NORTH));
+    outsider.attackingWeapon = NOTHING;
+    processImplicationsOfPCAttack(sim.state, outsider, boxers[0] as Soldier, AttackReason.NORMAL);
+    expect(sim.state.boxing.state).toBe(BoxingState.DISQUALIFIED);
   });
 });
 

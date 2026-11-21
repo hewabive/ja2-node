@@ -51,6 +51,7 @@ beforeAll(async () => {
 type EventOf<K extends SimEvent['type']> = Extract<SimEvent, { type: K }>;
 
 const KNIFE = 'COMBAT_KNIFE';
+const PLACEHOLDER_OF_CLASS_NONE = 199;
 const KNIFE_IMPACT = 18;
 const AVERAGE_DIFFICULTY_MODIFIER = 50;
 const TOP_DIFFICULTY_MODIFIER = 100;
@@ -563,6 +564,18 @@ describe('punches', () => {
       data: { cursor: 'punch', inReach: false },
     });
     expect(sim.dispatch({ type: 'attack', soldier: 0, target: gridNo(81, 80) })).toMatchObject({ ok: false });
+  });
+
+  it('takes only the punch class for fists: a placeholder of the class NONE in hand neither punches nor costs attack APs (Points.cc:982, Weapons.cc:3193)', () => {
+    const { sim, merc, enemy } = duel(null, gridNo(80, 81), Direction.SOUTH);
+    const t = sim.state;
+    const bareHanded = [minAPsToAttack(t, merc, enemy.gridNo, true), calcChanceToPunch(t, merc, enemy, 0)];
+    expect(bareHanded[0]).toBeGreaterThan(0);
+    expect(bareHanded[1]).toBeGreaterThan(0);
+    merc.inv[InvSlot.HAND] = createItem(content.items, PLACEHOLDER_OF_CLASS_NONE, 100);
+    merc.attackingWeapon = PLACEHOLDER_OF_CLASS_NONE;
+    expect([minAPsToAttack(t, merc, enemy.gridNo, true), calcChanceToPunch(t, merc, enemy, 0)]).toEqual([0, 0]);
+    expect(sim.dispatch({ type: 'attack', soldier: 0, target: enemy.gridNo })).toMatchObject({ ok: false, data: { refusal: 'noWeapon' } });
   });
 });
 

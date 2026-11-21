@@ -183,7 +183,7 @@ describe('dealer initialisation and daily update', () => {
 
   it('drops whole ammo types beyond Tony’s eighth', () => {
     const f = merchantFixture(t, { random: RecordingRolls.zeros() });
-    const clips = t.items.ordered.filter((d) => d.magazine && !(d.flags & 0x0400)).slice(0, 10);
+    const clips = t.items.inIndexOrder.filter((d) => d.magazine && !(d.flags & 0x0400)).slice(0, 10);
     for (const c of clips) addItemToArmsDealerInventory(f.ctx, TONY, c.index, defaultItemInfo(), 3);
     limitArmsDealersInventory(f.ctx, TONY, t.content.tables.categories.AMMO, 8);
     expect(clips.filter((c) => header(f.ctx.state, TONY, c.index).total > 0)).toHaveLength(8);

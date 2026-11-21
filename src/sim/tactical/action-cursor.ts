@@ -4,7 +4,7 @@
 // @src control, the toss cursor in attached mode, the bomb cursor for an item with a detonator, no cursor in deep water
 // @src or collapsed); Handle_Items.cc IsDetonatorAttached.
 
-import { ItemCursor, NOTHING } from '../../content/items/items.ts';
+import { ItemCursor } from '../../content/items/items.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import { findAttachment, type ItemObject } from '../items/object.ts';
 import { WeaponMode } from './combat/types.ts';
@@ -32,7 +32,6 @@ export function actionModeCursor(t: TacticalState, s: Soldier, isEpc: boolean): 
   if (isVehicle(s) || uncontrolledRobot(t, s)) return ItemCursor.INVALID;
   if (s.weaponMode === WeaponMode.ATTACHED) return ItemCursor.TRAJECTORY;
   const hand = s.inv[InvSlot.HAND] as ItemObject;
-  if (hand.item === NOTHING) return ItemCursor.PUNCH;
   let cursor = itemCursorOf(t, hand.item);
   if (cursor === ItemCursor.INVALID && isDetonatorAttached(t, hand)) cursor = ItemCursor.BOMB;
   if (s.overTerrain === Terrain.DEEP_WATER) cursor = ItemCursor.INVALID;

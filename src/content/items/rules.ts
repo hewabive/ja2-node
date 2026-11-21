@@ -42,9 +42,12 @@ interface RulesJson {
   platesCanBeAttached: string[];
 }
 
+const ITEMDEFINE_NOTHING = 'NOTHING';
+
 export function parseItemRules(json: unknown, byName: ReadonlyMap<string, { readonly index: number }>): ItemRules {
   const j = json as RulesJson;
   const id = (name: string): number => {
+    if (name === ITEMDEFINE_NOTHING) return NOTHING;
     const def = byName.get(name);
     if (!def) throw new Error(`unknown item ${name} in item rules`);
     return def.index;

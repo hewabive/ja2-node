@@ -154,7 +154,7 @@ export interface RepairElement {
 export function itemsInRepair(ctx: MerchantContext, dealer: number): RepairElement[] {
   const out: RepairElement[] = [];
   if (!doesDealerDoRepairs(ctx, dealer)) return out;
-  for (const def of ctx.items.ordered) {
+  for (const def of ctx.items.inIndexOrder) {
     const h = header(ctx.state, dealer, def.index);
     if (h.total === 0) continue;
     h.specials.forEach((s, element) => {
@@ -162,10 +162,6 @@ export function itemsInRepair(ctx: MerchantContext, dealer: number): RepairEleme
     });
   }
   return out;
-}
-
-function itemsInRepairByIndex(ctx: MerchantContext, dealer: number): RepairElement[] {
-  return itemsInRepair(ctx, dealer).sort((a, b) => a.item - b.item || a.element - b.element);
 }
 
 export function countTotalItemsRepairDealerHasInForRepairs(ctx: MerchantContext, dealer: number): number {
@@ -214,7 +210,7 @@ function hoursSinceOldestItemRepaired(ctx: MerchantContext, dealer: number): num
   const now = ctx.world.worldMinutes();
   let found = false;
   let hours = 0;
-  for (const r of itemsInRepairByIndex(ctx, dealer)) {
+  for (const r of itemsInRepair(ctx, dealer)) {
     const done = special(ctx, dealer, r).repairDoneTime;
     if (done > now) continue;
     found = true;
@@ -225,7 +221,7 @@ function hoursSinceOldestItemRepaired(ctx: MerchantContext, dealer: number): num
 }
 
 function delayRepairsInProgressBy(ctx: MerchantContext, dealer: number, minutes: number): void {
-  for (const r of itemsInRepairByIndex(ctx, dealer)) {
+  for (const r of itemsInRepair(ctx, dealer)) {
     const s = special(ctx, dealer, r);
     s.repairDoneTime = u32(s.repairDoneTime + calculateOvernightRepairDelay(ctx, dealer, s.repairDoneTime, minutes) + minutes);
   }

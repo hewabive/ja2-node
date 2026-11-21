@@ -173,7 +173,7 @@ const FULL_APPEARANCE_LIFE = 100;
 
 function representativeHandItem(items: ItemTable, hand: string | undefined): number {
   if (!hand || hand === 'nothing') return NOTHING;
-  for (const def of items.ordered) if (handClass(items, def.index) === hand) return def.index;
+  for (const def of items.inIndexOrder) if (handClass(items, def.index) === hand) return def.index;
   return NOTHING;
 }
 

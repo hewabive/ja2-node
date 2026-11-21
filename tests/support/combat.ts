@@ -119,6 +119,8 @@ export function recordAttackRolls(sim: TacticalSim): RolledAttack[] {
   return rolls;
 }
 
+export const BARE_HANDS = 'Nothing';
+
 export interface SpawnOptions {
   readonly marksmanship?: number;
   readonly life?: number;

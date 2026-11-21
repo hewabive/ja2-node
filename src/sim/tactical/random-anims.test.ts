@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, type SpawnOptions, spawnSoldier } from '../../../tests/support/combat.ts';
+import { BARE_HANDS, newCombatSim, type SpawnOptions, spawnSoldier } from '../../../tests/support/combat.ts';
 import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { withGraphicFacts } from '../../content/rules/graphic-facts.ts';
@@ -30,7 +30,6 @@ const INJURED = 29;
 const BELOW_OKLIFE = 14;
 const RIFLE = 'M14';
 const PISTOL = 'GLOCK_17';
-const EMPTY_HANDS = 'NOTHING';
 const ENEMY_ID = TEAM_FIRST_ID[Team.ENEMY] ?? 0;
 const CIV_ID = TEAM_FIRST_ID[Team.CIV] ?? 0;
 const LOOP_BUDGET_TICKS = 20_000;
@@ -119,7 +118,7 @@ describe('code 491, the random idle animation check (Soldier_Ani.cc AdjustToNext
     const hurt = scene(Team.OUR, { gun: PISTOL, life: INJURED });
     expect(check(hurt, 50)).toBe('continue');
     expect(animName(content, hurt.s.state)).toBe('STANDING');
-    const empty = scene(Team.OUR, { gun: EMPTY_HANDS });
+    const empty = scene(Team.OUR, { gun: BARE_HANDS });
     passes(empty, PASSES_PER_CHECK, 30);
     expect(animName(content, empty.s.state)).toBe('REG_PULL');
   });
@@ -139,14 +138,14 @@ describe('code 491, the random idle animation check (Soldier_Ani.cc AdjustToNext
   });
 
   it("holds an animal's idle sound at code 491 for a frame, so the next pass counts again from 1", () => {
-    const crow = scene(Team.CIV, { body: Body.CROW, gun: EMPTY_HANDS });
+    const crow = scene(Team.CIV, { body: Body.CROW, gun: BARE_HANDS });
     expect(passes(crow, PASSES_PER_CHECK, 0)).toEqual(['continue', 'continue', 'stop']);
     expect(check(crow)).toBe('continue');
     expect([crow.draws, crow.s.timeOfLastRandomAction, animName(content, crow.s.state)]).toEqual([[DICE], 1, 'CROW_EAT']);
   });
 
   it('leaves the eating animation to our cows: a civilian cow only moos', () => {
-    const cow = scene(Team.CIV, { body: Body.COW, gun: EMPTY_HANDS });
+    const cow = scene(Team.CIV, { body: Body.COW, gun: BARE_HANDS });
     expect(passes(cow, PASSES_PER_CHECK, 50)).toEqual(['continue', 'continue', 'continue']);
     expect(animName(content, cow.s.state)).toBe('STANDING');
   });

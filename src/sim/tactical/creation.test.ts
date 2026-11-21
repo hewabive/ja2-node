@@ -362,7 +362,7 @@ describe('TacticalCreateSoldier', () => {
     ]);
     expect([name(InvSlot.BIGPOCK1), name(InvSlot.BIGPOCK2), name(InvSlot.BIGPOCK3)]).toEqual([
       'CREATURE_PART_CLAWS',
-      'NOTHING',
+      'Nothing',
       'CREATURE_PART_ORGAN',
     ]);
     expect([s.ai.orders, s.ai.attitude, s.monsterSmell, s.monsterOrAnimal]).toEqual([Orders.FARPATROL, Attitude.AGGRESSIVE, 20, true]);

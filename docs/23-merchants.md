@@ -59,10 +59,10 @@ inactive one is reused, so an element index names one object as long as it exist
 (−1 for the perfect units) stays valid for a whole visit, since nothing restocks inside a shop. A repair is an element
 with negated condition, its done time and its owner.
 
-**Loops follow Stracciatella's order.** New-game and daily loops go through the items in content order
-(`ItemTable.ordered`: items, magazines, weapons, explosives, armours, as Stracciatella's item container); the boxes and
-the repair scans go by item index. Vanilla iterates by index everywhere; ja2-node follows Stracciatella (D1), and the
-draws depend on it.
+**Loops go by item index.** New-game, daily, repair and death loops go through the items by index
+(`ItemTable.inIndexOrder`), as v0.22.1's item list does (`GCM->getItems()`, `Tactical/Arms_Dealer_Init.cc:97`) and
+vanilla's loops over the item numbers; the draws depend on it. The list holds v0.22.1's placeholders too (the `NOTHING`
+and `unused` items of the class `IC_NONE`, the `CLIP_NOTHING` magazines); no dealer stocks them, so they draw nothing.
 
 **Single precision.** The multipliers of `dealers.json` are `FLOAT`s: price and repair arithmetic rounds each
 operation with `Math.fround`, as Stracciatella's SSE build does, then truncates (`pricing.test.ts`, `repair.test.ts`).

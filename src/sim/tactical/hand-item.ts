@@ -6,7 +6,7 @@
 // @src IsGunBurstCapable, HasLauncher, ChangeWeaponMode; Items.cc SwapHandItems, FindLaunchableAttachment.
 
 import { AnimFlags } from '../../content/anim/tables.ts';
-import { ItemClass, ItemFlags, type ItemTable, NOTHING } from '../../content/items/items.ts';
+import { ItemClass, ItemFlags, type ItemTable, isWeapon, NOTHING } from '../../content/items/items.ts';
 import { validLaunchable } from '../../content/items/rules.ts';
 import { findAttachment, type ItemObject, swapObjects } from '../items/object.ts';
 import { anim } from './anim-states.ts';
@@ -65,8 +65,7 @@ export function changeWeaponMode(t: TacticalState, s: Soldier): void {
 
 export function reloadSoldierAnimationDueToHandItemChange(t: TacticalState, s: Soldier, oldItem: number, newItem: number): void {
   const items = t.content.items;
-  const weapon = items.byIndex.get(newItem)?.weapon;
-  if (weapon && weapon.shotsPerBurst === 0) {
+  if (isWeapon(items, newItem) && items.byIndex.get(newItem)?.weapon?.shotsPerBurst === 0) {
     s.doBurst = 0;
     s.weaponMode = WeaponMode.NORMAL;
   }

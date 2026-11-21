@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
+import { BARE_HANDS, newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo, WORLD_COLS } from '../../content/world/grid.ts';
 import { StructureFlags, type StructureInstance } from '../../content/world/structures.ts';
@@ -339,7 +339,7 @@ describe('crows flying away (OppList.cc HearNoise, Soldier_Control.cc CrowsFlyAw
     const { sim, t, birds } = flock();
     const [seen, blind] = birds;
     if (!seen || !blind) throw new Error('no flock');
-    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(70, 80), Direction.EAST, { gun: 'NOTHING' });
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(70, 80), Direction.EAST, { gun: BARE_HANDS });
     seen.oppList[merc.id] = Opp.SEEN_CURRENTLY;
     blind.oppList[merc.id] = Opp.NOT_HEARD_OR_SEEN;
     merc.attackNoticed = true;

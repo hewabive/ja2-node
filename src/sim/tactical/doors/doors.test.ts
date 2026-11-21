@@ -284,7 +284,7 @@ describe('the stub village door', () => {
     s.keyRing[0] = { keyId: 1, count: 2 };
     s.keyRing[2] = { keyId: 2, count: 1 };
     const items = sim.state.content.items;
-    const keyOfClass = (classIndex: number) => items.ordered.find((d) => d.itemClass === ItemClass.KEY && d.classIndex === classIndex);
+    const keyOfClass = (classIndex: number) => items.inIndexOrder.find((d) => d.itemClass === ItemClass.KEY && d.classIndex === classIndex);
     const first = keyOfClass(0);
     const second = keyOfClass(1);
     expect(first?.name).toBe('KEY_1');

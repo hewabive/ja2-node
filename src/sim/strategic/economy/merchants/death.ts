@@ -15,7 +15,7 @@ export function addDeadArmsDealerItemsToWorld(ctx: MerchantContext, profile: num
   if (dealer < 0) return false;
   const status = dealerState(ctx.state, dealer).status;
   status.outOfBusiness = true;
-  for (const def of ctx.items.ordered) {
+  for (const def of ctx.items.inIndexOrder) {
     const item = def.index;
     const h = header(ctx.state, dealer, item);
     if (h.total === 0) continue;

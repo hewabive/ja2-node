@@ -47,7 +47,7 @@ function doorsOf(view: PlayerView): number[] {
 }
 
 function itemSpread(): number[] {
-  return client.content.items.ordered.filter((_, k) => k % ITEM_SPREAD_STEP === 0).map((d) => d.index);
+  return client.content.items.inIndexOrder.filter((_, k) => k % ITEM_SPREAD_STEP === 0).map((d) => d.index);
 }
 
 async function inA10(): Promise<Session> {

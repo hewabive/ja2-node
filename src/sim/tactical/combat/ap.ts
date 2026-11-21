@@ -120,7 +120,6 @@ export function minAPsToAttack(t: TacticalState, s: Soldier, g: number, addTurni
     case ItemClass.GRENADE:
     case ItemClass.THROWN:
       return minAPsToThrow(t, s, g);
-    case ItemClass.NONE:
     case ItemClass.PUNCH:
       return minAPsToPunch(t, s, g, addTurning);
     default:
@@ -210,7 +209,6 @@ export function calcTotalAPsToAttack(t: TacticalState, s: Soldier, g: number, ad
     case ItemClass.GRENADE:
     case ItemClass.BOMB:
       return 5;
-    case ItemClass.NONE:
     case ItemClass.PUNCH:
     case ItemClass.BLADE:
       return meleeAPsToAttack(t, s, g, addTurning, aimTime);

@@ -8,8 +8,11 @@ import {
   ItemCursor,
   isClass,
   isTwoHanded,
+  isWeapon,
   itemIndex,
   loadItemTable,
+  NOAMMO_CALIBRE,
+  NOTHING,
   WeaponClass,
 } from './items.ts';
 
@@ -21,10 +24,36 @@ describe('item table', async () => {
     return def;
   };
 
-  it('merges every item source without index clashes', () => {
-    expect(table.byIndex.size).toBe(306);
-    expect(get('NOTHING').index).toBe(0);
+  it('fills every item index from 0 to 350, the placeholders included, and lists the items by index', () => {
+    expect(table.byIndex.size).toBe(351);
+    expect(table.inIndexOrder.map((d) => d.index)).toEqual(Array.from({ length: 351 }, (_, index) => index));
     expect(itemIndex(table, 'GLOCK_17')).toBe(1);
+    for (const index of [66, 199, 200, 270, 328, 350]) expect(table.byIndex.get(index)?.itemClass, `item ${index}`).toBe(ItemClass.NONE);
+    expect(table.byIndex.get(116)?.magazine?.calibre).toBe(NOAMMO_CALIBRE);
+  });
+
+  it('makes item 0 a punch, the weapon PUNCH of weapons.json with its punch cursor', () => {
+    const nothing = table.byIndex.get(NOTHING);
+    expect(nothing?.itemClass).toBe(ItemClass.PUNCH);
+    expect(nothing?.cursor).toBe(ItemCursor.PUNCH);
+    expect(nothing?.weapon).toMatchObject({ type: 'PUNCH', weaponClass: WeaponClass.NOGUN, impact: 0, deadliness: 0 });
+    expect(isWeapon(table, NOTHING)).toBe(false);
+  });
+
+  it('keeps MONEY_FOR_PLAYERS_ACCOUNT in the class NONE that v0.22.1 gives it, so only MONEY and the ores are money', () => {
+    expect(get('MONEY_FOR_PLAYERS_ACCOUNT').itemClass).toBe(ItemClass.NONE);
+    expect(table.inIndexOrder.filter((d) => d.itemClass === ItemClass.MONEY).map((d) => d.name)).toEqual(['MONEY', 'SILVER', 'GOLD']);
+  });
+
+  it('finds a name shared by placeholders at its lowest index, as the first entry of the name map wins', () => {
+    expect(get('NOTHING').index).toBe(199);
+    expect(get('unused').index).toBe(66);
+    expect(get('CLIP_NOTHING').index).toBe(116);
+  });
+
+  it('keeps the placeholder magazines of the calibre NOAMMO out of the magazine list, where every magazine loop stops', () => {
+    expect(table.magazines.some((d) => d.magazine?.calibre === NOAMMO_CALIBRE)).toBe(false);
+    expect(table.magazines.at(-1)?.name).toBe('CLIPFLAME');
   });
 
   it('classifies weapons like the original item table', () => {

@@ -246,7 +246,7 @@ export function dealerItemIsSafeToStack(items: ItemTable, item: number): boolean
 
 export function countDistinctItemsInArmsDealersInventory(ctx: MerchantContext, dealer: number): number {
   let n = 0;
-  for (const def of ctx.items.ordered) {
+  for (const def of ctx.items.inIndexOrder) {
     const h = header(ctx.state, dealer, def.index);
     if (h.total === 0) continue;
     if (h.perfect > 0) n += dealerItemIsSafeToStack(ctx.items, def.index) ? 1 : h.perfect;

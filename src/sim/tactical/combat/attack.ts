@@ -131,7 +131,7 @@ export function handleItem(t: TacticalState, s: Soldier, g: number, level: numbe
   if (fromUi && refusesToUseItemOn(t, s, tgt, handItem)) return ItemHandle.REFUSAL;
   const cls = def(t, handItem)?.itemClass ?? ItemClass.NONE;
   if (cls === ItemClass.GUN || cls === ItemClass.THROWING_KNIFE) return handleGunAttack(t, s, g, level, tgt, handItem, fromUi);
-  if (cls & (ItemClass.NONE | ItemClass.PUNCH)) return handlePunchAttack(t, s, g, level);
+  if (cls === ItemClass.PUNCH) return handlePunchAttack(t, s, g, level);
   if (cls === ItemClass.MEDKIT) return handleMedKit(t, s, g);
   const tileTool = handleTileTool(t, s, g, handItem);
   if (tileTool !== null) return tileTool;
@@ -637,7 +637,7 @@ export function fireWeapon(t: TacticalState, s: Soldier, target: number): number
       s.doSpread++;
     } else useGun(t, s, target);
   } else if (cls === ItemClass.BLADE) useBlade(t, s, target);
-  else if (cls & (ItemClass.NONE | ItemClass.PUNCH)) useHandToHand(t, s, target);
+  else if (cls === ItemClass.PUNCH) useHandToHand(t, s, target);
   else if (cls === ItemClass.LAUNCHER) useLauncher(t, s, target);
   else useThrown(t, s, target);
   return FireResult.FIRED;

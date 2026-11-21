@@ -369,7 +369,7 @@ export function eventSoldierGotHit(
   } else if (cls === ItemClass.BLADE) {
     breath = BP_GET_HIT;
     reason = DamageReason.BLADE;
-  } else if (cls === ItemClass.PUNCH || weapon === NOTHING) {
+  } else if (cls === ItemClass.PUNCH) {
     breath = i16(damage * 100);
     damage = idiv(damage, PUNCH_REAL_DAMAGE_PORTION);
     if (inInterrogation(t)) {
@@ -465,7 +465,7 @@ function startHitAnimation(
   if (cls & (ItemClass.GUN | ItemClass.THROWING_KNIFE)) soldierGotHitGunFire(t, s, direction, att, special);
   if (cls === ItemClass.BLADE) soldierGotHitByMelee(t, s, direction);
   if (cls & (ItemClass.GRENADE | ItemClass.BOMB) || cls === ItemClass.TENTACLES) soldierGotHitExplosion(t, s, weapon, direction, range);
-  if (cls === ItemClass.PUNCH || weapon === NOTHING) soldierGotHitByMelee(t, s, direction);
+  if (cls === ItemClass.PUNCH) soldierGotHitByMelee(t, s, direction);
 }
 
 function soldierGotHitByMelee(t: TacticalState, s: Soldier, direction: number): void {

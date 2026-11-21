@@ -504,7 +504,7 @@ async function dataJson(path: string): Promise<unknown> {
 export async function stubSoundPaths(): Promise<string[]> {
   const table = parseSoundEffects(await dataJson(SOUND_EFFECTS_PATH));
   const items = await loadItemTable(dataJson);
-  const maxRounds = Math.max(...items.ordered.map((d) => d.weapon?.shotsPerBurst ?? 0));
+  const maxRounds = Math.max(...items.inIndexOrder.map((d) => d.weapon?.shotsPerBurst ?? 0));
   const externalized = (await Promise.all(EXTERNALIZED_SOUND_TABLES.map(dataJson)))
     .flatMap(soundPathsIn)
     .flatMap((path) => expandBurstPattern(path, maxRounds));

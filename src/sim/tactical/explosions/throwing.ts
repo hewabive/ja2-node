@@ -58,7 +58,7 @@ const itemDef = (t: TacticalState, item: number) => t.content.items.byIndex.get(
 export function launcherOf(t: TacticalState, launchable: number): number {
   const calibre = itemDef(t, launchable)?.explosive?.calibre;
   if (!calibre) return NOTHING;
-  for (const w of t.content.items.ordered) if (w.weapon?.explosiveCalibre === calibre) return w.index;
+  for (const w of t.content.items.inIndexOrder) if (w.weapon?.explosiveCalibre === calibre) return w.index;
   return NOTHING;
 }
 

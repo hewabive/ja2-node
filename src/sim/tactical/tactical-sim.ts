@@ -499,7 +499,7 @@ const _MELEE_CHANCE_TO_GET_THROUGH = 100;
 const UNDER_GLAUNCHER = 'UNDER_GLAUNCHER';
 const SANDBOX_WORLD_HOUR = 12;
 
-const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
+const isMeleeItemClass = (cls: number) => cls === ItemClass.BLADE || cls === ItemClass.PUNCH;
 const isThrowItemClass = (cls: number) => cls === ItemClass.GRENADE || cls === ItemClass.THROWN || cls === ItemClass.LAUNCHER;
 const RANGED_ITEM_CLASSES: ReadonlySet<number> = new Set([ItemClass.GUN, ItemClass.THROWING_KNIFE]);
 const isVehicle = (s: Soldier) => s.bodyType >= Body.HUMVEE && s.bodyType <= Body.JEEP;

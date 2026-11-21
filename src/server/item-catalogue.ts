@@ -135,7 +135,7 @@ export async function buildItemCatalogue(items: ItemTable, texts: TextService, l
   const catalogue: ItemCatalogue = {
     language,
     dataVersion: texts.dataVersion,
-    items: items.ordered.map((def) => catalogueItem(def, loaded.strings, items.helpTextCalibres, itemText, bobbyRayText)),
+    items: items.inIndexOrder.map((def) => catalogueItem(def, loaded.strings, items.helpTextCalibres, itemText, bobbyRayText)),
   };
   const body = JSON.stringify(catalogue);
   const digest = createHash('sha256').update(body).digest('hex').slice(0, ETAG_HEX_DIGITS);

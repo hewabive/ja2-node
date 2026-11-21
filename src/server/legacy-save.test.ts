@@ -21,6 +21,10 @@ const DATA_FILES_CHANGED_AFTER_070 = [
   'externalized/shipping-destinations.json',
   'externalized/mercs-AIM-listings.json',
   'externalized/strategic-map-towns.json',
+  'externalized/items.json',
+  'externalized/weapons.json',
+  'externalized/magazines.json',
+  'externalized/calibres.json',
   'tables/laptop.json',
 ];
 const TABLES_DIR = 'tables/';

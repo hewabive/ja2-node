@@ -26,7 +26,7 @@ beforeAll(async () => {
 });
 
 const item = (name: string) => content.items.byName.get(name)?.index ?? -1;
-const itemAt = (s: Soldier, slot: number) => content.items.byIndex.get(itemIn(s.inv, slot))?.name ?? 'NOTHING';
+const itemAt = (s: Soldier, slot: number) => content.items.byIndex.get(itemIn(s.inv, slot))?.name ?? 'Nothing';
 
 function inCombat(sim: TacticalSim): void {
   spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH);
@@ -107,7 +107,7 @@ describe('moving items inside one inventory', () => {
       data: { result: 'merged' },
     });
     expect(merc.inv[InvSlot.HAND]?.status[0]).toBe(70);
-    expect(itemAt(merc, InvSlot.BIGPOCK1)).toBe('NOTHING');
+    expect(itemAt(merc, InvSlot.BIGPOCK1)).toBe('Nothing');
     merc.inv[InvSlot.HAND] = createItem(content.items, item('GLOCK_17'), 100);
     merc.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('SILENCER'), 90);
     expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket2', to: 'hand' })).toMatchObject({
@@ -147,7 +147,7 @@ describe('moving items inside one inventory', () => {
       data: { result: 'merged' },
     });
     expect(merc.inv[InvSlot.BIGPOCK2]?.status.slice(0, 2)).toEqual([15, 10]);
-    expect(itemAt(merc, InvSlot.SMALLPOCK1)).toBe('NOTHING');
+    expect(itemAt(merc, InvSlot.SMALLPOCK1)).toBe('Nothing');
     expect(ap - merc.actionPoints).toBe(AP.MERGE);
   });
 
@@ -417,7 +417,7 @@ describe('throwing a grenade from a pocket', () => {
     expect(sim.dispatch({ type: 'attack', soldier: 0, target })).toEqual({ ok: true });
     const events = runUntilIdle(sim);
     expect(events.some((e) => e.type === 'explosion')).toBe(true);
-    expect(itemAt(merc, InvSlot.HAND)).toBe('NOTHING');
+    expect(itemAt(merc, InvSlot.HAND)).toBe('Nothing');
   });
 });
 
@@ -443,7 +443,7 @@ describe('what a detach or an unload into an occupied pocket swaps out (Interfac
     expect([itemAt(merc, InvSlot.BIGPOCK1), itemAt(merc, InvSlot.BIGPOCK2), itemAt(merc, InvSlot.BIGPOCK3)]).toEqual([
       'SILENCER',
       'CLIP9_15',
-      'NOTHING',
+      'Nothing',
     ]);
     expect(droppedAtFeet(sim, merc)).toEqual(['HAND_GRENADE', 'SMOKE_GRENADE']);
   });
@@ -593,7 +593,7 @@ describe('splitting money off a pocket (the money box, RemoveMoney, then the dro
     expect(sim.dispatch({ type: 'splitMoney', soldier: 0, slot: 'smallPocket2', amount: 300, to: 'smallPocket4' })).toMatchObject({
       ok: true,
     });
-    expect(itemAt(merc, InvSlot.SMALLPOCK2)).toBe('NOTHING');
+    expect(itemAt(merc, InvSlot.SMALLPOCK2)).toBe('Nothing');
     expect(merc.inv[InvSlot.SMALLPOCK4]?.money).toBe(300);
   });
 
@@ -821,7 +821,7 @@ describe('keys in and out of the key ring (KeyRingSlotInvClickCallbackPrimary, B
     merc.inv[InvSlot.BIGPOCK1] = keys(2, 1);
     expect(sim.dispatch({ type: 'moveKey', soldier: 0, from: 'bigPocket1', to: { ring: 5 } })).toMatchObject({ ok: true });
     expect(ring[5]).toEqual({ keyId: 2, count: 1 });
-    expect(itemAt(merc, InvSlot.BIGPOCK1)).toBe('NOTHING');
+    expect(itemAt(merc, InvSlot.BIGPOCK1)).toBe('Nothing');
     const perPocket = content.items.byIndex.get(keys(1, 1).item)?.perPocket ?? 0;
     ring[0] = { keyId: 1, count: perPocket - 2 };
     merc.inv[InvSlot.BIGPOCK2] = keys(1, 3);

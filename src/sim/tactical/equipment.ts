@@ -221,7 +221,9 @@ function chooseWeapon(
   let attachClass = attachClassIn;
   if (attachClass && attachment) {
     const matches = () =>
-      items.ordered.filter((it) => it.itemClass === ItemClass.MISC && it.coolness === attachClass && validAttachment(items, it.index, gun));
+      items.inIndexOrder.filter(
+        (it) => it.itemClass === ItemClass.MISC && it.coolness === attachClass && validAttachment(items, it.index, gun),
+      );
     let found: ItemDef[] = [];
     while (attachClass && found.length === 0) {
       found = matches();
@@ -350,7 +352,7 @@ function chooseArmourPiece(
   skip: ReadonlySet<number>,
 ): ItemDef | null {
   let cls = wantedClass;
-  const armours = items.ordered.filter((it) => it.armour && !skip.has(it.index));
+  const armours = items.inIndexOrder.filter((it) => it.armour && !skip.has(it.index));
   const matches = () => armours.filter((it) => it.coolness === cls && it.armour?.armourClass === armourClass);
   let found: ItemDef[] = [];
   while (cls && found.length === 0) {
@@ -406,7 +408,7 @@ function chooseSpecialWeapons(
 ): void {
   let knifeClass = knifeClassIn;
   const knives = () =>
-    items.ordered.filter(
+    items.inIndexOrder.filter(
       (it) => it.weapon && (it.itemClass === ItemClass.BLADE || it.itemClass === ItemClass.THROWING_KNIFE) && it.coolness === knifeClass,
     );
   let found: ItemDef[] = [];
@@ -449,7 +451,7 @@ function chooseKits(items: ItemTable, rng: RandomStream, inv: Inventory, kitClas
   else if (chance(rng, 25)) kit = id(items, 'MEDICKIT');
   else {
     const toolkit = id(items, 'TOOLKIT');
-    const found = items.ordered.filter(
+    const found = items.inIndexOrder.filter(
       (it) => it.itemClass === ItemClass.KIT && it.coolness > 0 && it.coolness <= kitClass && it.index !== toolkit,
     );
     if (found.length) kit = found[rng.int(found.length)]?.index ?? NOTHING;
@@ -483,7 +485,7 @@ function chooseMisc(items: ItemTable, rng: RandomStream, state: EquipmentState, 
 }
 
 function chooseBombs(items: ItemTable, rng: RandomStream, inv: Inventory, bombClass: number): void {
-  const found = items.ordered.filter(
+  const found = items.inIndexOrder.filter(
     (it) => it.explosive && it.itemClass === ItemClass.BOMB && it.coolness > 0 && it.coolness <= bombClass,
   );
   if (found.length === 0) return;

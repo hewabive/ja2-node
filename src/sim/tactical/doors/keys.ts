@@ -69,7 +69,7 @@ export type KeyContent = Pick<TacticalContent, 'locks' | 'items'>;
 
 export function keyItemForKeyId(content: KeyContent, keyId: number): number {
   const classIndex = lockAt(content.locks, keyId).keyItem;
-  for (const def of content.items.ordered) if (def.itemClass === ItemClass.KEY && def.classIndex === classIndex) return def.index;
+  for (const def of content.items.inIndexOrder) if (def.itemClass === ItemClass.KEY && def.classIndex === classIndex) return def.index;
   return NOTHING;
 }
 

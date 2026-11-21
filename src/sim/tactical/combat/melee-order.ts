@@ -15,8 +15,7 @@ export type MeleeOrderRefusal = 'noPath' | 'notEnoughAP';
 const NO_AIM = 0;
 
 function punches(t: TacticalState, s: Soldier): boolean {
-  const cls = t.content.items.byIndex.get(s.inv[InvSlot.HAND]?.item ?? NOTHING)?.itemClass ?? ItemClass.NONE;
-  return (cls & (ItemClass.NONE | ItemClass.PUNCH)) !== 0;
+  return t.content.items.byIndex.get(s.inv[InvSlot.HAND]?.item ?? NOTHING)?.itemClass === ItemClass.PUNCH;
 }
 
 export function meleeOrderRefusal(t: TacticalState, s: Soldier, target: number, aimTime: number): MeleeOrderRefusal | null {

@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
+import { BARE_HANDS, newCombatSim, runUntilIdle, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo, pythSpacesAway } from '../../content/world/grid.ts';
 import { StructureFlags } from '../../content/world/structures.ts';
@@ -89,7 +89,7 @@ describe('first aid in tactical', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     const { medic, patient } = bleedingSquad(sim);
-    const shooter = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 120), Direction.NORTH, { gun: 'NOTHING' });
+    const shooter = spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 120), Direction.NORTH, { gun: BARE_HANDS });
     medic.inv[InvSlot.HAND] = createItem(content.items, item('FIRSTAIDKIT'), 100);
     t.inCombat = true;
     expect(sim.dispatch({ type: 'bandage', soldier: 0, target: 1 })).toMatchObject({ ok: true });
@@ -106,7 +106,7 @@ describe('first aid in tactical', () => {
     const sim = newCombatSim(content);
     const t = sim.state;
     const { medic, patient } = bleedingSquad(sim);
-    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH, { gun: 'NOTHING' });
+    spawnSoldier(sim, 20, Team.ENEMY, gridNo(80, 95), Direction.NORTH, { gun: BARE_HANDS });
     sim.lookAround();
     expect(t.inCombat).toBe(true);
     expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket1', to: 'hand' })).toMatchObject({ ok: true });

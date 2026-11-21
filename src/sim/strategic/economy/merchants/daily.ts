@@ -103,7 +103,7 @@ function initializeOneArmsDealer(ctx: MerchantContext, d: DealerDef): void {
   state.status.cash = d.initialCash;
   if (hasDealerFlag(d, DealerFlag.HAS_NO_INVENTORY)) return;
   const supply = supplyContext(ctx);
-  for (const def of ctx.items.ordered) {
+  for (const def of ctx.items.inIndexOrder) {
     const item = def.index;
     if (!sellsItem(ctx, d, item)) continue;
     const n = determineInitialInvItems(supply, d.id, item, u8(maxItemAmount(d, item)), false, markDealerEligible(ctx, d.id, item));
@@ -131,7 +131,7 @@ export function simulateArmsDealerCustomer(ctx: MerchantContext): void {
   const elixir = ctx.content.itemIds.JAR_ELIXIR;
   for (const d of ctx.content.dealers) {
     if (dealerState(ctx.state, d.id).status.outOfBusiness || hasDealerFlag(d, DealerFlag.HAS_NO_INVENTORY)) continue;
-    for (const def of ctx.items.ordered) {
+    for (const def of ctx.items.inIndexOrder) {
       const item = def.index;
       const h = header(ctx.state, d.id, item);
       if (h.total === 0) continue;
@@ -159,7 +159,7 @@ export function dailyCheckOnItemQuantities(ctx: MerchantContext): void {
     if (status.outOfBusiness) continue;
     status.cash = d.initialCash;
     if (hasDealerFlag(d, DealerFlag.HAS_NO_INVENTORY)) continue;
-    for (const def of ctx.items.ordered) {
+    for (const def of ctx.items.inIndexOrder) {
       const item = def.index;
       if (!sellsItem(ctx, d, item)) continue;
       const h = header(ctx.state, d.id, item);
@@ -190,7 +190,7 @@ export function limitArmsDealersInventory(ctx: MerchantContext, dealer: number, 
   const candidates: number[] = [];
   const weights: number[] = [];
   let total = 0;
-  for (const def of ctx.items.ordered) {
+  for (const def of ctx.items.inIndexOrder) {
     const h = header(ctx.state, dealer, def.index);
     if (h.total === 0 || !(mask & dealerItemType(ctx.items, ctx.content, def.index))) continue;
     candidates.push(def.index);
@@ -228,7 +228,7 @@ export function guaranteeAtLeastOneItemOfType(ctx: MerchantContext, dealer: numb
   const candidates: number[] = [];
   const chances: number[] = [];
   let total = 0;
-  for (const def of ctx.items.ordered) {
+  for (const def of ctx.items.inIndexOrder) {
     const item = def.index;
     if (!(mask & dealerItemType(ctx.items, ctx.content, item))) continue;
     if (header(ctx.state, dealer, item).total > 0) return;

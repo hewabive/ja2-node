@@ -1,7 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Item_Types.h, Weapons.h; src/externalized/{Item,Magazine,Armour,Explosive}Model.cc, WeaponModels.cc;
-// @src ItemModel.cc (the default inventory and tile graphics), InventoryGraphicsModel.cc, TilesetTileIndexModel.cc
+// @src ItemModel.cc (the default inventory and tile graphics, isWeapon), InventoryGraphicsModel.cc, TilesetTileIndexModel.cc;
+// @src DefaultContentManager.cc loadGameData, loadItems, loadMagazines, loadWeapons, loadExplosives, loadArmours (2026-11-21)
 
 import { ITEM_RULES_PATH, type ItemRules, parseItemRules } from './rules.ts';
 
@@ -230,7 +231,7 @@ export interface ItemDef {
 export interface ItemTable {
   readonly byIndex: ReadonlyMap<number, ItemDef>;
   readonly byName: ReadonlyMap<string, ItemDef>;
-  readonly ordered: readonly ItemDef[];
+  readonly inIndexOrder: readonly ItemDef[];
   readonly magazines: readonly ItemDef[];
   readonly rules: ItemRules;
   readonly gunChoice: { readonly normal: readonly (readonly number[])[]; readonly extended: readonly (readonly number[])[] };
@@ -446,30 +447,37 @@ function namedIndices(json: unknown): Map<string, number> {
   return new Map((json as Json[]).map((e) => [str(e, 'internalName') ?? '', num(e, 'index')]));
 }
 
+function loadedFromItemsJson(def: ItemDef): boolean {
+  return def.itemClass !== ItemClass.GRENADE && def.itemClass !== ItemClass.BOMB && def.itemClass !== ItemClass.ARMOUR;
+}
+
+function itemsByIndex(sources: ItemTableSources, calibres: ReadonlyMap<string, number>, monsterCalibres: ReadonlySet<string>): ItemDef[] {
+  const ammoTypes = namedIndices(sources.ammoTypes);
+  const slots = new Map<number, ItemDef>();
+  const load = (defs: readonly ItemDef[]) => {
+    for (const def of defs) slots.set(def.index, def);
+  };
+  load((sources.items as Json[]).map(plainItem).filter(loadedFromItemsJson));
+  load((sources.magazines as Json[]).map((o) => magazineItem(o, calibres, ammoTypes)));
+  load((sources.weapons as Json[]).map((o) => weaponItem(o, calibres, monsterCalibres)));
+  load((sources.explosives as Json[]).map(explosiveItem));
+  load((sources.armours as Json[]).map(armourItem));
+  return [...slots.values()].sort((a, b) => a.index - b.index);
+}
+
+function firstOfEachName(items: readonly ItemDef[]): Map<string, ItemDef> {
+  const byName = new Map<string, ItemDef>();
+  for (const item of items) if (!byName.has(item.name)) byName.set(item.name, item);
+  return byName;
+}
+
 export function parseItemTable(sources: ItemTableSources): ItemTable {
   const calibres = namedIndices(sources.calibres);
   const monsterCalibres = new Set(
     (sources.calibres as Json[]).filter((c) => bool(c, 'monsterWeapon')).map((c) => str(c, 'internalName') ?? ''),
   );
-  const ammoTypes = namedIndices(sources.ammoTypes);
-  const nothing: ItemDef = {
-    ...baseItem({ itemIndex: NOTHING, internalName: 'NOTHING' }, ItemClass.NONE, ItemCursor.INVALID),
-    ...EMPTY_KINDS,
-  };
-  const all: ItemDef[] = [
-    nothing,
-    ...(sources.items as Json[]).map(plainItem).filter((i) => !(i.itemClass & (ItemClass.NONE | EXPLOSIVE_CLASSES | ItemClass.ARMOUR))),
-    ...(sources.magazines as Json[]).filter((o) => str(o, 'calibre') !== 'NOAMMO').map((o) => magazineItem(o, calibres, ammoTypes)),
-    ...(sources.weapons as Json[]).map((o) => weaponItem(o, calibres, monsterCalibres)).filter((w) => w.itemClass !== ItemClass.NONE),
-    ...(sources.explosives as Json[]).map(explosiveItem),
-    ...(sources.armours as Json[]).map(armourItem),
-  ];
-  const byIndex = new Map<number, ItemDef>();
-  for (const item of all) {
-    if (byIndex.has(item.index)) throw new Error(`duplicate item index ${item.index}`);
-    byIndex.set(item.index, item);
-  }
-  const byName = new Map(all.map((item) => [item.name, item]));
+  const inIndexOrder = itemsByIndex(sources, calibres, monsterCalibres);
+  const byName = firstOfEachName(inIndexOrder);
   const gunLevels = (json: unknown) =>
     (json as string[][]).map((level) =>
       level.map((name) => {
@@ -479,10 +487,10 @@ export function parseItemTable(sources: ItemTableSources): ItemTable {
       }),
     );
   return {
-    byIndex,
+    byIndex: new Map(inIndexOrder.map((item) => [item.index, item])),
     byName,
-    ordered: all,
-    magazines: all.filter((item) => item.magazine),
+    inIndexOrder,
+    magazines: inIndexOrder.filter((item) => item.magazine && item.magazine.calibre !== NOAMMO_CALIBRE),
     rules: parseItemRules(sources.rules, byName),
     gunChoice: { normal: gunLevels(sources.gunChoiceNormal), extended: gunLevels(sources.gunChoiceExtended) },
     helpTextCalibres: new Set((sources.calibres as Json[]).filter((c) => bool(c, 'showInHelpText')).map((c) => num(c, 'index'))),
@@ -507,6 +515,10 @@ export function itemIndex(table: ItemTable, name: string): number {
 
 export function isClass(table: ItemTable, index: number, mask: number): boolean {
   return ((table.byIndex.get(index)?.itemClass ?? 0) & mask) !== 0;
+}
+
+export function isWeapon(table: ItemTable, index: number): boolean {
+  return isClass(table, index, WEAPON_CLASSES);
 }
 
 export function isTwoHanded(table: ItemTable, index: number): boolean {

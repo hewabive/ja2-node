@@ -32,7 +32,7 @@ function supply(progress = 0, random: RollSource = RecordingRolls.zeros(), gunNu
 }
 
 function itemOfCoolness(coolness: number): number {
-  const def = t.items.ordered.find(
+  const def = t.items.inIndexOrder.find(
     (d) => d.coolness === coolness && d.price > 0 && !(d.flags & 0x0500) && !t.content.tables.staples.has(d.index) && d.weapon,
   );
   if (!def) throw new Error(`no item of coolness ${coolness}`);
