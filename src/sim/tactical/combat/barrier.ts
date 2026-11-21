@@ -99,6 +99,12 @@ function sayUnderHeavyFire(t: TacticalState, s: Soldier, targeted: Soldier | nul
   t.narrative.sayQuote(s, UNDER_HEAVY_FIRE_QUOTE);
 }
 
+function lossLeftAfterGoingProne(s: Soldier, lost: number): number {
+  if (lost >= AP.PRONE) return lost - AP.PRONE;
+  s.actionPoints = i8(s.actionPoints + AP.PRONE - lost);
+  return 0;
+}
+
 export function handleSuppressionFire(t: TacticalState, targeted: Soldier | null, caused: Soldier | null): void {
   for (const s of t.mercSlots) {
     if (!s.placed || !isMercBody(s) || s.life < OKLIFE || s.suppressionPoints === 0) continue;
@@ -114,7 +120,10 @@ export function handleSuppressionFire(t: TacticalState, targeted: Soldier | null
     if (s.suppressionPoints >= idiv(SUPPRESSION_FIRE_REACTION_THRESHOLD, 6 + tol)) {
       const end = endHeight(t.content, s.state);
       if (end === AnimHeight.CROUCH) {
-        if (total >= AP.PRONE && isValidStance(t, s, AnimHeight.PRONE) && closestKnownOpponentFar(t, s)) stance = AnimHeight.PRONE;
+        if (total >= AP.PRONE && isValidStance(t, s, AnimHeight.PRONE) && closestKnownOpponentFar(t, s)) {
+          lost = lossLeftAfterGoingProne(s, lost);
+          stance = AnimHeight.PRONE;
+        }
       } else if (end !== AnimHeight.PRONE && s.overTerrain !== Terrain.LOW_WATER && s.overTerrain !== Terrain.DEEP_WATER) {
         if (total >= AP.CROUCH + AP.PRONE && isValidStance(t, s, AnimHeight.PRONE)) {
           if (closestKnownOpponentFar(t, s)) stance = end === AnimHeight.STAND ? AnimHeight.CROUCH : AnimHeight.PRONE;

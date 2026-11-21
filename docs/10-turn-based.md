@@ -70,8 +70,8 @@ next team follows.
 aid, smell, the bomb timers, smoke and light decay); out of combat the bomb timers count down at each real-time turn
 (`12` §6). A team with nobody in the sector is skipped, an AI team with an empty AI list after
 its turn start. A turn start decays the team's public opplist and watched locations and runs `beginMercTurn` for each
-living member, which turns last turn's unused APs into breath before it adds the new APs (at most 5 carried over, a debt
-of up to 100 kept). Our team there, and in the real-time turn's first pass, is every merc of ours wherever he is, in id
+living member, which turns last turn's unused APs into breath before it adds the new APs (at most 5 carried over; the
+breath step floors the points at 0, so no debt reaches the new turn). Our team there, and in the real-time turn's first pass, is every merc of ours wherever he is, in id
 order (`FOR_EACH_IN_TEAM`, `Tactical/TeamTurns.cc:325`, `Tactical/Tactical_Turns.cc:123`): the campaign's sector hook
 `ourWholeTeam` lists the roster, mercs in other sectors, travelling, captured or in transit included, the sandbox its
 placed team. A merc off the loaded map gets the same turn start without its in-sector parts (blood on the floor, the
@@ -191,6 +191,7 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/s
 | In combat a merc of ours in another sector bleeds a whole step at each of our turns while the world clock stands, where real time bleeds him half a step a turn | `turns/whole-team.test.ts` "bleeds a merc of ours off the map a whole step …" |
 | Any tile moved in a real-time turn zeroes the whole breath gain, not part of it | `points.test.ts` |
 | Breath falling below zero wipes an AP debt | `points.test.ts` |
+| Any deduction erases an AP debt that suppression left, a hit's or a breath cost's alike, and so does every turn start: `DeductPoints` floors the points at 0 (`Tactical/Points.cc:513-516`) | `points.test.ts` "erases an AP debt at any deduction …", "wipes an AP debt at the turn start …" |
 | Breath changes are INT16: a cost the breath factor scales past 32767, or a breath reduction pushed past it, gives breath back | `points.test.ts` "keeps the INT16 breath of DeductPoints …" |
 | An insect-phobic merc loses APs for a creature he only heard or saw before, as long as he sees anyone: `MercSeesCreature` reads any opplist entry | `points.test.ts` |
 | A claustrophobe's AP cut reads the loaded sector alone, so a merc created or inserted while an underground map is loaded gets it before he is placed; his level loss waits for him to be in the sector | `points.test.ts`, `skills.test.ts` |

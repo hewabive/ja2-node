@@ -5,9 +5,11 @@ import { Direction, gridNo } from '../../../content/world/grid.ts';
 import { syntheticMap, syntheticWorld } from '../../../content/world/synthetic.ts';
 import type { TacticalWorld } from '../../../content/world/tactical-world.ts';
 import { animName } from '../anim-states.ts';
+import { AnimHeight, endHeight, states } from '../animation.ts';
 import type { TacticalContent } from '../content.ts';
 import { Attitude, Team } from '../soldier.ts';
 import { TacticalSim } from '../tactical-sim.ts';
+import { beginMercTurn } from '../turns/turns.ts';
 import { handleSuppressionFire, reduceAttackBusyCount } from './barrier.ts';
 import { AiMorale } from './types.ts';
 
@@ -76,5 +78,43 @@ describe('a suppression stance change started at the end of the previous one', (
     expect(animName(t.content, merc.state)).toBe('PRONE');
     expect(t.turn.attackBusyCount).toBe(0);
     expect(merc.changingStanceDueToSuppression).toBe(false);
+  });
+});
+
+describe('the APs suppression costs (Overhead.cc HandleSuppressionFire)', () => {
+  const HEAVY_FIRE = 100;
+  const MAX_APS_SUPPRESSED = 8;
+  const TURN_APS = 10;
+
+  function mercUnderFire(state: 'PRONE' | 'CROUCHING') {
+    const base = syntheticWorld(testDoorCosts(), () => {});
+    const sim = new TacticalSim({ ...base, map: syntheticMap(), mapPath: 'synthetic' } as unknown as TacticalWorld, content, 3);
+    const merc = spawnSoldier(sim, 0, Team.OUR, MERC_AT, Direction.SOUTH);
+    merc.state = states(content.animations)[state];
+    merc.actionPoints = TURN_APS;
+    merc.suppressionPoints = HEAVY_FIRE;
+    return { sim, merc };
+  }
+
+  it('costs a merc APs about once: the counter of APs lost to suppression is never reset, so a turn later the same fire takes none', () => {
+    const { sim, merc } = mercUnderFire('PRONE');
+    handleSuppressionFire(sim.state, null, null);
+    expect([merc.actionPoints, merc.apsLostToSuppression]).toEqual([TURN_APS - MAX_APS_SUPPRESSED, MAX_APS_SUPPRESSED]);
+    beginMercTurn(sim.state, merc);
+    expect(merc.apsLostToSuppression).toBe(MAX_APS_SUPPRESSED);
+    const turnStart = merc.actionPoints;
+    merc.suppressionPoints = HEAVY_FIRE;
+    handleSuppressionFire(sim.state, null, null);
+    expect(merc.actionPoints).toBe(turnStart);
+  });
+
+  it('gives a crouched merc it lays prone AP_PRONE back less the loss, so a loss below AP_PRONE leaves him more APs than before', () => {
+    const { sim, merc } = mercUnderFire('CROUCHING');
+    expect(endHeight(content, merc.state)).toBe(AnimHeight.CROUCH);
+    merc.apsLostToSuppression = MAX_APS_SUPPRESSED - 1;
+    handleSuppressionFire(sim.state, null, null);
+    expect(merc.actionPoints).toBe(TURN_APS + 1);
+    expect(merc.apsLostToSuppression).toBe(MAX_APS_SUPPRESSED);
+    expect(animName(content, merc.state)).toBe('PRONE_DOWN');
   });
 });

@@ -200,7 +200,6 @@ const UNUSED_APS_PER_REALTIME_TURN = 3;
 const MAX_BREATH_RED = 10000;
 export const MAX_AP_CARRIED = 5;
 const BOXING_POINTS_DIVISOR = 2;
-export const MAX_AP_DEBT = 100;
 const AP_CLAUSTROPHOBE = 9;
 const AP_AFRAID_OF_INSECTS = 8;
 const PHOBIA_AP_DIVISOR = 10;
@@ -497,9 +496,8 @@ export function enoughPoints(inCombat: boolean, s: Soldier, apCost: number): boo
 }
 
 export function deductPoints(rules: BreathRules, s: Soldier, apCost: number, bpCost: number): void {
-  let ap = s.actionPoints - (rules.inCombat ? apCost : 0);
-  if (ap < 0 && s.actionPoints > 0) ap = 0;
-  s.actionPoints = Math.max(ap, -MAX_AP_DEBT);
+  const ap = s.actionPoints - (rules.inCombat ? apCost : 0);
+  s.actionPoints = i8(Math.max(0, ap));
   const cost = isRobot(s) ? 0 : i16(bpCost);
   if (!cost) return;
   const regained = i16(-adjustBreathPts(rules.content, s, cost));

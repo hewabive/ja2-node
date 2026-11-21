@@ -147,7 +147,7 @@ A fix that a later Stracciatella (master, v0.23 on) makes is no reason by itself
   the original's UI cannot do, and the rule stays as it is.
 
 Suppression immunity is an example that does not qualify. The original never resets `ubAPsLostToSuppression`, so
-suppression costs a merc APs about once. Master's reset changes every firefight, so the bug stays (#107).
+suppression costs a merc APs about once. Master's reset changes every firefight, so the bug stays (`33` §3).
 
 | Area | Original | ja2-node | Why |
 |---|---|---|---|

@@ -209,7 +209,6 @@ export function beginMercTurn(t: TacticalState, s: Soldier): void {
   s.closeCallQuoteSaid = false;
   s.numHitsThisTurn = 0;
   s.suppressionPoints = 0;
-  s.apsLostToSuppression = 0;
   s.closeCall = false;
   s.movementNoiseHeard = 0;
   if (s.actionPoints > 0) {

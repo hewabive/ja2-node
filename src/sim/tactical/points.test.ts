@@ -103,7 +103,7 @@ describe('action points', () => {
     expect(s.initialActionPoints).toBe(s.actionPoints);
   });
 
-  it('charges APs only in combat but breath always, and floors AP debt from spending', () => {
+  it('charges APs only in combat but breath always, and floors the points at 0', () => {
     const t = tactical();
     const s = spawn(t, gridNo(80, 80));
     s.actionPoints = 3;
@@ -112,9 +112,27 @@ describe('action points', () => {
     expect(s.breathRed).toBeGreaterThan(0);
     deductPoints({ inCombat: true, content }, s, 5, 0);
     expect(s.actionPoints).toBe(0);
-    s.actionPoints = -4;
-    deductPoints({ inCombat: true, content }, s, 2, 0);
-    expect(s.actionPoints).toBe(-6);
+  });
+
+  it('erases an AP debt at any deduction, a hit or a breath cost alike: DeductPoints floors the points at 0 (Points.cc:513-516)', () => {
+    const t = tactical();
+    const hit = spawn(t, gridNo(80, 80));
+    hit.actionPoints = -4;
+    deductPoints({ inCombat: true, content }, hit, 2, 0);
+    expect(hit.actionPoints).toBe(0);
+    const breathing = spawn(t, gridNo(82, 80));
+    breathing.actionPoints = -4;
+    deductPoints({ inCombat: true, content }, breathing, 0, 0);
+    expect(breathing.actionPoints).toBe(0);
+  });
+
+  it('wipes an AP debt at the turn start: the breath of unspent APs goes through DeductPoints (UnusedAPsToBreath)', () => {
+    const t = tactical();
+    t.inCombat = true;
+    const s = spawn(t, gridNo(80, 80));
+    s.actionPoints = -6;
+    unusedAPsToBreath(ctx(t), s, false);
+    expect(s.actionPoints).toBe(0);
   });
 
   it('wipes an AP debt when a breath cost would take breath below zero (DeductPoints)', () => {
