@@ -15,6 +15,30 @@
   after a won battle; the tactical screen shows the box of medics and patients over the frozen screen (`30`). The native
   oracle compares the mode frame by frame, and the `realtime` bench times its frames (`32` §2.2): a frame takes under
   1 ms at the 95th percentile with medics crossing a field, so real time ×1 holds 200 frames a second.
+- **The rules follow Stracciatella v0.22.1** (`01` D1). The behaviour reference is the release v0.22.1, pinned,
+  instead of the unreleased master `ae6bf01`. Master's changes that v0.22.1 lacks are reverted, except the later fixes
+  and client conveniences listed in `original-bugs.md` and `deviations.md`. The native oracle, rebuilt from v0.22.1,
+  matches on every probe and on the light of every original map. What a player meets:
+  - **Night light** (`20`): vanilla's light walk. Lamps light the walls of the tiles they reach, and their light no
+    longer leaves a building through its south and east windows. The templates are the game's own `.LHT` files with
+    every ray, and only the first round of a burst flashes.
+  - **Combat** (`11`, `13`, `33`): bandaged wounds count in the AP and hit-chance penalties again. The AP debt and the
+    suppression counter, the heights of bullets, throws and missiles, the merc slots' order, and a group of AI and hit
+    rules are v0.22.1's (#106–#109, #113, #115).
+  - **Autoresolve** (`19`): a missed bullet leaves stale damage in its slot, the hit accuracy can wrap, and enemies take
+    the player's leadership bonus. A merc who dies there still leaves his corpse and gear (original-bugs "Gear of a merc
+    who dies in autoresolve").
+  - **I.M.P.** (`21`): one character, in profile 51 plus the voice, with v0.22.1's starting gear.
+  - **Items and shops** (`12`, `23`): v0.22.1's item tables, gone through by item index, so dealers roll their stock
+    in that order. Fists are item 0, a punch. Ore no longer merges like money in the sector inventory.
+  - **Strategic** (`16`, `18`, `22`): assignments are paid by the live sleep state, a student without a trainer trains
+    alone, and bleeding no longer greys out a dismissal. A move cancelled before the group left still counts as a trip.
+  - **Agent API** (`29`): `applyItem` is taken from a merc lying collapsed out of breath. The `bleeding` dismissal
+    refusal and `ImpSiteView.charactersLeft` are gone, and the A.I.M. view gains `silenced`.
+  - **Saves**: snapshots of earlier builds load through the migrations, up to version 107. Saved Message lines move to
+    v0.22.1's ids (save file version 3). Native saves of versions 85 to 105 still import.
+  - **Data**: `data/externalized/` holds v0.22.1's files, apart from master's informative tooltips that #114 keeps.
+    `light-templates.json` is gone, as it was derived from the game's files.
 
 ## 0.7.0 — platform release (M7), 2026-10-18
 
