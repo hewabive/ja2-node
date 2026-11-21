@@ -22,6 +22,7 @@ const BIG_POCKET = 7;
 const DROPPER = 3;
 const STEPS_EAST = 4;
 const CAMPAIGN_SEED = 6;
+const QUIET_WALK_SEED = 3;
 const QUIET_SEED = 1;
 const EAST_EDGE_ROW = 75;
 const EAST_EDGE_COLUMN = 150;
@@ -242,7 +243,7 @@ test.describe('goldens of the tactical screen on stubs', () => {
   });
 
   test('the sector exit dialog of a stub campaign', async ({ page, request }) => {
-    const session = await newSession(request, { seed: CAMPAIGN_SEED, campaign: { difficulty: 1, mercs: 4, land: 'skip' } });
+    const session = await newSession(request, { seed: QUIET_WALK_SEED, campaign: { difficulty: 1, mercs: 4, land: 'skip' } });
     try {
       await openTacticalSession(page, session, PINNED);
       const mercs = (await page.evaluate(() => window.__ja2Ui.tactical?.soldiers() ?? [])).filter((s) => s.team === 0);

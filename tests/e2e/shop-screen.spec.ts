@@ -41,7 +41,7 @@ test('talks to the stub dealer, opens the canvas shop from Buy/Sell, buys one bo
     const result = await client.callTool({ name, arguments: args }, undefined, MCP_CALL_OPTIONS);
     return JSON.parse((result.content as { text: string }[])[0]?.text ?? 'null');
   };
-  const { session } = (await call('newSession', { seed: 3, campaign: { difficulty: 1, mercs: 4 } })) as { session: string };
+  const { session } = (await call('newSession', { seed: 2, campaign: { difficulty: 1, mercs: 4 } })) as { session: string };
   try {
     const observe = async () => (await call('observe', { session })) as View;
     const act = async (command: Record<string, unknown>) =>

@@ -113,7 +113,7 @@ test.describe('talking through the canvas talk panel on stubs', () => {
     page,
     request,
   }) => {
-    const { session, leader } = await squadInA10(5, 3, NEAR_NPC);
+    const { session, leader } = await squadInA10(3, 3, NEAR_NPC);
     const agent = await mcp();
     const talk = (await agent.call('act', { session, command: { type: 'talk', soldier: leader, target: { npc: STUB_NPC } } })) as {
       ok: boolean;
@@ -135,7 +135,7 @@ test.describe('talking through the canvas talk panel on stubs', () => {
   });
 
   test('plays the lines out, sends Direct and closes with Done', async ({ page, request }) => {
-    const { session, leader } = await squadInA10(5, 3, NEAR_NPC);
+    const { session, leader } = await squadInA10(3, 3, NEAR_NPC);
     await openTactical(page, session);
     await order(page, { type: 'talk', soldier: leader, target: { npc: STUB_NPC } });
     await talkOpenAndQuiet(page);
