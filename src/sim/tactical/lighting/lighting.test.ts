@@ -7,6 +7,7 @@ import { Orientation } from '../../../content/formats/jsd.ts';
 import { LightTime, parseMap, writeMap } from '../../../content/formats/map.ts';
 import { parseStubMapSource, stubMapToMapDef } from '../../../content/formats/stub-map.ts';
 import { Direction, gridNo, WORLD_COLS, WORLD_MAX } from '../../../content/world/grid.ts';
+import { LIGHT_NEW_RAY } from '../../../content/world/light-templates.ts';
 import { compileWorldMovementCosts } from '../../../content/world/movement-costs.ts';
 import { StructureFlags, structureHeight, type WorldStructures } from '../../../content/world/structures.ts';
 import { syntheticStructure, syntheticWorld } from '../../../content/world/synthetic.ts';
@@ -23,6 +24,7 @@ import {
   lightShadeLevel,
   lightSpriteCreate,
   lightSpriteDestroy,
+  lightSpriteFromTemplate,
   lightSpritePosition,
   lightSpritePower,
   lightSpriteRenderAll,
@@ -132,40 +134,42 @@ describe('light sprites', () => {
     expect(row(t, Y, X + 3, X + 6)).toEqual([NIGHT, NIGHT, NIGHT, NIGHT]);
   });
 
-  it('erases a light with the filters it was drawn with, not the walls standing now', () => {
+  it('erases a light along the walls standing now, so a wall that appears after the draw leaves the light that passed it until the next render', () => {
     const t = tactical();
     const l = lamp(t, 'L-R05.LHT');
+    const lit = row(t, Y, X + 3, X + 6);
     t.world.structures.add(gridNo(X + 2, Y), 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT));
     t.world.costs.replaceWith(compileWorldMovementCosts(t.world).values);
     lightSpriteDestroy(t, l);
+    expect(row(t, Y, X + 3, X + 6)).toEqual(lit);
+    expect(level(t, X - 3, Y)).toBe(NIGHT);
+    lightSpriteRenderAll(t);
     expect(row(t, Y, X + 3, X + 6)).toEqual([NIGHT, NIGHT, NIGHT, NIGHT]);
   });
 
-  it('lets a tall obstacle stop light only once something has asked its height', () => {
+  it('lets light pass a tall obstacle, whatever its height cache', () => {
     const obstacleAt = gridNo(X + 2, Y);
     const t = tactical((s) => {
       s.add(obstacleAt, 0, syntheticStructure(StructureFlags.GENERIC));
     });
-    lamp(t, 'L-R05.LHT');
-    expect(level(t, X + 3, Y)).toBeLessThan(NIGHT);
     for (const s of t.world.structures.at(obstacleAt)) structureHeight(s);
-    lightSpriteRenderAll(t);
-    expect(level(t, X + 2, Y)).toBeLessThan(NIGHT);
-    expect(row(t, Y, X + 3, X + 6)).toEqual([NIGHT, NIGHT, NIGHT, NIGHT]);
+    lamp(t, 'L-R05.LHT');
+    expect(row(t, Y, X + 2, X + 4).every((v) => v < NIGHT)).toBe(true);
   });
 
-  it('skips a tile higher than the last one but lights the ground beyond it', () => {
+  it('ends a ray at a tile higher than the step before it, which stays dark', () => {
     const t = tactical();
     t.world.level.heights[gridNo(X + 1, Y)] = 10;
     lamp(t, 'L-R03.LHT');
     expect(level(t, X + 1, Y)).toBe(NIGHT);
-    expect(level(t, X + 2, Y)).toBe(NIGHT - 2);
+    expect(level(t, X + 2, Y)).toBe(NIGHT);
   });
 
-  it('wraps a light past the east edge of the map into the next row', () => {
+  it('lights nothing past the edges of the map (MAPROWCOLTOPOS)', () => {
     const t = tactical();
     lamp(t, 'L-R03.LHT', WORLD_COLS - 2, Y);
-    expect([level(t, 0, Y + 1), level(t, 1, Y + 1)]).toEqual([NIGHT - 2, NIGHT - 1]);
+    expect(level(t, WORLD_COLS - 1, Y)).toBeLessThan(NIGHT);
+    expect([level(t, 0, Y + 1), level(t, 1, Y + 1)]).toEqual([NIGHT, NIGHT]);
   });
 
   it('reads the roof level from roof tiles only', () => {
@@ -178,7 +182,7 @@ describe('light sprites', () => {
     expect(level(t, X + 1, Y, 1)).toBe(0);
   });
 
-  it('takes generated templates first, then the shipped ones, and refuses others', () => {
+  it('finds a template by its file name in any case, and no other', () => {
     const t = tactical();
     expect(lightSpriteCreate(t, 'light3')?.template.name).toBe('Light3');
     expect(lightSpriteCreate(t, 'l-r03.lht')?.template.name).toBe('L-R03.LHT');
@@ -189,63 +193,109 @@ describe('light sprites', () => {
 describe('the nodes a light step reaches (LightAddTile)', () => {
   const WALL_AT = gridNo(X, Y - 2);
   const OPEN_DOOR_ONE_TILE_WEST = 230;
-  const visitsAt = (t: TacticalState, l: LightSprite, g: number): LitNodes[] => {
-    const nodes: LitNodes[] = [];
-    traceLitTiles(t, l, (at, _amount, lit) => {
-      if (at === g) nodes.push(lit);
+  const EVERYTHING = LitNodes.LAND | LitNodes.STRUCTS | LitNodes.OBJECTS | LitNodes.MERCS | LitNodes.ANIMATIONS;
+  const WALLS_AND_ANIMATIONS = LitNodes.STRUCTS | LitNodes.ANIMATIONS;
+  interface Visit {
+    readonly amount: number;
+    readonly mercAmount: number;
+    readonly nodes: number;
+  }
+  const visitsAt = (t: TacticalState, l: LightSprite, g: number): Visit[] => {
+    const visits: Visit[] = [];
+    traceLitTiles(t, l, (at, amount, mercAmount, nodes) => {
+      if (at === g) visits.push({ amount, mercAmount, nodes });
     });
-    return nodes;
+    return visits;
   };
-  const withWallAt = (flags: number) => tactical((s) => s.add(WALL_AT, 0, syntheticStructure(flags, Orientation.OUTSIDE_LEFT)));
+  const nodesAt = (t: TacticalState, l: LightSprite, g: number) => visitsAt(t, l, g).map((v) => v.nodes);
+  const windowRow = (s: WorldStructures) => {
+    for (let x = X - 4; x <= X + 4; x++)
+      s.add(gridNo(x, Y - 2), 0, syntheticStructure(StructureFlags.WALLNWINDOW, Orientation.OUTSIDE_LEFT));
+  };
 
-  it('lights a wall only from the side it faces, and the ground under it from behind', () => {
-    const facing = withWallAt(StructureFlags.WALL);
-    expect(visitsAt(facing, lamp(facing, 'L-R05.LHT'), WALL_AT)).toContain(LitNodes.LEFT_WALLS);
-    const behind = withWallAt(StructureFlags.WALL);
-    const fromBehind = visitsAt(behind, lamp(behind, 'L-R05.LHT', X, Y - 5), WALL_AT);
-    expect(fromBehind).toContain(LitNodes.GROUND);
-    expect(fromBehind).not.toContain(LitNodes.LEFT_WALLS);
-    expect(fromBehind).not.toContain(LitNodes.RIGHT_WALLS);
+  it('lights the ground, every struct node, the objects, the mercs and the animation tiles of a tile an open step reaches, once', () => {
+    const t = tactical((s) => s.add(WALL_AT, 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT)));
+    expect(nodesAt(t, lamp(t, 'L-R05.LHT', X, Y - 5), gridNo(X, Y - 3))).toEqual([EVERYTHING]);
   });
 
-  it('lights the ground and every wall of a window tile, and the ground beyond the window', () => {
-    const t = withWallAt(StructureFlags.WALLNWINDOW);
+  it('lights only the struct nodes and the animation tiles of a tile a step reaches across a wall, and ends the ray there', () => {
+    const t = tactical((s) => s.add(WALL_AT, 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT)));
     const l = lamp(t, 'L-R05.LHT');
-    expect(visitsAt(t, l, WALL_AT)).toContain(LitNodes.GROUND_AND_WALLS);
-    expect(visitsAt(t, l, gridNo(X, Y - 3))).toContain(LitNodes.GROUND);
+    expect(nodesAt(t, l, WALL_AT)).toEqual([WALLS_AND_ANIMATIONS]);
+    expect(level(t, X, Y - 2)).toBe(NIGHT);
+    expect(level(t, X, Y - 3)).toBe(NIGHT);
   });
 
-  it("lights an open door's own tile from the tile its slab swings into, by the slab's turned orientation", () => {
-    const door = gridNo(X - 1, Y - 2);
-    const t = tactical((s) => {
-      s.add(door, 0, syntheticStructure(StructureFlags.DOOR | StructureFlags.OPEN, Orientation.INSIDE_RIGHT));
-    });
-    t.world.costs.force(WALL_AT, Direction.NORTH, 0, OPEN_DOOR_ONE_TILE_WEST);
+  it('lights only the animation tiles of a raised tile it reaches without crossing a wall, as a corpse there', () => {
+    const t = tactical();
+    t.world.level.heights[gridNo(X + 1, Y)] = 10;
+    expect(nodesAt(t, lamp(t, 'L-R03.LHT'), gridNo(X + 1, Y))).toEqual([LitNodes.ANIMATIONS]);
+  });
+
+  it("lights a window tile's struct nodes, objects and mercs but not its ground on a step across its wall, and lets the ray go on", () => {
+    const t = tactical(windowRow);
     const l = lamp(t, 'L-R05.LHT');
-    expect(visitsAt(t, l, door)).toContain(LitNodes.RIGHT_WALLS);
-    expect(visitsAt(t, l, WALL_AT)).not.toContain(LitNodes.RIGHT_WALLS);
+    expect(nodesAt(t, l, WALL_AT)).toEqual([EVERYTHING & ~LitNodes.LAND]);
+    expect(level(t, X, Y - 2)).toBe(NIGHT);
+    expect(level(t, X, Y - 3)).toBeLessThan(NIGHT);
   });
 
-  it('lights the slab tile itself when the open door stands on gridno 0, which the original takes for no base tile', () => {
-    const slab = gridNo(1, 0);
-    const t = tactical((s) => {
-      s.add(0, 0, syntheticStructure(StructureFlags.DOOR | StructureFlags.OPEN, Orientation.INSIDE_RIGHT));
-    });
-    t.world.costs.force(slab, Direction.NORTH, 0, OPEN_DOOR_ONE_TILE_WEST);
-    const l = lamp(t, 'L-R05.LHT', 1, 3);
-    expect(visitsAt(t, l, slab)).toContain(LitNodes.RIGHT_WALLS);
-    expect(visitsAt(t, l, 0)).not.toContain(LitNodes.RIGHT_WALLS);
+  it('blocks a step out of a window tile across its wall, so a window passes light only into its own tile', () => {
+    const t = tactical(windowRow);
+    const l = lamp(t, 'L-R05.LHT', X, Y - 4);
+    expect(level(t, X, Y - 2)).toBeLessThan(NIGHT);
+    expect(nodesAt(t, l, gridNo(X, Y - 1))).toEqual([WALLS_AND_ANIMATIONS]);
+    expect(row(t, Y - 1, X - 2, X + 2)).toEqual(Array(5).fill(NIGHT));
   });
 
-  it('keeps only the direction and the blocked, nothing and oriented-only bits of a step for the erase', () => {
+  it("lets light through an open door's swing tile, which keeps the door code (InternalDoorTravelCost)", () => {
     const t = tactical((s) => {
       s.add(gridNo(X - 1, Y - 2), 0, syntheticStructure(StructureFlags.DOOR | StructureFlags.OPEN, Orientation.INSIDE_RIGHT));
     });
     t.world.costs.force(WALL_AT, Direction.NORTH, 0, OPEN_DOOR_ONE_TILE_WEST);
     const l = lamp(t, 'L-R05.LHT');
-    expect(Math.max(...l.filters)).toBeLessThan(0x80);
-    lightSpriteDestroy(t, l);
-    expect(row(t, Y, X - 4, X + 4)).toEqual(Array(9).fill(NIGHT));
+    expect(nodesAt(t, l, WALL_AT)).toEqual([EVERYTHING]);
+    expect(level(t, X, Y - 3)).toBeLessThan(NIGHT);
+  });
+
+  it('gives a merc node 7/10 of a step on a ray that ends south-east of the light (LIGHT_BACKLIGHT), and the full light elsewhere', () => {
+    const t = tactical();
+    const l = lamp(t, 'L-R05.LHT');
+    const [south] = visitsAt(t, l, gridNo(X + 2, Y + 2));
+    expect(south).toMatchObject({ mercAmount: Math.trunc(((south?.amount ?? 0) * 7) / 10) });
+    expect(south?.mercAmount).toBeLessThan(south?.amount ?? 0);
+    const [north] = visitsAt(t, l, gridNo(X - 2, Y - 2));
+    expect(north?.mercAmount).toBe(north?.amount);
+  });
+
+  it('lights a template node once, by the first ray that reaches it, even a blocked ray that lit only its walls', () => {
+    const t = tactical((s) => s.add(gridNo(X, Y), 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT)));
+    const template = {
+      name: 'TWO-RAYS',
+      lights: [
+        { dx: 0, dy: 0, light: 0 },
+        { dx: 0, dy: 0, light: 3 },
+        { dx: 1, dy: 0, light: 2 },
+        { dx: 0, dy: 1, light: 2 },
+        { dx: 1, dy: 1, light: 1 },
+      ],
+      rays: [LIGHT_NEW_RAY, 1, 2, LIGHT_NEW_RAY, 1, 3, 4, 2],
+    };
+    const l = lightSpriteFromTemplate(t, template);
+    if (!l) throw new Error('no sprite');
+    lightSpritePower(l, true);
+    lightSpritePosition(t, l, X, Y);
+    expect([level(t, X, Y + 1), level(t, X + 1, Y + 1)]).toEqual([NIGHT - 2, NIGHT - 1]);
+    expect(level(t, X + 1, Y)).toBe(NIGHT);
+    expect(nodesAt(t, l, gridNo(X + 1, Y))).toEqual([WALLS_AND_ANIMATIONS]);
+  });
+
+  it('lights the walls and the ground of a cave tile a step reaches across a wall', () => {
+    const t = tactical((s) => s.add(WALL_AT, 0, syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT)));
+    t.lighting.caves = true;
+    const l = lamp(t, 'L-R05.LHT');
+    expect(nodesAt(t, l, WALL_AT)).toEqual([WALLS_AND_ANIMATIONS]);
+    expect(nodesAt(t, l, gridNo(X, Y - 1))).toEqual([EVERYTHING]);
   });
 });
 

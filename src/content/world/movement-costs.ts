@@ -63,10 +63,6 @@ export function isDoorTravelCost(c: number): boolean {
   return c >= TravelCost.DOORS_CLOSED_W_SW && c <= TravelCost.DOOR_OPEN_NW_W;
 }
 
-export function isOpenDoorTravelCost(c: number): boolean {
-  return c >= TravelCost.DOOR_OPEN_HERE && c <= TravelCost.DOOR_OPEN_NW_W;
-}
-
 export function isClosedDoorTravelCost(c: number): boolean {
   return c >= TravelCost.DOORS_CLOSED_W_SW && c <= TravelCost.DOOR_CLOSED_W;
 }

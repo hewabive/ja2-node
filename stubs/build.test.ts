@@ -14,6 +14,7 @@ import { DIALOGUE_SIZE, edtRowCount } from '../src/content/formats/edt.ts';
 import { gapPathFor, parseGap } from '../src/content/formats/gap.ts';
 import { parseTilesetDatabase } from '../src/content/formats/ja2set.ts';
 import { parseStructureFile } from '../src/content/formats/jsd.ts';
+import { parseLightTemplateFile } from '../src/content/formats/lht.ts';
 import { parseMap } from '../src/content/formats/map.ts';
 import { decodePcx } from '../src/content/formats/pcx.ts';
 import { createFrameReader, decodeAudio, openSmk } from '../src/content/formats/smk.ts';
@@ -24,6 +25,7 @@ import { parseStubSpriteManifest, pictureFromStubSprite, STUB_SPRITE_SUFFIX } fr
 import { STUB_DATA_VERSION } from '../src/content/text/data-version.ts';
 import { glyphCount, parseGlyphTable } from '../src/content/text/glyph-table.ts';
 import { parseVfsAliases, VFS_ALIASES_FILE } from '../src/content/vfs/aliases.ts';
+import { LIGHT_TEMPLATE_NAMES, lightTemplateKey } from '../src/content/world/light-templates.ts';
 import { parseTileTables } from '../src/content/world/tile-tables.ts';
 import { type DataVfs, openDataVfs, STUBS_PREFIX } from '../src/node/data-vfs.ts';
 import { PROJECT_DATA_DIR, REPO_ROOT } from '../src/node/repo.ts';
@@ -36,6 +38,7 @@ import { stubSoundPaths } from './audio.ts';
 import { buildStubs, STUB_LICENSE_FILE, STUB_NOTICE_FILE } from './build.ts';
 import { STUB_FONT_FACES, STUB_GLYPH_TABLE_PATH } from './fonts.ts';
 import { STUB_HELICOPTER_SURFACE } from './helicopter.ts';
+import { stubLightTemplates } from './lights.ts';
 import { musicTracks } from './music.ts';
 import { loadSectorKinds, sectorMapFile } from './sector-kinds.ts';
 import { npcSpeechSets, type SpeechSet, speechPaths } from './speech.ts';
@@ -69,6 +72,7 @@ import {
   stubSplashFrames,
 } from './video.ts';
 
+const UNUSED_MAP_LIGHT = 'L-R01I2.LHT';
 const MEDIA_DIRS = ['synth', 'music', 'mercedt', 'intro', 'fonts', 'cursors', 'interface', 'laptop', 'loadscreens'];
 const SPLASH_BUDGET_BYTES = 64 * 1024;
 const CONTENT_DIRS = ['world', 'npcdata', 'binarydata'];
@@ -547,6 +551,18 @@ describe('stub media', () => {
     expect([sti.width, sti.height]).toEqual([LOAD_SCREEN_WIDTH, LOAD_SCREEN_HEIGHT]);
     expect(new Set(sti.pixels).size).toBeGreaterThan(2);
     for (const path of paths) expect(Buffer.from(await data.vfs.read(stub(path))).equals(Buffer.from(bytes)), path).toBe(true);
+  });
+
+  it('decodes a light template under every name the game asks for, as the generator wrote it', async () => {
+    const written = new Map(stubLightTemplates().map((t) => [lightTemplateKey(t.name), t]));
+    const asked = LIGHT_TEMPLATE_NAMES.filter((name) => name !== UNUSED_MAP_LIGHT);
+    for (const name of asked) {
+      const template = parseLightTemplateFile(
+        written.get(lightTemplateKey(name))?.name ?? name,
+        await data.vfs.read(stub(name.toLowerCase())),
+      );
+      expect(template, name).toEqual(written.get(lightTemplateKey(name)));
+    }
   });
 
   it('decodes the map board at the size of the original board', async () => {

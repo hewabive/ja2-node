@@ -114,7 +114,8 @@ builds the v0.22.1 oracle (binary version `0.22.1-oracle.11e9430`). The patches 
   slot is `51 + voice`; the laptop dump's `taken` is the completed I.M.P.'s profile; `mercSlots` and `awaySlots` print
   the fixed arrays up to their counts, an empty slot as `-1`; Esc goes to SGP as an `SDL_Keysym`; the civilian
   hostility, give and level probes call v0.22.1's `MakeCivHostile(s, 2)`, temp objects and `FIRST_LEVEL_Z_OFFET`. The
-  `sector` line's `structureHeights` reports v0.22.1's own height cache (`ubStructureHeight`).
+  `sector` line no longer reports the structure height cache, which only master's light rule read; the recordings in
+  `~/ja2-oracle-v0221` still carry it as `structureHeights`, and the comparer ignores it.
 
 ## Run
 
@@ -262,11 +263,9 @@ target, effective stats, personality, opplist, inventory), `cth`, `bestshot`, `l
 
 A bare `sector` load uses the clock of a fresh process (00:00, `gubEnvLightValue` 0, every tile shade 1). `hour=<h>` sets
 the clock first, which decides which night and prime-time lights `LoadMapLights` powers; `ambient level=<n>` then renders
-the lights at a useful ambient level. The `sector` line reports the structures whose height is already cached
-(`ubStructureHeight`), because only those obstacles block light under master's rule that ja2-node follows until #105
-(v0.22.1's walk ignores obstacles); after it the comparer reloads the map lights for that
-hour and takes the oracle's ambient level and height cache. `lights` is compared tile by tile with the light sprites
-(position, template, ON/PRIME/NIGHT flags; fake merc lights skipped).
+the lights at a useful ambient level; after the `sector` line the comparer reloads the map lights for that hour and
+takes the oracle's ambient level. `lights` is compared tile by tile with the light sprites (position, template,
+ON/PRIME/NIGHT flags; fake merc lights skipped).
 
 `map-light-probes.ts [hour...]` writes, for every original map with light sprites, a load at each hour (default 22, 3
 and 12: prime and night lights, night lights only, always-on lights only), a hash-only `lights`, `ambient level=15` and

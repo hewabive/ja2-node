@@ -1,15 +1,13 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/Lighting.cc LightLoad (the .LHT layout: node count, LIGHT_NODE records, ray count, ray list);
-// @src src/externalized/content/LightTemplate.cc LightTemplate::deserialize (light-templates.json).
+// @src src/game/TileEngine/Lighting.cc LightLoad, LightSave (the .LHT layout: node count, LIGHT_NODE records, ray count,
+// @src ray list with the LIGHT_NEW_RAY and LIGHT_BACKLIGHT bits).
 
-import { FormatError } from '../binary/errors.ts';
 import { BinaryReader } from '../binary/reader.ts';
 
-export const SHIPPED_LIGHT_TEMPLATES_PATH = 'externalized/light-templates.json';
-
-const RAY_FLAG_MASK = 0x4000;
-const LIGHTS_ENTRY_LENGTH = 4;
+const COUNT_BYTES = 2;
+const LIGHT_NODE_BYTES = 6;
+const RAY_BYTES = 2;
 
 export interface LightNodeData {
   readonly dx: number;
@@ -31,24 +29,27 @@ export function parseLightTemplateFile(name: string, bytes: Uint8Array): LightTe
     r.u8();
     return { dx, dy, light: r.u8() };
   });
-  const rays = Array.from({ length: r.u16() }, () => r.u16() & ~RAY_FLAG_MASK);
+  const rays = Array.from({ length: r.u16() }, () => r.u16());
   return { name, lights, rays };
 }
 
-function isLightsEntry(v: unknown): v is readonly number[] {
-  return Array.isArray(v) && v.length === LIGHTS_ENTRY_LENGTH && v.every((n) => typeof n === 'number');
-}
-
-export function parseLightTemplatesJson(json: unknown): LightTemplateData[] {
-  if (!Array.isArray(json)) throw new FormatError('light-templates.json is not a list');
-  return json.map((entry: unknown) => {
-    const e = entry as { internalName?: unknown; rays?: unknown; lights?: unknown };
-    if (typeof e.internalName !== 'string' || !Array.isArray(e.rays) || !Array.isArray(e.lights) || !e.lights.every(isLightsEntry))
-      throw new FormatError('malformed light template');
-    return {
-      name: e.internalName,
-      rays: e.rays.map(Number),
-      lights: e.lights.map(([dx, dy, , light]) => ({ dx: dx as number, dy: dy as number, light: light as number })),
-    };
-  });
+export function writeLightTemplateFile(t: LightTemplateData): Uint8Array {
+  const bytes = new Uint8Array(COUNT_BYTES + t.lights.length * LIGHT_NODE_BYTES + COUNT_BYTES + t.rays.length * RAY_BYTES);
+  const v = new DataView(bytes.buffer);
+  let o = 0;
+  v.setUint16(o, t.lights.length, true);
+  o += COUNT_BYTES;
+  for (const n of t.lights) {
+    v.setInt16(o, n.dx, true);
+    v.setInt16(o + 2, n.dy, true);
+    v.setUint8(o + 5, n.light);
+    o += LIGHT_NODE_BYTES;
+  }
+  v.setUint16(o, t.rays.length, true);
+  o += COUNT_BYTES;
+  for (const ray of t.rays) {
+    v.setUint16(o, ray, true);
+    o += RAY_BYTES;
+  }
+  return bytes;
 }

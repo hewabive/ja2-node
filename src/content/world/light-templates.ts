@@ -2,16 +2,20 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/TileEngine/Lighting.cc LightCreateTemplateNode, LightAddTemplateNode, LightAddRayNode, LightInsertRayNode,
 // @src LightAddNode, LightInsertNode, LinearDistanceDouble, LightCastRay, LightGenerateElliptical, LightCreateOmni,
-// @src LightLoadCachedTemplate; assets/externalized/light-templates.json (form of the shipped templates).
+// @src LightLoadCachedTemplate (names compared without case); Editor/EditScreen.cc PlaceLight (L-R{radius}.LHT at
+// @src radius / LIGHT_DECAY); Tactical/Soldier_Control.cc CreateSoldierLight, TileEngine/LightEffects.cc
+// @src UpdateLightingSprite (Light{radius}).
 
-import { i16, idiv } from '../../../core/int.ts';
+import { i16, idiv } from '../../core/int.ts';
 
 export const LIGHT_NEW_RAY = 0x8000;
-export const LIGHT_CENTRE_NODE = 1;
+export const LIGHT_BACKLIGHT = 0x4000;
 
 const DISTANCE_SCALE = 4;
 const LIGHT_DECAY = 0.9;
 const RAY_MARKER_COORD = 32767;
+const MAP_LIGHT_RADII = 8;
+const EFFECT_LIGHT_RADII = 7;
 
 export interface LightNode {
   readonly dx: number;
@@ -30,17 +34,31 @@ interface TemplateBuilder {
   readonly rays: number[];
 }
 
-const OMNI_TEMPLATES: Readonly<Record<string, readonly [intensity: number, radius: number]>> = {
-  'L-R01.LHT': [1, 1],
-  'L-R01I2.LHT': [4, 2],
-  'L-R02.LHT': [2, 2],
-  'L-R03.LHT': [3, 3],
-  'L-R04.LHT': [4, 4],
-  'L-R05.LHT': [5, 5],
-  'L-R06.LHT': [6, 6],
-  'L-R07.LHT': [7, 7],
-  'L-R08.LHT': [8, 8],
-};
+export function mapLightTemplateName(radius: number): string {
+  return `L-R${String(radius).padStart(2, '0')}.LHT`;
+}
+
+export function effectLightTemplateName(radius: number): string {
+  return `Light${radius}`;
+}
+
+export const MAP_LIGHT_TEMPLATE_NAMES: readonly string[] = [
+  ...Array.from({ length: MAP_LIGHT_RADII }, (_, i) => mapLightTemplateName(i + 1)),
+  'L-R01I2.LHT',
+];
+
+export const LIGHT_TEMPLATE_NAMES: readonly string[] = [
+  ...MAP_LIGHT_TEMPLATE_NAMES,
+  ...Array.from({ length: EFFECT_LIGHT_RADII }, (_, i) => effectLightTemplateName(i)),
+];
+
+export function lightTemplateKey(name: string): string {
+  return name.toUpperCase();
+}
+
+export function editorLightIntensity(radius: number): number {
+  return Math.trunc(radius / LIGHT_DECAY);
+}
 
 function addTemplateNode(t: TemplateBuilder, x: number, y: number, light: number): number {
   const existing = t.lights.findIndex((n) => n.dx === x && n.dy === y);
@@ -73,10 +91,17 @@ interface RayPlotter {
   plot(x: number, y: number): void;
 }
 
-function rayPlotter(t: TemplateBuilder, startX: number, startY: number, intensity: number, insertAt: number | null): RayPlotter {
+function rayPlotter(
+  t: TemplateBuilder,
+  startX: number,
+  startY: number,
+  intensity: number,
+  flags: number,
+  insertAt: number | null,
+): RayPlotter {
   return {
     plot(x, y) {
-      const node = rayNode(t, startX, startY, x, y, intensity, 0);
+      const node = rayNode(t, startX, startY, x, y, intensity, flags);
       if (insertAt === null) t.rays.push(node);
       else t.rays.splice(insertAt, 0, node);
     },
@@ -129,6 +154,10 @@ function plotMajorAxisLine(
   stepAcross();
 }
 
+function rayFlags(endX: number, endY: number): number {
+  return endX > 0 && endY > 0 ? LIGHT_BACKLIGHT : 0;
+}
+
 function lightCastRay(t: TemplateBuilder, startX: number, startY: number, endX: number, endY: number, intensity: number): void {
   const reversed = startY > endY;
   const at = reversed ? { x: endX, y: endY } : { x: startX, y: startY };
@@ -143,7 +172,7 @@ function lightCastRay(t: TemplateBuilder, startX: number, startY: number, endX: 
   const yDelta = toY - at.y;
   if (xDelta === 0 && yDelta === 0) return;
   addRayMarker(t);
-  const p = rayPlotter(t, startX, startY, intensity, reversed ? t.rays.length : null);
+  const p = rayPlotter(t, startX, startY, intensity, rayFlags(endX, endY), reversed ? t.rays.length : null);
   if (xDelta === 0) plotRun(p, yDelta + 1, at, 0, 1);
   else if (yDelta === 0) plotRun(p, xDelta + 1, at, xAdvance, 0);
   else if (xDelta === yDelta) plotRun(p, xDelta + 1, at, xAdvance, 1);
@@ -179,63 +208,8 @@ function lightGenerateElliptical(t: TemplateBuilder, intensity: number, a: numbe
   }
 }
 
-export function lightCreateOmni(intensity: number, radius: number): LightTemplate {
+export function lightCreateOmni(intensity: number, radius: number, name = `LTO${radius}.LHT`): LightTemplate {
   const t: TemplateBuilder = { lights: [], rays: [] };
   lightGenerateElliptical(t, intensity, radius * DISTANCE_SCALE, radius * DISTANCE_SCALE);
-  return { name: `LTO${radius}.LHT`, lights: t.lights, rays: t.rays };
-}
-
-function raysExceptTheLast(rays: readonly number[]): number[][] {
-  const split: number[][] = [];
-  let current: number[] | null = null;
-  for (const entry of rays) {
-    if (entry & LIGHT_NEW_RAY) {
-      if (current) split.push(current);
-      current = [];
-    } else if (current && current[current.length - 1] !== entry) current.push(entry);
-  }
-  return split;
-}
-
-export function asShippedTemplate(name: string, template: LightTemplate): LightTemplate {
-  const seen = new Set<string>();
-  const rays: number[] = [];
-  for (const ray of raysExceptTheLast(template.rays)) {
-    const key = ray.join(',');
-    if (seen.has(key)) continue;
-    seen.add(key);
-    rays.push(LIGHT_NEW_RAY, ...ray);
-  }
-  return { name, lights: template.lights, rays };
-}
-
-const cache = new Map<string, LightTemplate | null>();
-
-function buildTemplate(name: string): LightTemplate | null {
-  const omni = OMNI_TEMPLATES[name];
-  if (!omni) return null;
-  return asShippedTemplate(name, lightCreateOmni(omni[0], omni[1]));
-}
-
-export function cachedLightTemplateName(value: object): string | null {
-  const name = (value as { readonly name?: unknown }).name;
-  return typeof name === 'string' && cache.get(name) === value ? name : null;
-}
-
-export function lightTemplateKey(name: string): string {
-  return name.toUpperCase();
-}
-
-export function shippedLightTemplates(templates: readonly LightTemplate[]): ReadonlyMap<string, LightTemplate> {
-  return new Map(templates.filter((t) => lightTemplate(t.name) === null).map((t) => [lightTemplateKey(t.name), t]));
-}
-
-export function lightTemplate(name: string): LightTemplate | null {
-  const key = lightTemplateKey(name);
-  let template = cache.get(key);
-  if (template === undefined) {
-    template = buildTemplate(key);
-    cache.set(key, template);
-  }
-  return template;
+  return { name, lights: t.lights, rays: t.rays };
 }

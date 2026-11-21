@@ -1,14 +1,17 @@
+import { type LightTemplate, lightTemplateKey } from '../../content/world/light-templates.ts';
 import { MovementCosts } from '../../content/world/movement-costs.ts';
 import { WorldStructures, type WorldStructuresSnapshot } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
 import { PreRandom, Rng, type RngState } from '../../core/rng.ts';
-import { cachedLightTemplateName, lightTemplate } from '../tactical/lighting/templates.ts';
+import type { TacticalContent } from '../tactical/content.ts';
 import { type ClassCodec, SnapshotError } from './codec.ts';
 import { type ContentIndex, type ContentRoots, contentIndex, type OpaqueKeys } from './refs.ts';
 
 const LIGHT_TEMPLATE_PREFIX = 'light/';
 const WORLD_ROOT_PREFIX = 'world.';
 const RESERVED_ROOTS: ReadonlySet<string> = new Set(['light']);
+const TACTICAL_CONTENT_ROOT = 'content';
+const NO_LIGHT_TEMPLATES: ReadonlyMap<string, LightTemplate> = new Map();
 
 interface PreRandomPayload {
   readonly index: number;
@@ -81,21 +84,27 @@ function checkRootNames(content: ContentRoots): void {
   }
 }
 
+function lightTemplatesOf(content: ContentRoots): ReadonlyMap<string, LightTemplate> {
+  const tactical = content[TACTICAL_CONTENT_ROOT] as Partial<TacticalContent> | undefined;
+  return tactical?.lightTemplates ?? NO_LIGHT_TEMPLATES;
+}
+
 export function externalSources(content: ContentRoots, world: TacticalWorld | null): ExternalSources {
   checkRootNames(content);
   const shared: ContentIndex = contentIndex(content);
   const loaded: ContentIndex = contentIndex(worldRoots(world), WORLD_OPAQUE);
+  const lights = lightTemplatesOf(content);
+  const lightNames = new Map<object, string>([...lights.values()].map((t) => [t, t.name]));
   return {
     external(value) {
-      const key = shared.keyOf(value) ?? loaded.keyOf(value);
-      if (key !== null) return key;
-      const light = cachedLightTemplateName(value);
-      return light === null ? null : LIGHT_TEMPLATE_PREFIX + light;
+      const light = lightNames.get(value);
+      if (light !== undefined) return LIGHT_TEMPLATE_PREFIX + light;
+      return shared.keyOf(value) ?? loaded.keyOf(value);
     },
     resolve(key) {
       if (key.startsWith(WORLD_ROOT_PREFIX)) return loaded.resolve(key);
       if (!key.startsWith(LIGHT_TEMPLATE_PREFIX)) return shared.resolve(key);
-      const template = lightTemplate(key.slice(LIGHT_TEMPLATE_PREFIX.length));
+      const template = lights.get(lightTemplateKey(key.slice(LIGHT_TEMPLATE_PREFIX.length)));
       if (!template) throw new SnapshotError(`unknown light template ${key}`);
       return template;
     },

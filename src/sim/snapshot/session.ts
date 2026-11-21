@@ -5,7 +5,7 @@ import { tickClock } from '../clock.ts';
 import type { StrategicState } from '../strategic/state.ts';
 import { createChangeCounts } from '../tactical/change-counts.ts';
 import { NO_EXPERIENCE_HOOKS } from '../tactical/combat/context.ts';
-import { NO_TIME_OF_DAY_LIGHT } from '../tactical/lighting/lighting.ts';
+import { type LightingState, lightSpriteRenderAll, NO_TIME_OF_DAY_LIGHT, withUnlitSums } from '../tactical/lighting/lighting.ts';
 import { NO_NARRATIVE_PORT } from '../tactical/narrative/port.ts';
 import { NO_SCHEDULE_CLOCK } from '../tactical/narrative/schedule-state.ts';
 import { createViewMarkers } from '../tactical/perception/fov.ts';
@@ -31,7 +31,7 @@ import type { ContentRoots } from './refs.ts';
 import { externalSources, SNAPSHOT_CODECS } from './world.ts';
 
 export const SNAPSHOT_FORMAT = 'ja2-node-snapshot';
-export const SNAPSHOT_VERSION = 106;
+export const SNAPSHOT_VERSION = 107;
 
 export type SnapshotKind = 'campaign' | 'tactical';
 
@@ -85,6 +85,7 @@ function reviveTactical(data: unknown): TacticalState {
   const fields = data as Omit<TacticalState, DerivedTacticalField> & { readonly pathEnv: PathEnvSettings };
   const state: TacticalState = {
     ...fields,
+    lighting: lightSumsDropped(fields) ? withUnlitSums(fields.lighting) : fields.lighting,
     campaign: NO_CAMPAIGN_PORT,
     hooks: NO_HOOKS,
     perceptionHooks: NO_PERCEPTION_HOOKS,
@@ -185,10 +186,18 @@ function decodeSections(raw: unknown, kind: SnapshotKind, sources: RestoreSource
   return decodeGraph(snapshot.graph, { classes: SNAPSHOT_CODECS, resolve: external.resolve });
 }
 
+function lightSumsDropped(data: unknown): boolean {
+  const lighting = (data as { readonly lighting?: Partial<LightingState> }).lighting;
+  return lighting !== undefined && lighting.landLight === undefined;
+}
+
 function restoredTactical(sections: Map<string, unknown>): TacticalSim | null {
   const data = sections.get('tactical');
   if (data === undefined) return null;
-  return TacticalSim.restore(sections.get('world') as TacticalWorld, reviveTactical(data));
+  const relight = lightSumsDropped(data);
+  const sim = TacticalSim.restore(sections.get('world') as TacticalWorld, reviveTactical(data));
+  if (relight) lightSpriteRenderAll(sim.state);
+  return sim;
 }
 
 export function restoreTactical(snapshot: unknown, sources: RestoreSources): TacticalSim {

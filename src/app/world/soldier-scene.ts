@@ -11,6 +11,7 @@
 
 import { soldierSheetFrame } from '../../content/anim/soldier-sprite.ts';
 import { stateId } from '../../content/anim/tables.ts';
+import type { LightTemplate } from '../../content/world/light-templates.ts';
 import type { SoldierView } from '../../protocol/view.ts';
 import type { MultiTileLook, SceneSoldier, SoldierSprite } from '../../render/world/dynamic-scene.ts';
 import { type GlowContext, PERSONAL_LIGHT_SHADE, soldierLook } from '../../render/world/glow.ts';
@@ -18,7 +19,6 @@ import { SoldierFades } from '../../render/world/soldier-fade.ts';
 import type { ShadeField } from '../../render/world/world-renderer.ts';
 import type { WorldSprites } from '../../render/world/world-sprites.ts';
 import { LightSpriteFlags, lightTimeAt } from '../../sim/tactical/lighting/lighting.ts';
-import type { LightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import { type SoldierAssets, type SoldierSheet, sheetFacing } from './soldier-assets.ts';
 import { type BoundingBox, SoldierBoundingBoxes } from './soldier-bounding-boxes.ts';
 import type { MercLight } from './world-lighting.ts';
@@ -171,7 +171,7 @@ export class SoldierScene {
   #nodeShade(s: SoldierView, input: SoldierSceneInput, night: boolean): number {
     if (s.team === OUR_TEAM && !(input.lights.mercCastsLight && night)) return PERSONAL_LIGHT_SHADE;
     const roof = s.level > 0 && input.hasRoof(s.gridNo);
-    return (roof ? input.shade.roof : input.shade.land)[s.gridNo] ?? input.shade.natural;
+    return (roof ? input.shade.roof : input.shade.mercs)[s.gridNo] ?? input.shade.natural;
   }
 
   #whiteFlashRow(): number {

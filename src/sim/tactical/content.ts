@@ -8,8 +8,8 @@ import type { ExplosionContent } from '../../content/items/explosions.ts';
 import type { ItemTable } from '../../content/items/items.ts';
 import type { QuoteSpeakers } from '../../content/narrative/quote-speakers.ts';
 import type { VehicleType } from '../../content/strategic/policy.ts';
+import type { LightTemplate } from '../../content/world/light-templates.ts';
 import type { TileTables } from '../../content/world/tile-tables.ts';
-import type { LightTemplate } from './lighting/templates.ts';
 
 export interface TacticalContent {
   readonly timeline: LogicTimeline;

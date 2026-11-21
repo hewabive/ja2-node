@@ -1,38 +1,14 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ORIGINAL_DATA_DIR } from '../../../tests/support/original-data.ts';
-import { SHIPPED_LIGHT_TEMPLATES_PATH } from '../../content/formats/lht.ts';
-import { PROJECT_DATA_LAYER } from '../../content/vfs/layers.ts';
+import { writeLightTemplateFile } from '../../content/formats/lht.ts';
+import { STUBS_LAYER } from '../../content/vfs/layers.ts';
+import { editorLightIntensity, LIGHT_TEMPLATE_NAMES, lightCreateOmni } from '../../content/world/light-templates.ts';
 import { type DataVfs, openDataVfs } from '../../node/data-vfs.ts';
 import { PROJECT_DATA_DIR } from '../../node/repo.ts';
 import type { InventoryItemView } from '../../protocol/view.ts';
-import { lightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import { LightTemplates, MERC_LIGHT, mercLightTemplateName, NIGHT_GOGGLES_LIGHT, UV_GOGGLES_LIGHT } from './light-templates.ts';
 
-const REPOSITORY_JSON = readFileSync(join(PROJECT_DATA_DIR, SHIPPED_LIGHT_TEMPLATES_PATH));
 const head = (slot: number, item: string): InventoryItemView => ({ slot, item, index: 0, count: 1, status: [100] });
-
-function lhtFile(nodes: readonly [number, number, number][], rays: readonly number[]): Uint8Array {
-  const bytes = new Uint8Array(2 + nodes.length * 6 + 2 + rays.length * 2);
-  const v = new DataView(bytes.buffer);
-  let o = 0;
-  v.setUint16(o, nodes.length, true);
-  o += 2;
-  for (const [dx, dy, light] of nodes) {
-    v.setInt16(o, dx, true);
-    v.setInt16(o + 2, dy, true);
-    v.setUint8(o + 5, light);
-    o += 6;
-  }
-  v.setUint16(o, rays.length, true);
-  o += 2;
-  for (const r of rays) {
-    v.setUint16(o, r, true);
-    o += 2;
-  }
-  return bytes;
-}
 
 describe('merc light templates', () => {
   it('picks Light4 for UV goggles, Light3 for night goggles and Light2 otherwise, from the head slots only', () => {
@@ -42,36 +18,27 @@ describe('merc light templates', () => {
     expect(mercLightTemplateName(undefined)).toBe(MERC_LIGHT);
   });
 
-  it('falls back to the generated stand-ins without data', () => {
-    const templates = new LightTemplates();
-    expect(templates.resolve(MERC_LIGHT)).toMatchObject({ origin: 'standIn', template: lightTemplate('L-R06.LHT') });
-    expect(templates.resolve(NIGHT_GOGGLES_LIGHT)?.template).toBe(lightTemplate('L-R07.LHT'));
-    expect(templates.resolve(UV_GOGGLES_LIGHT)?.template).toBe(lightTemplate('L-R08.LHT'));
-    expect(templates.resolve('L-R03.LHT')?.origin).toBe('generated');
-    expect(templates.resolve('Light5')).toBeNull();
-  });
-
-  it("reads Stracciatella's light-templates.json from any layer and lets the user's loose LHT files override it", async () => {
+  it("reads the user's LHT files by the names the game asks for, the stub pack's where the data has none, and nothing without either", async () => {
+    const user = lightCreateOmni(5, 3, 'Light2');
+    const stub = lightCreateOmni(6, 6, 'Light3');
     const files = new Map<string, Uint8Array>([
-      [SHIPPED_LIGHT_TEMPLATES_PATH, REPOSITORY_JSON],
-      ['light3.lht', lhtFile([[0, 0, 5]], [0x8000, 0x4001, 0x8000])],
+      ['light2', writeLightTemplateFile(user)],
+      ['stubs/light2', writeLightTemplateFile(stub)],
+      ['stubs/light3', writeLightTemplateFile(stub)],
     ]);
     const read = async (path: string) => new Uint8Array(files.get(path) ?? new Uint8Array());
-    const fromRepository = await LightTemplates.load(
+    const templates = await LightTemplates.load(
       [
-        { path: SHIPPED_LIGHT_TEMPLATES_PATH, size: 1, layer: PROJECT_DATA_LAYER },
-        { path: 'light3.lht', size: 1, layer: 'data-dir' },
+        { path: 'light2', size: 1, layer: 'Data.slf' },
+        { path: 'stubs/light2', size: 1, layer: STUBS_LAYER },
+        { path: 'stubs/light3', size: 1, layer: STUBS_LAYER },
       ],
       read,
     );
-    expect(fromRepository.resolve(MERC_LIGHT)).toMatchObject({ origin: 'data' });
-    expect(fromRepository.resolve(MERC_LIGHT)?.template.lights).toHaveLength(117);
-    const light3 = fromRepository.resolve(NIGHT_GOGGLES_LIGHT);
-    expect(light3?.origin).toBe('data');
-    expect(light3?.template.lights).toEqual([{ dx: 0, dy: 0, light: 5 }]);
-    const fromUser = await LightTemplates.load([{ path: SHIPPED_LIGHT_TEMPLATES_PATH, size: 1, layer: 'data-dir' }], read);
-    expect(fromUser.resolve(MERC_LIGHT)).toMatchObject({ origin: 'data' });
-    expect(fromUser.resolve(MERC_LIGHT)?.template.lights).toHaveLength(117);
+    expect(templates.resolve(MERC_LIGHT)).toEqual({ template: user, origin: 'data' });
+    expect(templates.resolve('LIGHT3')).toEqual({ template: stub, origin: 'stubs' });
+    expect(templates.resolve(UV_GOGGLES_LIGHT)).toBeNull();
+    expect(new LightTemplates().resolve(MERC_LIGHT)).toBeNull();
   });
 });
 
@@ -86,14 +53,11 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('merc light templates on the original data',
     await data.close();
   });
 
-  it('reads the map templates of the Gold data, equal to the generated ones, and the merc lights from the shipped JSON', async () => {
+  it('reads every map and merc template of the Gold data, every ray included', async () => {
     const listing = data.vfs.list().map((f) => ({ path: f.path, size: f.size, layer: f.layer }));
     const templates = await LightTemplates.load(listing, (path) => data.vfs.read(path));
-    expect(templates.fromData).toBe(17);
-    const mapLight = templates.resolve('L-R05.LHT');
-    expect(mapLight?.origin).toBe('data');
-    expect(mapLight?.template.lights).toEqual(lightTemplate('L-R05.LHT')?.lights);
-    expect(mapLight?.template.rays).toEqual(lightTemplate('L-R05.LHT')?.rays);
+    expect(templates.loaded).toBe(LIGHT_TEMPLATE_NAMES.length);
+    expect(templates.resolve('L-R05.LHT')).toEqual({ template: lightCreateOmni(editorLightIntensity(5), 5, 'L-R05.LHT'), origin: 'data' });
     for (const name of [MERC_LIGHT, NIGHT_GOGGLES_LIGHT, UV_GOGGLES_LIGHT]) expect(templates.resolve(name)?.origin).toBe('data');
   });
 });

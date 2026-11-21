@@ -213,7 +213,7 @@ function overheadPresenter(): OverheadFixture {
     surfaces: [],
     prepared: { renderHeight: 0 },
   } as unknown as LoadedWorld;
-  const shade = { land: new Uint8Array(WORLD_MAX), roof: new Uint8Array(WORLD_MAX) };
+  const shade = { land: new Uint8Array(WORLD_MAX), roof: new Uint8Array(WORLD_MAX), channels: [] };
   const world = { world: loaded, shade } as unknown as TacticalWorldView;
   let reads = 0;
   const renderer = {

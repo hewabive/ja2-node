@@ -2963,6 +2963,63 @@ function revertToV0221ImpModel(snapshot: Readonly<Record<string, unknown>>): Rec
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const LIGHT_SPRITE_KEYS = ['x', 'y', 'flags', 'template'];
+const MASTER_LIGHT_FILTERS_KEY = 'filters';
+const LIGHT_SUMS_KEYS = ['landLight', 'roofLight', 'landMaxLight', 'roofMaxLight'];
+const LIGHTING_KEY = 'lighting';
+const MASTER_LIGHT_TEMPLATE_KEY = /^content\/lightTemplates\/(\d+)\/1$/;
+const MASTER_SHIPPED_LIGHT_TEMPLATES: readonly string[] = [
+  'TRANSLUC.LHT',
+  'Light0',
+  'Light1',
+  'Light2',
+  'Light3',
+  'Light4',
+  'Light5',
+  'Light6',
+];
+const LIGHT_TEMPLATE_KEY_PREFIX = 'light/';
+
+function isMasterLightSprite(o: JsonObject): boolean {
+  return o[MASTER_LIGHT_FILTERS_KEY] !== undefined && LIGHT_SPRITE_KEYS.every((key) => o[key] !== undefined);
+}
+
+function withoutLightFilters(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutLightFilters(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withoutLightFilters(v);
+  return isMasterLightSprite(mapped) ? withoutKeys(mapped, [MASTER_LIGHT_FILTERS_KEY]) : mapped;
+}
+
+function lightTemplateByName(external: string): string {
+  const index = MASTER_LIGHT_TEMPLATE_KEY.exec(external)?.[1];
+  const name = index === undefined ? undefined : MASTER_SHIPPED_LIGHT_TEMPLATES[Number(index)];
+  return name === undefined ? external : LIGHT_TEMPLATE_KEY_PREFIX + name;
+}
+
+function drawnByMastersWalk(value: Json): boolean {
+  if (Array.isArray(value)) return value.some((v: Json) => drawnByMastersWalk(v));
+  if (!isObject(value)) return false;
+  return isMasterLightSprite(value) || Object.values(value).some((v) => drawnByMastersWalk(v));
+}
+
+function withoutLightSums(tactical: Json): Json {
+  if (!isObject(tactical)) return tactical;
+  const lighting = tactical[LIGHTING_KEY];
+  return isObject(lighting) ? { ...tactical, [LIGHTING_KEY]: withoutKeys(lighting, LIGHT_SUMS_KEYS) } : tactical;
+}
+
+function dropMasterLightFilters(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const relight = graph.sections.some(([, value]) => drawnByMastersWalk(value));
+  const sections = graph.sections.map(([name, value]): Section => {
+    const plain = withoutLightFilters(value);
+    return [name, relight && name === 'tactical' ? withoutLightSums(plain) : plain];
+  });
+  return { ...snapshot, graph: { ...graph, externals: graph.externals.map(lightTemplateByName), sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -3070,5 +3127,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     103: (snapshot) => liftThrownObjectsOntoTheLand(snapshot, context),
     104: dropStatDamage,
     105: revertToV0221ImpModel,
+    106: dropMasterLightFilters,
   };
 }

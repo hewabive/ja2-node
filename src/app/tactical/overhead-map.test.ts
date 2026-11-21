@@ -23,9 +23,10 @@ const SIX_TILES_EAST = { x: 48, y: 0 };
 const NORMAL_SHADE = 4;
 const LAND_SHADE = 7;
 const ROOF_SHADE = 2;
-const LEFT_WALL_SHADE = 12;
+const STRUCT_SHADE = 12;
+const OBJECT_SHADE = 9;
 const NATURAL_SHADE = 13;
-const CHANNEL_SHADES: readonly number[] = [LAND_SHADE, ROOF_SHADE, 9, LEFT_WALL_SHADE, 10, 11, 14];
+const CHANNEL_SHADES: readonly number[] = [LAND_SHADE, ROOF_SHADE, STRUCT_SHADE, OBJECT_SHADE];
 
 const Tile = { LAND: 0, CLOSED_DOOR: 1, OPEN_DOOR: 2, ROOF: 3, CEILING: 4, SHADOW: 5, WALL: 6, CLIFF_HANG: 7 } as const;
 
@@ -128,7 +129,7 @@ function scene(parts: SceneParts): OverheadScene {
       ceilings: (g) => (parts.ceilings?.has(g) ? [Tile.CEILING] : []),
     },
     openStructures: parts.openStructures ?? new Set(),
-    structureShades: Uint8Array.from(TILES, (t) => parts.structureShades?.[t.index] ?? ShadeChannel.LAND),
+    structureShades: Uint8Array.from(TILES, (t) => parts.structureShades?.[t.index] ?? ShadeChannel.STRUCT),
     shade: shadeField(),
   };
 }
@@ -218,14 +219,14 @@ describe('the overhead map picture (RenderOverheadMap)', () => {
   it('draws an open door as its partner tile, as the swapped structure is', () => {
     const closed = compose({ structs: { [MAP_CENTRE]: [Tile.CLOSED_DOOR] } });
     const open = compose({ structs: { [MAP_CENTRE]: [Tile.CLOSED_DOOR] }, openStructures: new Set([MAP_CENTRE]) });
-    expect(pixelAt(closed, CENTRE_PIXEL)).toBe(fullSizeColour(Tile.CLOSED_DOOR, LAND_SHADE));
-    expect(pixelAt(open, CENTRE_PIXEL)).toBe(fullSizeColour(Tile.OPEN_DOOR, LAND_SHADE));
+    expect(pixelAt(closed, CENTRE_PIXEL)).toBe(fullSizeColour(Tile.CLOSED_DOOR, STRUCT_SHADE));
+    expect(pixelAt(open, CENTRE_PIXEL)).toBe(fullSizeColour(Tile.OPEN_DOOR, STRUCT_SHADE));
   });
 
-  it('draws each structure node at its own light: a wall by its orientation, a cliff hang at the natural level', () => {
+  it('draws each structure node at its own light: the struct nodes of the tile, a cliff hang at the natural level', () => {
     const at = (tile: number, channel: ShadeChannel) =>
       pixelAt(compose({ structs: { [MAP_CENTRE]: [tile] }, structureShades: { [tile]: channel } }), CENTRE_PIXEL);
-    expect(at(Tile.WALL, ShadeChannel.LEFT_WALL)).toBe(fullSizeColour(Tile.WALL, LEFT_WALL_SHADE));
+    expect(at(Tile.WALL, ShadeChannel.STRUCT)).toBe(fullSizeColour(Tile.WALL, STRUCT_SHADE));
     expect(at(Tile.CLIFF_HANG, ShadeChannel.NATURAL)).toBe(fullSizeColour(Tile.CLIFF_HANG, NATURAL_SHADE));
   });
 

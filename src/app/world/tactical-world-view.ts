@@ -155,14 +155,14 @@ export class TacticalWorldView {
 
   private constructor(world: LoadedWorld, renderer: WorldRenderer, presentation: TacticalPresentation, itemTiles: ItemTileLookup) {
     this.world = world;
-    this.lighting = new WorldLighting(world.tactical);
+    this.#templates = presentation.lightTemplates ?? new LightTemplates();
+    this.lighting = new WorldLighting(world.tactical, this.#templates.byKey);
     this.#renderer = renderer;
     this.#soldiers = presentation.soldiers;
     this.#frames = presentation.frames ?? null;
     this.#effects = presentation.effects ?? null;
     const animations = presentation.soldiers.assets.tables;
     this.#crowShadows = new CrowShadows(stateId(animations, CROW_FLY));
-    this.#templates = presentation.lightTemplates ?? new LightTemplates();
     this.#itemTiles = itemTiles;
     this.#roofed = Uint8Array.from({ length: world.level.heights.length }, (_, g) =>
       levelTilesAt(world.level.layers.roofs, g).length > 0 ? 1 : 0,

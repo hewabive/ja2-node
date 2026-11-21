@@ -92,7 +92,7 @@ test('an MCP agent fights the stub garrison through its own session; the rendere
   });
   expect(world).toEqual({
     framePolicy: 'exact',
-    mercLightOrigin: 'data',
+    mercLightOrigin: 'stubs',
     ambient: STUB_SANDBOX_AMBIENT,
     corpses: corpses.length,
     bloodPools: blood.length,

@@ -1,13 +1,14 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/Lighting.cc LightAddTileNode (ubMaxLights, ubShadeLevel), LightAddTile (each node keeps its own
-// @src strongest light: the ground, the roofs, walls and doors by the filter's orientations, wall decals), LightSetBaseLevel;
+// @src src/game/TileEngine/Lighting.cc LightAddTileNode (ubMaxLights, ubShadeLevel), LightAddTile (each kind of node keeps
+// @src its own strongest light: the ground, the struct nodes, the objects, the mercs, the roofs), LightSetBaseLevel;
 // @src src/game/Tactical/Soldier_Control.cc PositionSoldierLight, CreateSoldierLight, SetSoldierPersonalLightLevel;
-// @src src/game/TileEngine/Environment.cc GetTimeOfDayAmbientLightLevel; Lighting.cc LightIlluminateWall (the live
+// @src src/game/TileEngine/Environment.cc GetTimeOfDayAmbientLightLevel; Lighting.cc LightTileBlocked (the live
 // @src structures a light is drawn over).
 
 import type { MapDef, MapDoor } from '../../content/formats/map.ts';
 import { WORLD_MAX } from '../../content/world/grid.ts';
+import type { LightTemplate } from '../../content/world/light-templates.ts';
 import { MovementCosts, recompileLocalMovementCosts } from '../../content/world/movement-costs.ts';
 import type { WorldStructures } from '../../content/world/structures.ts';
 import type { TacticalWorld } from '../../content/world/tactical-world.ts';
@@ -27,6 +28,7 @@ import {
   initLighting,
   LightSpriteFlags,
   LitNodes,
+  type LitTileVisitor,
   lightSpriteDestroy,
   lightSpriteFromTemplate,
   lightSpritePosition,
@@ -34,7 +36,6 @@ import {
   MIN_AMB_LEVEL_FOR_MERC_LIGHTS,
   traceLitTiles,
 } from '../../sim/tactical/lighting/lighting.ts';
-import type { LightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import type { DoorStatus, PathEnv, PathWorld } from '../../sim/tactical/pathfinding.ts';
 import type { TacticalState } from '../../sim/tactical/state.ts';
 
@@ -46,6 +47,7 @@ const CELLS_PER_TILE = 10;
 const RECOMPILE_RADIUS = 1;
 const LIGHT_VALUES = 256;
 const NO_TILE_CHANGES: readonly TileChangeView[] = [];
+const NO_TEMPLATES: ReadonlyMap<string, LightTemplate> = new Map();
 
 export interface MercLight {
   readonly soldier?: number;
@@ -95,7 +97,9 @@ export interface LightingInput {
   readonly tileChanges?: readonly TileChangeView[];
 }
 
-type LightingHost = Pick<TacticalState, 'lighting' | 'world' | 'pathWorld' | 'pathEnv' | 'changes'>;
+type LightingHost = Pick<TacticalState, 'lighting' | 'world' | 'pathWorld' | 'pathEnv' | 'changes'> & {
+  readonly content: Pick<TacticalState['content'], 'lightTemplates'>;
+};
 
 function dayLightSchedule(): readonly { readonly second: number; readonly level: number }[] {
   const q = createEventQueue();
@@ -113,30 +117,33 @@ export function surfaceAmbientAt(t: LightingTime): number {
 }
 
 interface StrongestLights {
-  readonly ground: Uint8Array;
+  readonly land: Uint8Array;
+  readonly structs: Uint8Array;
+  readonly objects: Uint8Array;
+  readonly mercs: Uint8Array;
   readonly roof: Uint8Array;
-  readonly throughWindows: Uint8Array;
-  readonly leftWalls: Uint8Array;
-  readonly rightWalls: Uint8Array;
+  readonly animations: Uint8Array;
 }
 
 function noLights(): StrongestLights {
   return {
-    ground: new Uint8Array(WORLD_MAX),
+    land: new Uint8Array(WORLD_MAX),
+    structs: new Uint8Array(WORLD_MAX),
+    objects: new Uint8Array(WORLD_MAX),
+    mercs: new Uint8Array(WORLD_MAX),
     roof: new Uint8Array(WORLD_MAX),
-    throughWindows: new Uint8Array(WORLD_MAX),
-    leftWalls: new Uint8Array(WORLD_MAX),
-    rightWalls: new Uint8Array(WORLD_MAX),
+    animations: new Uint8Array(WORLD_MAX),
   };
 }
 
 function copyOf(s: StrongestLights): StrongestLights {
   return {
-    ground: s.ground.slice(),
+    land: s.land.slice(),
+    structs: s.structs.slice(),
+    objects: s.objects.slice(),
+    mercs: s.mercs.slice(),
     roof: s.roof.slice(),
-    throughWindows: s.throughWindows.slice(),
-    leftWalls: s.leftWalls.slice(),
-    rightWalls: s.rightWalls.slice(),
+    animations: s.animations.slice(),
   };
 }
 
@@ -144,31 +151,15 @@ function strengthen(lights: Uint8Array, g: number, amount: number): void {
   if (amount > (lights[g] ?? 0)) lights[g] = amount;
 }
 
-function strengthenBy(s: StrongestLights): (g: number, amount: number, nodes: LitNodes) => void {
-  return (g, amount, nodes) => {
-    switch (nodes) {
-      case LitNodes.ROOF:
-        strengthen(s.roof, g, amount);
-        return;
-      case LitNodes.GROUND:
-        strengthen(s.ground, g, amount);
-        return;
-      case LitNodes.GROUND_AND_WALLS:
-        strengthen(s.ground, g, amount);
-        strengthen(s.throughWindows, g, amount);
-        return;
-      case LitNodes.LEFT_WALLS:
-        strengthen(s.leftWalls, g, amount);
-        return;
-      case LitNodes.RIGHT_WALLS:
-        strengthen(s.rightWalls, g, amount);
-        return;
-    }
+function strengthenBy(s: StrongestLights): LitTileVisitor {
+  return (g, amount, mercAmount, nodes) => {
+    if (nodes & LitNodes.LAND) strengthen(s.land, g, amount);
+    if (nodes & LitNodes.STRUCTS) strengthen(s.structs, g, amount);
+    if (nodes & LitNodes.OBJECTS) strengthen(s.objects, g, amount);
+    if (nodes & LitNodes.MERCS) strengthen(s.mercs, g, mercAmount);
+    if (nodes & LitNodes.ROOFS) strengthen(s.roof, g, amount);
+    if (nodes & LitNodes.ANIMATIONS) strengthen(s.animations, g, amount);
   };
-}
-
-function stronger(a: number, b: number): number {
-  return a > b ? a : b;
 }
 
 function shadesUnderLights(natural: number): Uint8Array {
@@ -177,32 +168,19 @@ function shadesUnderLights(natural: number): Uint8Array {
   return shades;
 }
 
-function channelShades(natural: number, s: StrongestLights): Uint8Array[] {
-  const shadeOf = shadesUnderLights(natural);
-  const channels = Array.from({ length: SHADE_TEXTURE_CHANNELS }, () => new Uint8Array(WORLD_MAX));
-  const channel = (c: ShadeChannel) => channels[c] as Uint8Array;
-  const land = channel(ShadeChannel.LAND);
-  const roof = channel(ShadeChannel.ROOF);
-  const decal = channel(ShadeChannel.DECAL);
-  const leftWall = channel(ShadeChannel.LEFT_WALL);
-  const rightWall = channel(ShadeChannel.RIGHT_WALL);
-  const cornerWall = channel(ShadeChannel.CORNER_WALL);
-  const bareWall = channel(ShadeChannel.BARE_WALL);
-  for (let g = 0; g < WORLD_MAX; g++) {
-    const ground = s.ground[g] as number;
-    const windows = s.throughWindows[g] as number;
-    const left = s.leftWalls[g] as number;
-    const right = s.rightWalls[g] as number;
-    const walls = stronger(left, right);
-    land[g] = shadeOf[ground] as number;
-    roof[g] = shadeOf[s.roof[g] as number] as number;
-    decal[g] = shadeOf[stronger(ground, walls)] as number;
-    leftWall[g] = shadeOf[stronger(windows, left)] as number;
-    rightWall[g] = shadeOf[stronger(windows, right)] as number;
-    cornerWall[g] = shadeOf[stronger(windows, walls)] as number;
-    bareWall[g] = shadeOf[windows] as number;
-  }
-  return channels;
+function shadesOf(shadeOf: Uint8Array, lights: Uint8Array): Uint8Array {
+  return lights.map((light) => shadeOf[light] as number);
+}
+
+function channelShades(shadeOf: Uint8Array, s: StrongestLights): Uint8Array[] {
+  const lightsOf: Readonly<Record<number, Uint8Array>> = {
+    [ShadeChannel.LAND]: s.land,
+    [ShadeChannel.ROOF]: s.roof,
+    [ShadeChannel.STRUCT]: s.structs,
+    [ShadeChannel.OBJECT]: s.objects,
+    [ShadeChannel.ANIMATION]: s.animations,
+  };
+  return Array.from({ length: SHADE_TEXTURE_CHANNELS }, (_, c) => shadesOf(shadeOf, lightsOf[c] ?? new Uint8Array(WORLD_MAX)));
 }
 
 interface StandingStructures {
@@ -227,6 +205,7 @@ export class WorldLighting {
   readonly #doorStatus = new Map<number, DoorStatus>();
   readonly #changes = createChangeCounts();
   readonly #doors: readonly number[];
+  readonly #templates: ReadonlyMap<string, LightTemplate>;
   #version = 0;
   #staticKey = '';
   #mercKey = '';
@@ -235,8 +214,9 @@ export class WorldLighting {
   #field: ShadeField | null = null;
   #mercRoofLights: ReadonlyMap<number, RoofLight> = NO_ROOF_LIGHTS;
 
-  constructor(world: TacticalWorld) {
+  constructor(world: TacticalWorld, templates: ReadonlyMap<string, LightTemplate> = NO_TEMPLATES) {
     this.#world = world;
+    this.#templates = templates;
     this.#map = world.map;
     this.#doors = doorGridNos(world);
     this.#mapDoors = new Map(world.map.doors.map((d) => [d.gridNo, d] as const));
@@ -262,7 +242,15 @@ export class WorldLighting {
       autoBandage: false,
     };
     const changes = this.#changes;
-    return { lighting, world: { ...world, structures: standing.structures, costs: standing.costs, mapDoors }, pathWorld, pathEnv, changes };
+    const content = { lightTemplates: this.#templates };
+    return {
+      lighting,
+      world: { ...world, structures: standing.structures, costs: standing.costs, mapDoors },
+      pathWorld,
+      pathEnv,
+      changes,
+      content,
+    };
   }
 
   #followStructureChanges(changes: readonly TileChangeView[]): void {
@@ -351,9 +339,9 @@ export class WorldLighting {
       l.flags |= m.flags;
       lightSpritePosition(t, l, m.x, m.y);
       const roof = new Map<number, number>();
-      traceLitTiles(t, l, (g, amount, nodes) => {
-        visit(g, amount, nodes);
-        if (nodes === LitNodes.ROOF) roof.set(g, u8((roof.get(g) ?? 0) + amount));
+      traceLitTiles(t, l, (g, amount, mercAmount, nodes) => {
+        visit(g, amount, mercAmount, nodes);
+        if (nodes & LitNodes.ROOFS) roof.set(g, u8((roof.get(g) ?? 0) + amount));
       });
       if (m.soldier !== undefined) roofLights.set(m.soldier, { key: placedLightKey(m), roof: withoutUnlit(roof) });
       lightSpriteDestroy(t, l);
@@ -362,11 +350,12 @@ export class WorldLighting {
   }
 
   #shade(ambient: number, natural: number, strongest: StrongestLights): ShadeField {
-    const channels = channelShades(natural, strongest);
+    const shadeOf = shadesUnderLights(natural);
+    const channels = channelShades(shadeOf, strongest);
     this.#version++;
     const land = channels[ShadeChannel.LAND] as Uint8Array;
     const roof = channels[ShadeChannel.ROOF] as Uint8Array;
-    return { version: this.#version, ambient, natural, land, roof, channels };
+    return { version: this.#version, ambient, natural, land, roof, mercs: shadesOf(shadeOf, strongest.mercs), channels };
   }
 }
 

@@ -304,7 +304,7 @@ describe('static scene order and depth', () => {
     expect(names(segment(scene, StaticSegment.ON_ROOF))).toEqual(['FIRSTONROOF1']);
   });
 
-  it('keys each struct node to the light it takes: a wall by its orientation, a cliff hang at the natural level, any other at the land', () => {
+  it('keys each struct node to the light it takes: a cliff hang at the natural level, any other at the struct nodes of its tile', () => {
     const wall = tileIndex(tables, 'FIRSTWALL1');
     const tiles = baseTiles.map((te) =>
       te.index === wall ? { ...te, structure: syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_LEFT) } : te,
@@ -320,7 +320,11 @@ describe('static scene order and depth', () => {
       tiles,
     );
     const keys = segment(new StaticScene(world, DEFAULT_STATE), StaticSegment.STRUCTS).map((i) => i.shadeKey);
-    expect(keys).toEqual([shadeKey(ShadeChannel.LEFT_WALL, g(80, 80)), shadeKey(ShadeChannel.NATURAL, g(82, 80)), g(84, 80)]);
+    expect(keys).toEqual([
+      shadeKey(ShadeChannel.STRUCT, g(80, 80)),
+      shadeKey(ShadeChannel.NATURAL, g(82, 80)),
+      shadeKey(ShadeChannel.STRUCT, g(84, 80)),
+    ]);
   });
 
   it('rebuilds only the rows of changed doors', () => {

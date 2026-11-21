@@ -39,7 +39,7 @@ every frame: the view → WorldFrameInput                 app/tactical/world-pre
 | `soldier-strips.ts` | The z strips of a soldier as his two strip blitters cut them: clipped at the view's left and top edges, and in bands of rows on a no-burn tile, as a corpse's on any tile |
 | `reveal.ts`, `tile-changes.ts` | Room reveals as node flags and wireframes, the ceilings of slanted roofs; structure and object changes (debris), the structures they leave, and blood pools |
 | `world-program.ts`, `instances.ts`, `world-framebuffer.ts` | The shader, the draw states, the instance records and shade keys, the framebuffers |
-| `structure-shades.ts` | The shade a struct node takes, by tile index: as the ground, a wall decal, a wall or door by its orientation, never lit |
+| `structure-shades.ts` | The shade a struct node takes, by tile index: the struct nodes' light, or none for a cliff hang |
 | `picture-memo.ts`, `dirty-rects.ts`, `partial-redraw-check.ts` | Partial redraws and their check |
 | `glow.ts`, `soldier-fade.ts`, `soldier-palettes.ts`, `picking.ts` | Soldier presentation (`06`) |
 | `content/world/zstrip.ts`, `shading.ts`, `render-bounds.ts` | ZStripInfo, the shade palettes, the scroll rectangle and absolute screen frame (shared with the simulation) |
@@ -80,13 +80,14 @@ viewport (deviation "Sweep window"). The shifted picture of a partial redraw rel
 
 **Shading in the shader.** Colour indices sit in one R8 texture array that tiles and soldier sheets share, palettes in
 a growing texture with 16 shaded rows per tile surface, built like the original's (quantised through RGB565, expanded
-like SDL) and checked against vanilla's `.sha` caches. A 320 × 160 texture holds seven shades of every tile: the land's,
-which objects take, the roof's, which on-roof nodes take, and the five a struct node takes by how a light step reaches
-it (`structure-shades.ts`); a cliff hang in the struct layer stays at the natural level. Each instance carries a key of
-shade channel and tile, so a light change uploads the texture and rebuilds no row. The shades come from the simulation's
-lighting run in the browser over the view's lights (`20`); a corpse takes its tile's land shade (deviation "Light on
-structures"). Shadows and translucency blend 24-bit colour (deviations "Shadow darkening", "Translucency"). Static
-shadows show only while the ambient is brighter than dusk, as in the original.
+like SDL) and checked against vanilla's `.sha` caches. A 320 × 160 texture holds five shades of every tile, one per kind
+of node a light step lights (`20`): the land's, the roof's, which on-roof nodes take, the struct nodes', items among
+them (`structure-shades.ts`; a cliff hang in the struct layer stays at the natural level), the objects' and the
+corpses'. A soldier takes the merc nodes' shade (`app/world/soldier-scene.ts`). Each instance carries a key of shade
+channel and tile, so a light change uploads the texture and rebuilds no row. The shades come from the simulation's
+lighting run in the browser over the view's lights (`20`; deviation "Light on structures"). Shadows and translucency
+blend 24-bit colour (deviations "Shadow darkening", "Translucency"). Static shadows show only while the ambient is
+brighter than dusk, as in the original.
 
 **Partial redraws replace the save buffer and dirty rectangles**, so a still scene costs no GPU work (`28`).
 `PictureMemo` compares the frame's global inputs and visible dynamic instances with the last frame's: a changed global

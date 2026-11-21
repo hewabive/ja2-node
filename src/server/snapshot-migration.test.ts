@@ -24,6 +24,7 @@ import { newSoldierCreate, tacticalCreateSoldier } from '../sim/tactical/creatio
 import type { DoorStatusEntry } from '../sim/tactical/doors/door-status.ts';
 import { DoorTrap, PerceivedTrap, updateDoor } from '../sim/tactical/doors/door-table.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../sim/tactical/doors.ts';
+import { newLightEffect } from '../sim/tactical/explosions/light.ts';
 import { newSmokeEffect } from '../sim/tactical/explosions/smoke.ts';
 import { createHelicopterDrop } from '../sim/tactical/helicopter-drop-state.ts';
 import { NEUTRAL_POPULATION } from '../sim/tactical/init-list.ts';
@@ -4862,5 +4863,70 @@ describe("snapshot version 105 (master's I.M.P. slots and voices, 200 profiles) 
       [54, MercKind.PLAYER_CHARACTER],
     ]);
     expect(restored.campaign.state.npcRecords.arrays).toHaveLength(NUM_PROFILES);
+  });
+});
+
+const MASTER_SHIPPED_LIGHT_TEMPLATES = ['TRANSLUC.LHT', 'Light0', 'Light1', 'Light2', 'Light3', 'Light4', 'Light5', 'Light6'];
+const LIGHT_KEY_PREFIX = 'light/';
+
+function withMasterLightFilters(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withMasterLightFilters(v));
+  if (typeof value !== 'object' || value === null) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withMasterLightFilters(v);
+  if (mapped.template === undefined || mapped.flags === undefined || mapped.x === undefined || mapped.y === undefined) return mapped;
+  return { ...mapped, filters: { $u8: encodeBase64(new Uint8Array(4)) } };
+}
+
+function withMasterLightSums(tactical: JsonObject): JsonObject {
+  const lighting = object(tactical.lighting);
+  return { ...tactical, lighting: { ...lighting, landLight: { $u8: encodeBase64(new Uint8Array(WORLD_MAX)) } } };
+}
+
+function masterLightTemplateKey(external: string): string {
+  const index = MASTER_SHIPPED_LIGHT_TEMPLATES.indexOf(external.slice(LIGHT_KEY_PREFIX.length));
+  return external.startsWith(`${LIGHT_KEY_PREFIX}Light`) && index >= 0 ? `content/lightTemplates/${index}/1` : external;
+}
+
+function versionHundredSix(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [
+    name,
+    name === 'tactical' ? withMasterLightSums(object(withMasterLightFilters(value))) : withMasterLightFilters(value),
+  ]);
+  const externals = snapshot.graph.externals.map(masterLightTemplateKey);
+  return { ...snapshot, version: 106, graph: { ...snapshot.graph, externals, sections } };
+}
+
+describe("snapshot version 106 (master's light filters and shipped templates) migrates to v0.22.1's light walk", () => {
+  let kit: StubSectorKit;
+  const exists = (path: string) => kit.worlds.exists(path);
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox at night with a flare finds the flare by its name, drops the filters and draws every light again', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    sandbox.sim.setAmbientLight(12);
+    const flare = newLightEffect(t, 80 * WORLD_COLS + 80, 6, 6);
+    expect(flare?.sprite?.template.name).toBe('Light6');
+    const current = snapshotSession(sandbox);
+    const legacy = versionHundredSix(current.sim);
+    expect(legacy.graph.externals).toContain('content/lightTemplates/7/1');
+    expect(JSON.stringify(legacy)).toContain('"filters"');
+    const migrated = migrateSnapshot(JSON.parse(JSON.stringify(legacy)));
+    expect(migrated.graph.externals).toEqual(current.sim.graph.externals);
+    expect(JSON.stringify(migrated)).not.toContain('"filters"');
+    const tactical = object(migrated.graph.sections.find(([name]) => name === 'tactical')?.[1]);
+    expect(Object.keys(object(tactical.lighting))).not.toContain('landLight');
+    const restored = (await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists)) as TacticalSession;
+    expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+    const r = restored.sim.state;
+    expect(r.explosives.lights.find((l) => l !== null)?.sprite?.template).toBe(r.content.lightTemplates.get('LIGHT6'));
   });
 });

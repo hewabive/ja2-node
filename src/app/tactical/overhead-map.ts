@@ -273,7 +273,7 @@ class Painter {
     const height = idiv(this.#height(g), SCALE);
     const modified = idiv(modifiedHeight(this.#height(g)), SCALE);
     const layers = scene.level.layers;
-    const shade = scene.shade.land[g] ?? 0;
+    const shade = scene.shade.channels[ShadeChannel.OBJECT]?.[g] ?? 0;
     for (const tile of levelTilesAt(layers.objects, g))
       this.#blit(tile, x, y - this.#lift(tile, height, modified) + this.#renderLift, shade);
     for (const tile of levelTilesAt(scene.prepared.shadows, g)) this.#shadow(tile, x, y - height + this.#renderLift);

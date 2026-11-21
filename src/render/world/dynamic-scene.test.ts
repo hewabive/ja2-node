@@ -594,7 +594,7 @@ describe('dynamic scene', () => {
     expect((node?.paletteRow ?? 0) - (plain?.paletteRow ?? 0)).toBe(darker - DEFAULT_SHADE_LEVEL);
   });
 
-  it('shades a dynamic struct node by the light its own structure takes', () => {
+  it('shades a dynamic struct node by the light the struct nodes of its tile take', () => {
     const top = tileIndex(tables, 'FIRSTFULLSTRUCT1') + 1;
     const walled = tiles.map((te) =>
       te.index === top ? { ...te, structure: syntheticStructure(StructureFlags.WALL, Orientation.OUTSIDE_RIGHT) } : te,
@@ -604,7 +604,7 @@ describe('dynamic scene', () => {
     const scene = new DynamicScene(staticWorld, prepared);
     scene.build(frame({}));
     const node = decode(scene).find((p) => tables.tileNames[p.tile] === 'FIRSTFULLSTRUCT2');
-    expect(node?.shadeKey).toBe(shadeKey(ShadeChannel.RIGHT_WALL, at));
+    expect(node?.shadeKey).toBe(shadeKey(ShadeChannel.STRUCT, at));
   });
 
   it('draws an absolute node after the struct nodes of its tile, on the box of its cell and raised by its height', () => {

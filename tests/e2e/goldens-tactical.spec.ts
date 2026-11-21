@@ -273,7 +273,7 @@ test.describe('goldens of the tactical screen on stubs', () => {
     }
   });
 
-  test('the houses of the stub mine at night, each wall node lit only by the lights it faces', async ({ page, request }) => {
+  test('the houses of the stub mine at night, every struct node of a tile a light reaches lit alike', async ({ page, request }) => {
     const session = await newSession(request, { load: NIGHT_LIGHTS_SAVE });
     try {
       await openTacticalSession(page, session, PINNED);

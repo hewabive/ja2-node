@@ -14,12 +14,10 @@ export const InstanceFlags = {
 export const ShadeChannel = {
   LAND: 0,
   ROOF: 1,
-  DECAL: 2,
-  LEFT_WALL: 3,
-  RIGHT_WALL: 4,
-  CORNER_WALL: 5,
-  BARE_WALL: 6,
-  NATURAL: 7,
+  STRUCT: 2,
+  OBJECT: 3,
+  ANIMATION: 4,
+  NATURAL: 5,
 } as const;
 export type ShadeChannel = (typeof ShadeChannel)[keyof typeof ShadeChannel];
 
@@ -32,6 +30,9 @@ export function shadeKey(channel: ShadeChannel, g: number): number {
 export const ShadeKey = {
   FIXED: -1,
   ROOF_BASE: shadeKey(ShadeChannel.ROOF, 0),
+  STRUCT_BASE: shadeKey(ShadeChannel.STRUCT, 0),
+  OBJECT_BASE: shadeKey(ShadeChannel.OBJECT, 0),
+  ANIMATION_BASE: shadeKey(ShadeChannel.ANIMATION, 0),
   NATURAL: shadeKey(ShadeChannel.NATURAL, 0),
 } as const;
 

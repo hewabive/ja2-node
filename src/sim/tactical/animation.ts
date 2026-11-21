@@ -67,7 +67,7 @@ import { aiDoorActionWithoutInteraction, soldierHandleInteractiveObject } from '
 import { adrenalineEffect } from './drugs.ts';
 import { cancelAllServices } from './first-aid.ts';
 import { InvSlot } from './inventory.ts';
-import { countMuzzleFlashFrame } from './lighting/muzzle-flash.ts';
+import { countMuzzleFlashCode } from './lighting/muzzle-flash.ts';
 import {
   getNewSoldierPath,
   handleGotoNewGridNo,
@@ -813,6 +813,7 @@ function endMoveOnFenceLanding(s: Soldier): void {
 export function adjustToNextAnimationFrame(t: TacticalState, s: Soldier): void {
   const content = t.content;
   for (let guard = 0; guard < MAX_FRAMES_PER_ANIM * 4; guard++) {
+    countMuzzleFlashCode(t, s);
     if (s.breathCollapsed) {
       if (hasAnimFlag(content, s.state, AnimFlags.HITSTOP | AnimFlags.HITFINISH)) s.breathCollapsed = false;
       else if (s.life === 0) s.breathCollapsed = false;
@@ -827,7 +828,6 @@ export function adjustToNextAnimationFrame(t: TacticalState, s: Soldier): void {
     switch (slotKind(content.timeline, slot)) {
       case SlotKind.EMPTY:
       case SlotKind.FRAME:
-        countMuzzleFlashFrame(t, s);
         convertFrame(s, slot);
         s.pc++;
         return;

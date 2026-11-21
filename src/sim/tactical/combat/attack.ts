@@ -40,7 +40,7 @@ import { igniteExplosion } from '../explosions/explosion.ts';
 import { calcThrownChanceToHit, useLauncher, useThrown, willExplosiveWeaponFail } from '../explosions/throwing.ts';
 import { handleMedKit } from '../first-aid.ts';
 import { InvSlot, isValidSecondHandShot } from '../inventory.ts';
-import { putOutMuzzleFlash, showMuzzleFlash } from '../lighting/muzzle-flash.ts';
+import { showMuzzleFlash } from '../lighting/muzzle-flash.ts';
 import { directionToward } from '../movement.ts';
 import { inMeanwhile } from '../narrative/meanwhile-rules.ts';
 import { MercQuote } from '../narrative/merc-quotes.ts';
@@ -691,8 +691,6 @@ function burstController(t: TacticalState, s: Soldier): OpOutcome {
     } else if (jam === FireResult.UNJAMMED && handleUnjamAnimation(t, s)) return 'stop';
   }
   if (stop) {
-    putOutMuzzleFlash(t, s);
-    s.muzzleFlashCount = 0;
     s.doSpread = 0;
     s.doBurst = 1;
     reduceAttackBusyCount(t, s, false);

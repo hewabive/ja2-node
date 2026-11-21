@@ -773,20 +773,6 @@ std::string DescribeTacticalStatus()
 		.text();
 }
 
-std::string CachedStructureHeights()
-{
-	std::vector<std::string> cached;
-	for (GridNo g = 0; g < WORLD_MAX; ++g)
-	{
-		int index = 0;
-		for (STRUCTURE const* s = gpWorldLevelData[g].pStructureHead; s; s = s->pNext, ++index)
-		{
-			if (s->ubStructureHeight != 0) cached.push_back("[" + std::to_string(g) + "," + std::to_string(index) + "]");
-		}
-	}
-	return JsonArray(cached);
-}
-
 void LoadSector(Command const& c)
 {
 	std::string const name = Text(c, "_0", Text(c, "sector", ""));
@@ -808,7 +794,6 @@ void LoadSector(Command const& c)
 		.str("map", map.to_std_string())
 		.num("hour", GetWorldHour())
 		.num("ambient", LightGetAmbient())
-		.raw("structureHeights", CachedStructureHeights())
 		.raw("soldiers", SoldierList()));
 }
 

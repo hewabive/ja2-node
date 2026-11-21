@@ -510,7 +510,7 @@ export class DynamicScene {
     const lift = screenHeightAdjustment(a.heightAdjustment ?? 0);
     const p = { x: centre.x + a.sprite.offsetX, y: centre.y + a.sprite.offsetY - lift };
     const z = this.#aniZ(a, x, y);
-    const shadeKey = a.shaded ? (a.level > 0 ? ShadeKey.ROOF_BASE + a.gridNo : a.gridNo) : ShadeKey.FIXED;
+    const shadeKey = a.shaded ? (a.level > 0 ? ShadeKey.ROOF_BASE : ShadeKey.ANIMATION_BASE) + a.gridNo : ShadeKey.FIXED;
     const out = this.instances;
     const s = a.sprite;
     if (a.kind === 'smoke' || a.kind === 'staticSmoke') {
@@ -582,6 +582,7 @@ export class DynamicScene {
   #mapNodeShadeKey(g: number, layer: ListLayer, mapTile: number): number {
     if (layer === 'roofs' || layer === 'onRoof') return ShadeKey.ROOF_BASE + g;
     if (layer === 'structs') return structureShadeKey(this.#world.structureShades, mapTile, g);
+    if (layer === 'objects') return ShadeKey.OBJECT_BASE + g;
     return g;
   }
 
@@ -727,7 +728,7 @@ export class DynamicScene {
       const items = this.#itemsByTile.get(g * 2 + (roof ? 1 : 0));
       if (!items) continue;
       const outline = frame.itemOutline(roof);
-      const shadeKey = roof ? ShadeKey.ROOF_BASE + g : g;
+      const shadeKey = (roof ? ShadeKey.ROOF_BASE : ShadeKey.STRUCT_BASE) + g;
       for (const item of items.slice(0, MAX_RENDERED_ITEMS)) {
         const d = this.#sprite(item.tile);
         if (!d) continue;

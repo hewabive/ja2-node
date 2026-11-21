@@ -357,7 +357,7 @@ The game data splits into the **rule pack** (everything the simulation reads) an
 
 **The pack** (`src/content/rules/`; built by `src/server/rule-pack.ts`) holds:
 - the rule files: the project tables, the animation scripts, `ja2set.dat`, `prof.dat`, `Locks.bin`, maps, structure
-  files, NPC records, text files and stub profiles, under any root;
+  files, NPC records, text files, stub profiles and the light templates the game asks for (`20`), under any root;
 - the **graphic facts** (`src/content/rules/graphic-facts.ts`): the frame geometry and app data of every tileset
   surface and the frame counts of every explosion graphic, so the simulation never decodes an STI;
 - the **voice lengths**: the length of every speech sample from its WAV header (`src/content/audio/speech-lengths.ts`,

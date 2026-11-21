@@ -261,7 +261,7 @@ export class StaticScene {
     const te = this.#world.tiles[tile];
     if (!te) return;
     const z = te.flags & TileFlags.CLIFFHANG ? 0 : te.flags & TileFlags.OBJECTLAYER_USEZHEIGHT ? objectZ(at.wy) : OBJECT_Z_LEVEL;
-    this.#emitFlat(at, tile, StaticSegment.OBJECTS, z, at.g, 0);
+    this.#emitFlat(at, tile, StaticSegment.OBJECTS, z, ShadeKey.OBJECT_BASE + at.g, 0);
   }
 
   #emitShadow(at: TileAt, tile: number): void {

@@ -5,6 +5,7 @@ import { PROFILES_PATH } from '../formats/prof.ts';
 import { STUB_PROFILES_PATH } from '../formats/stub-profiles.ts';
 import { RESOURCE_PACKS_DIR } from '../text/resource-packs.ts';
 import { vfsExtension } from '../vfs/path.ts';
+import { LIGHT_TEMPLATE_NAMES } from '../world/light-templates.ts';
 
 const BINARY_RULE_FILES: readonly string[] = [ANIMATION_SCRIPTS_PATH, TILESET_DATABASE_PATH, PROFILES_PATH, LOCKS_PATH];
 const PROJECT_TABLE_DIRS: readonly string[] = ['externalized/', 'tables/', 'strings/'];
@@ -16,6 +17,7 @@ const TEXT_EXTENSION = 'edt';
 const MAP_EXTENSION = 'dat';
 const MAP_DIR = 'maps';
 const SINGLE_RULE_FILES: ReadonlySet<string> = new Set([STUB_PROFILES_PATH]);
+const LIGHT_TEMPLATE_FILES: readonly string[] = LIGHT_TEMPLATE_NAMES.map((name) => name.toLowerCase());
 
 function endsWithFile(path: string, file: string): boolean {
   return path === file || path.endsWith(`/${file}`);
@@ -51,7 +53,8 @@ export function isRuleFile(path: string): boolean {
     isMapFile(path) ||
     isProjectTable(path) ||
     SINGLE_RULE_FILES.has(path) ||
-    BINARY_RULE_FILES.some((file) => endsWithFile(path, file))
+    BINARY_RULE_FILES.some((file) => endsWithFile(path, file)) ||
+    LIGHT_TEMPLATE_FILES.some((file) => endsWithFile(path, file))
   );
 }
 
@@ -65,4 +68,5 @@ export const RULE_FAMILIES_SIGNATURE = [
   TEXT_EXTENSION,
   `${MAP_DIR}/*.${MAP_EXTENSION}`,
   ...SINGLE_RULE_FILES,
+  ...LIGHT_TEMPLATE_FILES,
 ].join(' ');

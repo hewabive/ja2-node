@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
-// @src src/game/TileEngine/Lighting.cc IlluminationFilter, LightTrueLevel, LightAddTileNode, LightSubtractTileNode,
-// @src LightAddTile, LightSubtractTile, LightResetAllTiles, LightFindNextRay, LightSetBaseLevel, LightDraw, LightErase,
-// @src LightSpriteGetFree, LightSpriteCreate, LightSpriteDestroy, LightSpriteRenderAll, LightSpritePosition, LightSpritePower;
+// @src src/game/TileEngine/Lighting.cc LightTileBlocked, LightTileHasWall, LightIlluminateWall, LightTrueLevel,
+// @src LightAddTileNode, LightSubtractTileNode, LightAddTile, LightSubtractTile, LightResetAllTiles, LightFindNextRay,
+// @src LightSetBaseLevel, LightDraw, LightErase, LightSpriteGetFree, LightSpriteCreate, LightSpriteDestroy,
+// @src LightSpriteRenderAll, LightSpritePosition, LightSpritePower; TileEngine/Isometric_Utils.h MAPROWCOLTOPOS;
 // @src TileEngine/Fog_Of_War.cc RemoveFogFromGridNo;
 // @src TileEngine/LoadSaveLightSprite.cc ExtractLightSprite; TileEngine/WorldDef.cc LoadMapLights, LoadWorldFromSGPFile
 // @src (ambient light); TileEngine/Environment.cc TurnOnNightLights, TurnOffNightLights, TurnOnPrimeLights, TurnOffPrimeLights,
@@ -11,16 +12,16 @@
 // @src soldier); Tactical/OppList.cc gbLightSighting, AdjustMaxSightRangeForEnvEffects.
 
 import type { MapDef, MapLights } from '../../../content/formats/map.ts';
-import { Direction, WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
+import { WORLD_COLS, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
 import type { Level } from '../../../content/world/level.ts';
-import { isDoorTravelCost, isOpenDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
-import { has, PROFILE_Z_SIZE, StructureFlags } from '../../../content/world/structures.ts';
-import { clamp, i16, idiv, u8, u16, u32 } from '../../../core/int.ts';
+import { LIGHT_BACKLIGHT, LIGHT_NEW_RAY, type LightTemplate, lightTemplateKey } from '../../../content/world/light-templates.ts';
+import { isDoorTravelCost, TravelCost } from '../../../content/world/movement-costs.ts';
+import { has, StructureFlags } from '../../../content/world/structures.ts';
+import { clamp, i16, idiv, u8, u32 } from '../../../core/int.ts';
 import { lightChanged } from '../change-counts.ts';
 import { doorObstacleIfClosed, doorState, terrainCost } from '../pathfinding.ts';
 import { atan8 } from '../perception/opp.ts';
 import type { TacticalState } from '../state.ts';
-import { LIGHT_CENTRE_NODE, LIGHT_NEW_RAY, type LightNode, type LightTemplate, lightTemplate, lightTemplateKey } from './templates.ts';
 
 export const LightSpriteFlags = {
   ACTIVE: 0x0001,
@@ -44,44 +45,27 @@ const MAX_LIGHT_SPRITES = 256;
 const NIGHT_TIME_LIGHT_START_HOUR = 21;
 const NIGHT_TIME_LIGHT_END_HOUR = 7;
 const PRIME_TIME_LIGHT_START_HOUR = 21;
-const DIRECTION_IRRELEVANT = 9;
-const STANDING_CUBES = 3;
-const MIN_BOX_COLUMNS = 8;
-const THREE_BOXES_HIGH = 0b0111;
-const FOUR_BOXES_HIGH = 0b1111;
 const UNPLACED_COORD = WORLD_COLS + 1;
-
-const NODE_DRAWN_FULLY = 1 << 8;
-const NODE_DRAWN_NONWALL = 1 << 10;
-
-const FILTER_DIRECTION = 0x0f;
-const FILTER_BLOCKED = 0x10;
-const FILTER_NOTHING = 0x20;
-const FILTER_ORIENTED_ONLY = 0x40;
-const FILTER_LEFT_WALLS = 0x80;
-const FILTER_RIGHT_WALLS = 0x100;
-const FILTER_TO_DOOR = 0x200;
-const FILTER_DOOR_SHIFT = 16;
-const KEPT_FILTER_BITS = FILTER_DIRECTION | FILTER_BLOCKED | FILTER_NOTHING | FILTER_ORIENTED_ONLY;
-const NO_DOOR_DETOUR = 0;
+const OFF_MAP = 0xffff;
+const BACKLIGHT_TENTHS = 7;
+const TENTHS = 10;
 
 export const LitNodes = {
-  ROOF: 0,
-  GROUND: 1,
-  GROUND_AND_WALLS: 2,
-  LEFT_WALLS: 3,
-  RIGHT_WALLS: 4,
+  LAND: 0x01,
+  STRUCTS: 0x02,
+  OBJECTS: 0x04,
+  MERCS: 0x08,
+  ROOFS: 0x10,
+  ANIMATIONS: 0x20,
 } as const;
-export type LitNodes = (typeof LitNodes)[keyof typeof LitNodes];
 
-export type LitTileVisitor = (g: number, amount: number, nodes: LitNodes) => void;
+export type LitTileVisitor = (g: number, amount: number, mercAmount: number, nodes: number) => void;
 
 export interface LightSprite {
   x: number;
   y: number;
   flags: number;
   readonly template: LightTemplate;
-  readonly filters: Uint8Array;
 }
 
 export interface LightingState {
@@ -104,20 +88,34 @@ function occupiedTiles(offsets: Uint32Array): Uint8Array {
   return occupied;
 }
 
-export function createLightingState(level: Level): LightingState {
+export type UnlitLightingState = Omit<LightingState, 'landLight' | 'roofLight' | 'landMaxLight' | 'roofMaxLight'>;
+
+export function withUnlitSums(l: UnlitLightingState): LightingState {
   return {
+    ambient: l.ambient,
+    natural: l.natural,
+    underground: l.underground,
+    caves: l.caves,
+    hasLand: l.hasLand,
+    hasRoof: l.hasRoof,
+    landLight: new Uint8Array(WORLD_MAX),
+    roofLight: new Uint8Array(WORLD_MAX),
+    landMaxLight: new Uint8Array(WORLD_MAX),
+    roofMaxLight: new Uint8Array(WORLD_MAX),
+    sprites: l.sprites,
+  };
+}
+
+export function createLightingState(level: Level): LightingState {
+  return withUnlitSums({
     ambient: NORMAL_LIGHTLEVEL_DAY,
     natural: NORMAL_LIGHTLEVEL_DAY,
     underground: false,
     caves: false,
     hasLand: occupiedTiles(level.layers.land.offsets),
     hasRoof: occupiedTiles(level.layers.roofs.offsets),
-    landLight: new Uint8Array(WORLD_MAX),
-    roofLight: new Uint8Array(WORLD_MAX),
-    landMaxLight: new Uint8Array(WORLD_MAX),
-    roofMaxLight: new Uint8Array(WORLD_MAX),
     sprites: new Array<LightSprite | null>(MAX_LIGHT_SPRITES).fill(null),
-  };
+  });
 }
 
 export function adjustMaxSightRangeForEnvEffects(lightLevel: number, distance: number): number {
@@ -152,109 +150,59 @@ export function timeOfDayAmbientLevel(t: TacticalState): number | null {
   return t.lighting.underground ? t.timeOfDayLight.ambientLevel() : t.lighting.ambient;
 }
 
-function filterDirection(f: number): number {
-  return f & FILTER_DIRECTION;
+function mapRowColToPos(y: number, x: number): number {
+  return y < 0 || y >= WORLD_ROWS || x < 0 || x >= WORLD_COLS ? OFF_MAP : y * WORLD_COLS + x;
 }
 
-function isDiagonal(dir: number): boolean {
-  return (dir & 1) !== 0;
-}
-
-function tileOf(x: number, y: number): number {
-  return y * WORLD_COLS + x;
-}
-
-function perceivedDoorTravelCost(t: TacticalState, g: number, cost: number): { readonly cost: number; readonly doorGridNo: number } {
+function perceivedDoorTravelCost(t: TacticalState, g: number, cost: number): number {
   const ref = doorObstacleIfClosed(cost, g);
   const replacement = ref.obstacleIfClosed ? TravelCost.DOOR : cost;
   const state = doorState(t.pathEnv, ref.door, true);
   let open: boolean;
   if (ref.door2 === -1) {
-    if (!has(state, StructureFlags.ANYDOOR)) return { cost, doorGridNo: ref.door };
+    if (!has(state, StructureFlags.ANYDOOR)) return cost;
     open = has(state, StructureFlags.OPEN);
   } else {
     const state2 = doorState(t.pathEnv, ref.door2, true);
-    if (!has(state, StructureFlags.ANYDOOR) && !has(state2, StructureFlags.ANYDOOR)) return { cost, doorGridNo: ref.door };
-    if (!has(state, StructureFlags.OPEN) || !has(state2, StructureFlags.OPEN)) return { cost: replacement, doorGridNo: ref.door };
+    if (!has(state, StructureFlags.ANYDOOR) && !has(state2, StructureFlags.ANYDOOR)) return cost;
+    if (!has(state, StructureFlags.OPEN) || !has(state2, StructureFlags.OPEN)) return replacement;
     open = true;
   }
-  if (open) return { cost: ref.obstacleIfClosed ? terrainCost(t.pathWorld, g) : replacement, doorGridNo: ref.door };
-  return { cost: ref.obstacleIfClosed ? replacement : terrainCost(t.pathWorld, g), doorGridNo: ref.door };
+  if (open) return ref.obstacleIfClosed ? terrainCost(t.pathWorld, g) : replacement;
+  return ref.obstacleIfClosed ? replacement : terrainCost(t.pathWorld, g);
 }
 
-function facesNorthOrWest(dir: number): boolean {
-  return dir === Direction.NORTH || dir === Direction.WEST;
+function lightTileHasWall(t: TacticalState, srcX: number, srcY: number, x: number, y: number): boolean {
+  const dst = mapRowColToPos(y, x);
+  const src = mapRowColToPos(srcY, srcX);
+  if (dst === src || dst >= WORLD_MAX || src >= WORLD_MAX) return false;
+  const cost = t.world.costs.get(dst, atan8(srcX, srcY, x, y), 0);
+  if (cost === TravelCost.WALL) return true;
+  if (!isDoorTravelCost(cost)) return false;
+  const door = perceivedDoorTravelCost(t, dst, cost);
+  return door === TravelCost.OBSTACLE || door === TravelCost.DOOR;
 }
 
-function wallsFacing(dir: number): number {
-  if (dir === Direction.NORTH) return FILTER_LEFT_WALLS;
-  if (dir === Direction.WEST) return FILTER_RIGHT_WALLS;
-  return 0;
-}
-
-function openDoorsFacing(dir: number): number {
-  if (dir === Direction.NORTH) return FILTER_RIGHT_WALLS;
-  if (dir === Direction.WEST) return FILTER_LEFT_WALLS;
-  return 0;
-}
-
-function windowFilter(dir: number): number {
-  return isDiagonal(dir) ? dir | FILTER_BLOCKED | FILTER_NOTHING : dir | wallsFacing(dir);
-}
-
-function wallFilter(dir: number): number {
-  return dir | FILTER_BLOCKED | (facesNorthOrWest(dir) ? FILTER_ORIENTED_ONLY | wallsFacing(dir) : FILTER_NOTHING);
-}
-
-function doorFilter(dir: number): number {
-  return dir | FILTER_BLOCKED | FILTER_ORIENTED_ONLY | (facesNorthOrWest(dir) ? wallsFacing(dir) : FILTER_NOTHING);
-}
-
-function detourToDoor(door: number): number {
-  return door === NO_DOOR_DETOUR ? 0 : FILTER_TO_DOOR | (u16(door) << FILTER_DOOR_SHIFT);
-}
-
-function openDoorFilter(dir: number, door: number): number {
-  const lit = facesNorthOrWest(dir) ? openDoorsFacing(dir) | detourToDoor(door) : FILTER_NOTHING;
-  return dir | FILTER_BLOCKED | FILTER_ORIENTED_ONLY | lit;
-}
-
-function blocksLightAsObstacle(t: TacticalState, g: number): boolean {
-  for (const s of t.world.structures.at(g)) {
-    if (
-      has(s.flags, StructureFlags.PASSABLE | StructureFlags.ANYDOOR | StructureFlags.WALLSTUFF | StructureFlags.TREE) ||
-      s.cachedHeight < STANDING_CUBES ||
-      s.cubeOffset === PROFILE_Z_SIZE
-    )
-      continue;
-    let columns = 0;
-    for (const cell of s.tile.shape) if (cell === THREE_BOXES_HIGH || cell === FOUR_BOXES_HIGH) columns++;
-    if (columns >= MIN_BOX_COLUMNS) return true;
-  }
-  return false;
-}
-
-function illuminationFilter(t: TacticalState, srcX: number, srcY: number, x: number, y: number, onRoof: boolean): number {
-  const dst = u16(tileOf(x, y));
-  const src = u16(tileOf(srcX, srcY));
-  if (dst >= WORLD_MAX || src >= WORLD_MAX) return DIRECTION_IRRELEVANT | FILTER_BLOCKED | FILTER_NOTHING;
+function lightTileBlocked(t: TacticalState, srcX: number, srcY: number, x: number, y: number): boolean {
+  const dst = mapRowColToPos(y, x);
+  const src = mapRowColToPos(srcY, srcX);
+  if (dst >= WORLD_MAX || src >= WORLD_MAX) return false;
   const heights = t.world.level.heights;
-  if ((heights[dst] ?? 0) > (heights[src] ?? 0) || dst === src) return DIRECTION_IRRELEVANT;
-  const dir = atan8(srcX, srcY, x, y);
-  if (onRoof) return dir;
-  let cost = t.world.costs.get(dst, dir, 0);
-  const windowTile = facesNorthOrWest(dir) ? dst : src;
-  if (cost === TravelCost.WALL && t.world.structures.find(windowTile, StructureFlags.WALLNWINDOW)) return windowFilter(dir);
-  if (cost === TravelCost.WALL) return wallFilter(dir);
-  if (isDoorTravelCost(cost)) {
-    const door = perceivedDoorTravelCost(t, dst, cost);
-    if (isOpenDoorTravelCost(door.cost) && door.doorGridNo !== src) return openDoorFilter(dir, door.doorGridNo);
-    if (door.cost === TravelCost.DOOR || isDoorTravelCost(door.cost)) return doorFilter(dir);
-    cost = door.cost;
-  }
-  if (cost === TravelCost.OBSTACLE) return blocksLightAsObstacle(t, dst) ? dir | FILTER_BLOCKED : dir;
-  if (cost === TravelCost.CAVEWALL) return dir | FILTER_BLOCKED;
-  return dir;
+  if ((heights[dst] ?? 0) > (heights[src] ?? 0)) return true;
+  if (t.world.structures.find(dst, StructureFlags.WALLNWINDOW)) return false;
+  return lightTileHasWall(t, srcX, srcY, x, y);
+}
+
+function stepNodes(t: TacticalState, srcX: number, srcY: number, x: number, y: number, onlyWalls: boolean): number {
+  const caves = t.lighting.caves;
+  const wall = !caves && lightTileHasWall(t, srcX, srcY, x, y);
+  if (onlyWalls) return LitNodes.ANIMATIONS | (caves || wall ? LitNodes.STRUCTS : 0);
+  const ground = caves || !wall ? LitNodes.LAND : 0;
+  return LitNodes.ANIMATIONS | LitNodes.STRUCTS | LitNodes.OBJECTS | LitNodes.MERCS | ground;
+}
+
+function backlit(amount: number): number {
+  return idiv(amount * BACKLIGHT_TENTHS, TENTHS);
 }
 
 function findNextRay(rays: readonly number[], from: number): number {
@@ -277,25 +225,12 @@ const subtractLight: TileLighter = (sums, strongest, g, amount) => {
   strongest[g] = Math.min(strongest[g] ?? 0, left);
 };
 
-type StepLighter = (g: number, amount: number, filter: number, roofOnly: boolean) => void;
-
-function lightSums(t: TacticalState, apply: TileLighter): StepLighter {
+function lightSums(t: TacticalState, apply: TileLighter): LitTileVisitor {
   const l = t.lighting;
-  return (g, amount, filter, roofOnly) => {
-    if (g >= WORLD_MAX) return;
-    if (roofOnly) apply(l.roofLight, l.roofMaxLight, g, amount);
-    else if (!(filter & FILTER_ORIENTED_ONLY)) apply(l.landLight, l.landMaxLight, g, amount);
+  return (g, amount, _mercAmount, nodes) => {
+    if (nodes & LitNodes.LAND) apply(l.landLight, l.landMaxLight, g, amount);
+    if (nodes & LitNodes.ROOFS) apply(l.roofLight, l.roofMaxLight, g, amount);
   };
-}
-
-function litGridNo(x: number, y: number, filter: number): number {
-  return filter & FILTER_TO_DOOR ? filter >>> FILTER_DOOR_SHIFT : u32(tileOf(x, y));
-}
-
-function litNodes(filter: number, roofOnly: boolean): LitNodes {
-  if (roofOnly) return LitNodes.ROOF;
-  if (filter & FILTER_ORIENTED_ONLY) return filter & FILTER_LEFT_WALLS ? LitNodes.LEFT_WALLS : LitNodes.RIGHT_WALLS;
-  return filter & (FILTER_LEFT_WALLS | FILTER_RIGHT_WALLS) ? LitNodes.GROUND_AND_WALLS : LitNodes.GROUND;
 }
 
 function resetTileLights(t: TacticalState): void {
@@ -307,84 +242,50 @@ function resetTileLights(t: TacticalState): void {
   l.roofMaxLight.fill(0);
 }
 
-function onAxis(n: LightNode): boolean {
-  return n.dx === 0 || n.dy === 0;
-}
-
-function inSouthEastQuadrant(n: LightNode): boolean {
-  return n.dx > 0 && n.dy > 0;
-}
-
-function inNorthWestQuadrant(n: LightNode): boolean {
-  return n.dx < 0 && n.dy < 0;
-}
-
-function stepCanLight(dir: number, index: number): boolean {
-  return dir === DIRECTION_IRRELEVANT ? index === LIGHT_CENTRE_NODE : !isDiagonal(dir);
-}
-
-function nodeFlagsAfterLighting(n: LightNode, dir: number, filter: number): number {
-  const litFromDir = 1 << dir;
-  if (onAxis(n) || inSouthEastQuadrant(n)) return litFromDir | NODE_DRAWN_FULLY;
-  if (filter & FILTER_ORIENTED_ONLY) return litFromDir;
-  if (inNorthWestQuadrant(n)) return litFromDir | NODE_DRAWN_NONWALL;
-  return litFromDir | (facesNorthOrWest(dir) ? NODE_DRAWN_FULLY : NODE_DRAWN_NONWALL);
-}
-
-function traceLight(t: TacticalState, l: LightSprite, computeFilters: boolean, light: StepLighter): void {
+function walkLight(t: TacticalState, l: LightSprite, visit: LitTileVisitor): void {
   lightChanged(t);
   const { lights, rays } = l.template;
-  const nodeFlags = new Uint16Array(lights.length);
+  const drawn = new Uint8Array(lights.length);
   const roofOnly = (l.flags & LightSpriteFlags.ONROOF) !== 0;
-  const centreX = l.x;
-  const centreY = l.y;
-  let srcX = centreX;
-  let srcY = centreY;
+  let srcX = l.x;
+  let srcY = l.y;
   for (let i = 0; i < rays.length; i++) {
-    const index = rays[i] ?? 0;
-    if (index & LIGHT_NEW_RAY) {
-      srcX = centreX;
-      srcY = centreY;
+    const ray = rays[i] ?? 0;
+    if (ray & LIGHT_NEW_RAY) {
+      srcX = l.x;
+      srcY = l.y;
       continue;
     }
+    const index = ray & ~LIGHT_BACKLIGHT;
     const node = lights[index];
     if (!node) continue;
-    const dstX = i16(centreX + node.dx);
-    const dstY = i16(centreY + node.dy);
-    const filter = computeFilters ? illuminationFilter(t, srcX, srcY, dstX, dstY, roofOnly) : (l.filters[i] ?? 0);
-    if (computeFilters) l.filters[i] = filter & KEPT_FILTER_BITS;
-    srcX = centreX;
-    srcY = centreY;
-    if (filter & FILTER_BLOCKED) i = findNextRay(rays, i);
-    else {
-      srcX += node.dx;
-      srcY += node.dy;
+    const x = i16(l.x + node.dx);
+    const y = i16(l.y + node.dy);
+    const blocked = !roofOnly && lightTileBlocked(t, srcX, srcY, x, y);
+    if (blocked) i = findNextRay(rays, i);
+    if (!drawn[index] && node.light) {
+      const g = u32(mapRowColToPos(y, x));
+      if (g < WORLD_MAX) {
+        const nodes = roofOnly ? LitNodes.ROOFS : stepNodes(t, srcX, srcY, x, y, blocked);
+        visit(g, node.light, ray & LIGHT_BACKLIGHT && !roofOnly ? backlit(node.light) : node.light, nodes);
+      }
+      drawn[index] = 1;
     }
-    const dir = filterDirection(filter);
-    const drawn = nodeFlags[index] ?? 0;
-    if (!stepCanLight(dir, index) || drawn & (1 << dir) || drawn & NODE_DRAWN_FULLY) continue;
-    if (drawn & NODE_DRAWN_NONWALL && !inSouthEastQuadrant(node) && !(filter & FILTER_ORIENTED_ONLY)) {
-      nodeFlags[index] = drawn | NODE_DRAWN_FULLY;
-      continue;
-    }
-    if (filter & FILTER_NOTHING || node.light === 0) continue;
-    light(litGridNo(dstX, dstY, filter), node.light, filter, roofOnly);
-    nodeFlags[index] = drawn | nodeFlagsAfterLighting(node, dir, filter);
+    srcX = blocked ? l.x : x;
+    srcY = blocked ? l.y : y;
   }
 }
 
 function lightDraw(t: TacticalState, l: LightSprite): void {
-  traceLight(t, l, true, lightSums(t, addLight));
+  walkLight(t, l, lightSums(t, addLight));
 }
 
 function lightErase(t: TacticalState, l: LightSprite): void {
-  traceLight(t, l, false, lightSums(t, subtractLight));
+  walkLight(t, l, lightSums(t, subtractLight));
 }
 
 export function traceLitTiles(t: TacticalState, l: LightSprite, visit: LitTileVisitor): void {
-  traceLight(t, l, true, (g, amount, filter, roofOnly) => {
-    if (g < WORLD_MAX) visit(g, amount, litNodes(filter, roofOnly));
-  });
+  walkLight(t, l, visit);
 }
 
 function placedOnMap(l: LightSprite): boolean {
@@ -392,7 +293,7 @@ function placedOnMap(l: LightSprite): boolean {
 }
 
 export function lightSpriteCreate(t: TacticalState, name: string): LightSprite | null {
-  const template = lightTemplate(name) ?? t.content.lightTemplates.get(lightTemplateKey(name)) ?? null;
+  const template = t.content.lightTemplates.get(lightTemplateKey(name)) ?? null;
   return template ? lightSpriteFromTemplate(t, template) : null;
 }
 
@@ -405,7 +306,6 @@ export function lightSpriteFromTemplate(t: TacticalState, template: LightTemplat
     y: UNPLACED_COORD,
     flags: LightSpriteFlags.ACTIVE,
     template,
-    filters: new Uint8Array(template.rays.length),
   };
   sprites[slot] = sprite;
   return sprite;

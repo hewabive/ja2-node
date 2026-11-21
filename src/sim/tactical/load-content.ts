@@ -3,18 +3,19 @@ import { loadAnimStructures } from '../../content/anim/structures.ts';
 import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, parseAnimationTables } from '../../content/anim/tables.ts';
 import { requireAnimationTimelines } from '../../content/anim/timelines.ts';
 import { FormatError } from '../../content/binary/errors.ts';
-import { parseLightTemplatesJson, SHIPPED_LIGHT_TEMPLATES_PATH } from '../../content/formats/lht.ts';
+import { parseLightTemplateFile } from '../../content/formats/lht.ts';
 import { decodeLockTable, emptyLockTable, LOCKS_PATH, type LockTable, STUB_LOCKS_PATH } from '../../content/formats/locks.ts';
 import { PROFILES_PATH, parseProfiles } from '../../content/formats/prof.ts';
 import { loadExplosionContent } from '../../content/items/explosions.ts';
 import { loadItemTable } from '../../content/items/items.ts';
+import { readLayered } from '../../content/narrative/npc-records.ts';
 import { loadQuoteSpeakers } from '../../content/narrative/quote-speakers.ts';
 import { loadVehicleTypes } from '../../content/strategic/strategic-content.ts';
 import { type DataDecoding, DEFAULT_DATA_DECODING } from '../../content/text/data-version.ts';
+import { LIGHT_TEMPLATE_NAMES, type LightTemplate, lightTemplateKey } from '../../content/world/light-templates.ts';
 import { parseTileTables, TILE_TABLES_PATH } from '../../content/world/tile-tables.ts';
 import type { ReadFile } from '../../content/world/tileset-loader.ts';
 import type { TacticalContent } from './content.ts';
-import { type LightTemplate, shippedLightTemplates } from './lighting/templates.ts';
 
 export const MATERIAL_ARMOUR_PATH = 'tables/material-armour.json';
 
@@ -30,9 +31,14 @@ async function json(read: ReadFile, path: string): Promise<unknown> {
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 
-async function loadShippedLightTemplates(read: ReadFile): Promise<ReadonlyMap<string, LightTemplate>> {
-  const bytes = await read(SHIPPED_LIGHT_TEMPLATES_PATH);
-  return shippedLightTemplates(bytes ? parseLightTemplatesJson(JSON.parse(new TextDecoder().decode(bytes))) : []);
+async function loadLightTemplate(read: ReadFile, name: string): Promise<LightTemplate | null> {
+  const bytes = await readLayered(read, name.toLowerCase());
+  return bytes ? parseLightTemplateFile(name, bytes) : null;
+}
+
+export async function loadLightTemplates(read: ReadFile): Promise<ReadonlyMap<string, LightTemplate>> {
+  const loaded = await Promise.all(LIGHT_TEMPLATE_NAMES.map((name) => loadLightTemplate(read, name)));
+  return new Map(loaded.flatMap((t) => (t ? [[lightTemplateKey(t.name), t] as const] : [])));
 }
 
 async function loadLockTable(read: ReadFile): Promise<LockTable> {
@@ -66,7 +72,7 @@ export async function loadTacticalContent(read: ReadFile, decoding: DataDecoding
     loadExplosionContent(read),
     json(read, CORPSES_TABLE_PATH).then((table) => loadCorpseContent(read, table)),
     loadLockTable(read),
-    loadShippedLightTemplates(read),
+    loadLightTemplates(read),
     loadQuoteSpeakers(read),
     json(read, TILE_TABLES_PATH),
     loadVehicleTypes(read),

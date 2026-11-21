@@ -1,51 +1,31 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Soldier_Control.cc CreateSoldierLight (Light2, Light3 with night goggles, Light4 with UV
-// @src goggles); src/game/TileEngine/Lighting.cc LightLoadCachedTemplate.
+// @src goggles); src/game/TileEngine/Lighting.cc LightLoadCachedTemplate, LightLoad.
 
-import {
-  type LightTemplateData,
-  parseLightTemplateFile,
-  parseLightTemplatesJson,
-  SHIPPED_LIGHT_TEMPLATES_PATH,
-} from '../../content/formats/lht.ts';
-import { isRepositoryLayer } from '../../content/vfs/layers.ts';
+import { parseLightTemplateFile } from '../../content/formats/lht.ts';
+import { LIGHT_TEMPLATE_NAMES, type LightTemplate, lightTemplateKey } from '../../content/world/light-templates.ts';
 import type { InventoryItemView } from '../../protocol/view.ts';
-import { asShippedTemplate, type LightTemplate, lightTemplate } from '../../sim/tactical/lighting/templates.ts';
 import type { ReadVfsFile, VfsFile } from '../net/vfs.ts';
 
-const LHT_EXTENSION = '.lht';
 const HEAD_SLOTS: readonly number[] = [3, 4];
+const STUB_PREFIX = 'stubs/';
 
 export const MERC_LIGHT = 'Light2';
 export const NIGHT_GOGGLES_LIGHT = 'Light3';
 export const UV_GOGGLES_LIGHT = 'Light4';
 
-const STAND_INS: Readonly<Record<string, string>> = {
-  [MERC_LIGHT.toUpperCase()]: 'L-R06.LHT',
-  [NIGHT_GOGGLES_LIGHT.toUpperCase()]: 'L-R07.LHT',
-  [UV_GOGGLES_LIGHT.toUpperCase()]: 'L-R08.LHT',
-};
-
-export type LightTemplateOrigin = 'data' | 'generated' | 'standIn';
+export type LightTemplateOrigin = 'data' | 'stubs';
 
 export interface ResolvedLightTemplate {
   readonly template: LightTemplate;
   readonly origin: LightTemplateOrigin;
 }
 
-function anyFile(files: readonly VfsFile[], path: string): VfsFile | null {
-  const lower = path.toLowerCase();
-  return files.find((f) => f.path.toLowerCase() === lower) ?? null;
-}
-
-function lhtFiles(files: readonly VfsFile[]): VfsFile[] {
-  return files.filter((f) => f.path.toLowerCase().endsWith(LHT_EXTENSION) && !f.path.includes('/') && !isRepositoryLayer(f.layer));
-}
-
-function nameKey(name: string): string {
-  const upper = name.toUpperCase();
-  return upper.endsWith(LHT_EXTENSION.toUpperCase()) ? upper.slice(0, -LHT_EXTENSION.length) : upper;
+interface TemplateFile {
+  readonly name: string;
+  readonly path: string;
+  readonly origin: LightTemplateOrigin;
 }
 
 export function mercLightTemplateName(inventory: readonly InventoryItemView[] | undefined): string {
@@ -55,43 +35,39 @@ export function mercLightTemplateName(inventory: readonly InventoryItemView[] | 
   return MERC_LIGHT;
 }
 
-export class LightTemplates {
-  readonly #fromData: ReadonlyMap<string, LightTemplate>;
-  readonly #resolved = new Map<string, ResolvedLightTemplate | null>();
+function templateFiles(files: readonly VfsFile[]): TemplateFile[] {
+  const listed = new Set(files.map((f) => f.path.toLowerCase()));
+  return LIGHT_TEMPLATE_NAMES.flatMap((name): TemplateFile[] => {
+    const path = name.toLowerCase();
+    if (listed.has(path)) return [{ name, path, origin: 'data' }];
+    const stub = `${STUB_PREFIX}${path}`;
+    return listed.has(stub) ? [{ name, path: stub, origin: 'stubs' }] : [];
+  });
+}
 
-  constructor(fromData: readonly LightTemplateData[] = []) {
-    this.#fromData = new Map(fromData.map((t) => [nameKey(t.name), t]));
+export class LightTemplates {
+  readonly #templates: ReadonlyMap<string, ResolvedLightTemplate>;
+
+  constructor(templates: readonly ResolvedLightTemplate[] = []) {
+    this.#templates = new Map(templates.map((t) => [lightTemplateKey(t.template.name), t]));
   }
 
   static async load(files: readonly VfsFile[], read: ReadVfsFile): Promise<LightTemplates> {
-    const json = anyFile(files, SHIPPED_LIGHT_TEMPLATES_PATH);
-    const [shipped, lht] = await Promise.all([
-      json ? read(json.path).then((bytes) => parseLightTemplatesJson(JSON.parse(new TextDecoder().decode(bytes)))) : [],
-      Promise.all(lhtFiles(files).map(async (f) => asShippedTemplate(f.path, parseLightTemplateFile(f.path, await read(f.path))))),
-    ]);
-    return new LightTemplates([...shipped, ...lht]);
+    const loaded = await Promise.all(
+      templateFiles(files).map(async (f) => ({ template: parseLightTemplateFile(f.name, await read(f.path)), origin: f.origin })),
+    );
+    return new LightTemplates(loaded);
   }
 
-  get fromData(): number {
-    return this.#fromData.size;
+  get loaded(): number {
+    return this.#templates.size;
+  }
+
+  get byKey(): ReadonlyMap<string, LightTemplate> {
+    return new Map([...this.#templates].map(([key, t]) => [key, t.template]));
   }
 
   resolve(name: string): ResolvedLightTemplate | null {
-    const key = nameKey(name);
-    const cached = this.#resolved.get(key);
-    if (cached !== undefined) return cached;
-    const resolved = this.#lookup(name, key);
-    this.#resolved.set(key, resolved);
-    return resolved;
-  }
-
-  #lookup(name: string, key: string): ResolvedLightTemplate | null {
-    const data = this.#fromData.get(key);
-    if (data) return { template: data, origin: 'data' };
-    const generated = lightTemplate(name);
-    if (generated) return { template: generated, origin: 'generated' };
-    const standIn = STAND_INS[key];
-    const fallback = standIn ? lightTemplate(standIn) : null;
-    return fallback ? { template: fallback, origin: 'standIn' } : null;
+    return this.#templates.get(lightTemplateKey(name)) ?? null;
   }
 }

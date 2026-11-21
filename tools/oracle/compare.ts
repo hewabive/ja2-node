@@ -6,7 +6,6 @@ import { decodeSti } from '../../src/content/formats/sti.ts';
 import { withGraphicFacts } from '../../src/content/rules/graphic-facts.ts';
 import { vfsFileReader } from '../../src/content/vfs/vfs.ts';
 import { WORLD_MAX } from '../../src/content/world/grid.ts';
-import { structureHeight } from '../../src/content/world/structures.ts';
 import { loadTacticalWorld, type TacticalWorld } from '../../src/content/world/tactical-world.ts';
 import { openDataVfs } from '../../src/node/data-vfs.ts';
 import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../../src/node/repo.ts';
@@ -549,14 +548,6 @@ function savesDir(dataDir: string): string {
   return join(root, 'SavedGames');
 }
 
-function syncStructureHeightCache(world: TacticalWorld, cached: readonly (readonly [number, number])[]): void {
-  for (const list of world.structures.lists) for (const s of list) s.cachedHeight = 0;
-  for (const [g, index] of cached) {
-    const s = world.structures.at(g)[index];
-    if (s) structureHeight(s);
-  }
-}
-
 async function sectorContext(
   read: ReadFile,
   content: TacticalContent,
@@ -571,7 +562,6 @@ async function sectorContext(
   }
   const sim = new TacticalSim(world, content, 1);
   if (p?.hour !== undefined) {
-    syncStructureHeightCache(world, (p.structureHeights as [number, number][] | undefined) ?? []);
     loadMapLights(sim.state, world.map.lights, Number(p.hour));
     lightSetBaseLevel(sim.state, Number(p.ambient));
   }

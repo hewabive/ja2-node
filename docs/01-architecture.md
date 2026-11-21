@@ -343,7 +343,6 @@ ja2-node follows are in this table, its minor rows only there.
 | Flo's discount | Not on blades and launchers | Also on blades and launchers (`ShopKeeper_Interface.cc:2439, 2591`) |
 | M.E.R.C. unlocks | Four hardcoded stages | `mercs-MERC-listings.json` (`Laptop/Mercs.cc:513, 1579`) |
 | Window climbing, Dead is Dead | Absent | Additions (`Soldier_Control.cc:5181-6195`; `27` §1.6) |
-| Light walk (**master**, #105) | `LightTileBlocked`, `LightAddTile`: a window passes light only into its own tile, every struct node of a reached tile is lit (`V:TileEngine/Lighting.c:443-870`); v0.22.1 the same, except that an open door's swing tile does not block (#118, row 11) | The illumination filter of the unreleased overhaul (PR 2432): walls lit by orientation, windows both ways, tall obstacles and cave walls block (`M:TileEngine/Lighting.cc:297`) |
 | Enemies on roofs | No climb points outside test builds, so the AI finds none (`V:TileEngine/WorldDef.c:2789-2796`) | Buildings on every load (`TileEngine/WorldDef.cc:2569`); the AI climbs (`TacticalAI/AIUtils.cc:1191`, `:1222`) |
 | Extra hotkeys | None | J, Shift+J, Ctrl+Shift+R, Ctrl+N, Ctrl+Q, Alt+R, Ctrl+I (`extra_hotkeys`, `Tactical/Turn_Based_Input.cc:1483-1923`; deviations "Game policy keys") |
 | Combat autosave | Only with the developer file `AutoSave.pls` (`V:Tactical/HandleUI.c:1518-1526`) | At the end of every combat turn (`Tactical/Handle_UI.cc:1065-1083`) |
@@ -353,7 +352,7 @@ ja2-node follows are in this table, its minor rows only there.
 | Path finding | Overestimating heuristic, limits 4096/512/5 (`V:Tactical/PathAI.c:86-88`, `:146`) | Admissible, limits 16384/1024/6 (`Tactical/PathAI.cc:61-67`, `:121-127`) |
 | AI throw search | An out-of-range tile ends the whole search (`V:TacticalAI/Attacks.c:667-670`) | Goes on to the next tile (`TacticalAI/Attacks.cc:633-637`) |
 | AI cover next to teammates | No penalty: the test reads the centre tile (`V:TacticalAI/FindLocations.c:468`) | −10 % per teammate beside the tile (`TacticalAI/FindLocations.cc:489`, `:726`, `:885-893`) |
-| Open door's swing tile | An obstacle: blasts and light stop (`V:Tactical/PathAI.c:2364-2372`, `V:TileEngine/Lighting.c:530-535`) | Keeps the door code: blasts, gas, light and sight pass (`Tactical/PathAI.cc:2455`, `:2500-2509`; light with #105) |
+| Open door's swing tile | An obstacle: blasts and light stop (`V:Tactical/PathAI.c:2364-2372`, `V:TileEngine/Lighting.c:530-535`) | Keeps the door code: blasts, gas, light and sight pass (`Tactical/PathAI.cc:2455`, `:2500-2509`; light `TileEngine/Lighting.cc:386-391`) |
 | Gas damage | From the igniting item's row (`V:TileEngine/ExplosionControl.c:1334-1344`) | From the gas type in `smoke-effects.json` (`TileEngine/Explosion_Control.cc:771-772`, `:938-940`) |
 | Thrown knife or grenade | The hand stays empty (`V:Tactical/Weapons.c:1159-1161`) | Refilled from the pockets, for the AI too (`Tactical/Weapons.cc:834-846`, `:1328-1340`) |
 | Mine the Queen retakes | Its extraction still pays the player (`V:Strategic/StrategicMines.c:556-592`) | Pays nothing (`Strategic/Strategic_Mines.cc:461-511`) |

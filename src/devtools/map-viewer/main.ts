@@ -1,4 +1,5 @@
-import { fetchVfsList } from '../../app/net/vfs.ts';
+import { fetchVfsFile, fetchVfsList } from '../../app/net/vfs.ts';
+import { LightTemplates } from '../../app/world/light-templates.ts';
 import { type LightingTime, WorldLighting } from '../../app/world/world-lighting.ts';
 import { type LoadedWorld, loadWorld, renderWorldOf } from '../../app/world/world-loader.ts';
 import { WORLD_COLS, WORLD_MAX } from '../../content/world/grid.ts';
@@ -65,6 +66,7 @@ let hoverGridNo: number | null = null;
 let hoverTile = 0;
 let frameRequested = false;
 let available: ReadonlySet<string> = new Set();
+let lightTemplates = new LightTemplates();
 const radar = new Radar(el<HTMLCanvasElement>('radar'), viewport, (target) => {
   camera = setRenderCenter(target, viewport(), limits);
   requestFrame();
@@ -150,7 +152,7 @@ async function open(path: string): Promise<void> {
   try {
     const loaded = await loadWorld(path, available);
     world = loaded;
-    lighting = new WorldLighting(loaded.tactical);
+    lighting = new WorldLighting(loaded.tactical, lightTemplates.byKey);
     renderer.setWorld(renderWorldOf(loaded));
     limits = scrollLimits(loaded.map.info.restrictedScrollId);
     hoverTile = loaded.tables.tileIndexByName.has('FIRSTPOINTERS1') ? tileIndex(loaded.tables, 'FIRSTPOINTERS1') : -1;
@@ -235,6 +237,7 @@ async function start(): Promise<void> {
   try {
     const files = await fetchVfsList();
     available = new Set(files.map((f) => f.path));
+    lightTemplates = await LightTemplates.load(files, fetchVfsFile);
     const maps = files.filter((f) => /(^|\/)maps\/[^/]+\.dat$/.test(f.path)).map((f) => f.path);
     mapSelect.replaceChildren(
       ...maps.map((m) => {

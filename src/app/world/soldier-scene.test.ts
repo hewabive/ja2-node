@@ -79,7 +79,7 @@ function input(soldiers: readonly SoldierView[]): SoldierSceneInput {
     soldiers,
     clockMs: 0,
     hour: 12,
-    shade: { version: 0, ambient: 0, natural: 0, land: new Uint8Array(1), roof: new Uint8Array(1), channels: [] },
+    shade: { version: 0, ambient: 0, natural: 0, land: new Uint8Array(1), roof: new Uint8Array(1), mercs: new Uint8Array(1), channels: [] },
     hasRoof: () => false,
     glow: { ourTurn: false, frame: 0, hovered: null, hoveredHostile: false, selectedSees: () => null, underAiControl: () => false },
     lights: { mercCastsLight: false, mercAlwaysLit: false },

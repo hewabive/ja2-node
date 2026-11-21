@@ -6,19 +6,19 @@ import { ANIM_CONTROL_PATH, ANIM_SURFACES_PATH, parseAnimationTables } from '../
 import { type AnimationTimelines, splitAnimationScripts } from '../../src/content/anim/timelines.ts';
 import { parseAnimationScripts } from '../../src/content/formats/ja2bin.ts';
 import type { StructureFile } from '../../src/content/formats/jsd.ts';
-import { parseLightTemplatesJson, SHIPPED_LIGHT_TEMPLATES_PATH } from '../../src/content/formats/lht.ts';
 import { parseStubLockTable } from '../../src/content/formats/locks.ts';
 import { EXPLOSION_ANIMATIONS_PATH, parseExplosionContent, SMOKE_EFFECTS_PATH } from '../../src/content/items/explosions.ts';
 import { loadItemTable } from '../../src/content/items/items.ts';
 import { MERC_QUOTES_PATH, parseQuoteSpeakers } from '../../src/content/narrative/quote-speakers.ts';
 import { loadVehicleTypes } from '../../src/content/strategic/strategic-content.ts';
 import { DEFAULT_DATA_DECODING } from '../../src/content/text/data-version.ts';
+import { lightTemplateKey } from '../../src/content/world/light-templates.ts';
 import { type DoorCostTable, parseDoorCostTable } from '../../src/content/world/movement-costs.ts';
 import { parseTileTables, TILE_TABLES_PATH } from '../../src/content/world/tile-tables.ts';
 import type { TacticalContent } from '../../src/sim/tactical/content.ts';
-import { shippedLightTemplates } from '../../src/sim/tactical/lighting/templates.ts';
 import { parseMaterialArmour } from '../../src/sim/tactical/load-content.ts';
 import { buildStubAnimationScripts } from '../../stubs/anim-scripts.ts';
+import { stubLightTemplates } from '../../stubs/lights.ts';
 
 export const DATA_DIR = join(import.meta.dirname, '../../data');
 
@@ -62,7 +62,7 @@ export async function loadTestContent(): Promise<TacticalContent> {
     explosions: parseExplosionContent(readDataJson(EXPLOSION_ANIMATIONS_PATH), readDataJson(SMOKE_EFFECTS_PATH)),
     corpses: stubCorpseContent(),
     locks: stubLockTable(),
-    lightTemplates: shippedLightTemplates(parseLightTemplatesJson(readDataJson(SHIPPED_LIGHT_TEMPLATES_PATH))),
+    lightTemplates: new Map(stubLightTemplates().map((t) => [lightTemplateKey(t.name), t])),
     quoteSpeakers: parseQuoteSpeakers(readDataJson(MERC_QUOTES_PATH)),
     sightingBattleSound: DEFAULT_DATA_DECODING.sightingBattleSound,
     tileTables: parseTileTables(readDataJson(TILE_TABLES_PATH)),

@@ -106,6 +106,7 @@ export interface ShadeField {
   readonly natural: number;
   readonly land: Uint8Array;
   readonly roof: Uint8Array;
+  readonly mercs: Uint8Array;
   readonly channels: readonly Uint8Array[];
 }
 

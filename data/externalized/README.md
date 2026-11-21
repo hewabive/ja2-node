@@ -16,8 +16,9 @@ These files are still master `ae6bf01`'s, because ja2-node follows master there 
 
 | File | Issue |
 |---|---|
-| `light-templates.json` (not in v0.22.1) | #105 (the shipped light templates) |
 | `strings/tooltips-eng.json` (not in v0.22.1) | #114 (master's informative tooltips) |
+
+v0.22.1 has no `light-templates.json` either: it reads the user's `.LHT` files (`20`).
 
 v0.22.1 has no `mercs-AIM-listings.json`: its A.I.M. order is `AimMercArray[i] = i`, which `../tables/laptop.json`
 transcribes (`aimOrder`). Its `strategic-map-towns.json` has no militia map corners, and v0.22.1 takes each town's

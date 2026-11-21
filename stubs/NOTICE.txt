@@ -31,6 +31,8 @@ Not covered
     world/binarydata/ja2set.dat                      the stub tilesets' files in the engine's tileset and tile slots
     translation_tables/translation-table-stub.json   the glyph numbers of the English glyph table
     interface/b_map.pcx                              the map board, coloured by the game's traversability
+    l-r01.lht ... l-r08.lht, light0 ... light6       the light templates, made by the game's own omni light
+                                                     generator (LightCreateOmni) that made the game's templates
 
 Interfaces
   The covered files address the engine by its own identifiers, file paths and numbers: item, quest,

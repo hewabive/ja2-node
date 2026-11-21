@@ -74,6 +74,7 @@ Everything else must be own work, so that the dedication can cover it.
 | Soldiers | `stubs/soldiers.ts`, `stubs/anim-scripts.ts` | stand, walk, run, crouch and prone sheets for every animation surface (the vehicles' too); an invented script for every animation state; palettes |
 | Characters and text | `stubs/profiles.json` (defaults in `src/content/formats/stub-profiles.ts`), `stubs/npc/`, `stubs/text/`, built by `stubs/npc.ts` and `stubs/text.ts` | the profiles of §1.6, their NPC records and EDTs, merc quotes, the item descriptions the stub campaign and tests use, credits, mails, help and laptop texts |
 | Locks | `stubs/locks.json` | |
+| Light templates | `stubs/lights.ts`, with `LightCreateOmni` (`src/content/world/light-templates.ts`) | `l-r01.lht` … `l-r08.lht` by the editor's rule for map lights (`Editor/EditScreen.cc:2436-2446`); `light0` … `light6`, the flares', break lights' and merc lights' names, as own stand-ins: the map light four tiles wider. On the notice's SFI-SCLA list, as output of the game's own generator (`20`) |
 | Sounds, music, speech, video | `stubs/media.ts` and the generators it calls (§1.7) | |
 | Fonts | `stubs/fonts.ts` (§1.6) | |
 | UI art | `stubs/ui/` (the stub skin, `28` §9) | labelled screens and buttons, cursors, faces, item pictures, the map board, radar maps, load screens |

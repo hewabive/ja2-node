@@ -12,6 +12,7 @@ import { DEFAULT_STUBS_DIR, PROJECT_DATA_DIR } from '../src/node/repo.ts';
 import { buildStubAnimationScripts } from './anim-scripts.ts';
 import { buildStubEffects } from './effects.ts';
 import { replaceStubPack } from './ensure.ts';
+import { stubLightTemplateFiles } from './lights.ts';
 import { buildStubMedia } from './media.ts';
 import { buildStubNpcData } from './npc.ts';
 import { buildPalette } from './palette.ts';
@@ -122,6 +123,10 @@ export async function buildStubs(outDir: string): Promise<string[]> {
     written.push(`tilecache/${name}.jsd`);
   }
   written.push(...(await buildStubEffects(out, palette)));
+  for (const [name, bytes] of stubLightTemplateFiles()) {
+    await writeFile(join(out, name), bytes);
+    written.push(name);
+  }
   await writeFile(join(out, STUB_PROFILES_FILE), await readFile(join(import.meta.dirname, STUB_PROFILES_FILE)));
   written.push(STUB_PROFILES_FILE);
   written.push(...(await buildStubNpcData(out)));
