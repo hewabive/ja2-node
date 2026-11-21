@@ -1,8 +1,8 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
 // @src src/externalized/policy/DefaultIMPPolicy.cc (imp.json), IMPPolicy.h IMPItemCondition; policy/DefaultGamePolicy.cc
-// @src (imp.*, pablo_wont_steal); MERCListingModel.cc (mercs-MERC-listings.json with the Speck quotes); AIMListingModel.cc
-// @src (mercs-AIM-listings.json, the listing order); DealerInventory.cc (bobby-ray-inventory-*.json);
+// @src (imp.*, pablo_wont_steal); MERCListingModel.cc (mercs-MERC-listings.json with the Speck quotes); src/game/Laptop/AIMSort.cc
+// @src EnterAimSort (the listing order, through tables/laptop.json); DealerInventory.cc (bobby-ray-inventory-*.json);
 // @src ShippingDestinationModel.cc (shipping-destinations.json); internals/enums.cc (inventory slot names);
 // @src src/game/Laptop/Florist_Gallery.cc FLOR_GALLERY_NUMBER_FLORAL_IMAGES, DisplayFloralDescriptions (the price column of
 // @src flowerdesc.edt read with sscanf "%hu").
@@ -22,7 +22,6 @@ export const LAPTOP_CONTENT_PATHS = {
   imp: 'externalized/imp.json',
   policy: 'externalized/game.json',
   mercListings: 'externalized/mercs-MERC-listings.json',
-  aimListings: 'externalized/mercs-AIM-listings.json',
   profileInfo: 'externalized/mercs-profile-info.json',
   bobbyRayNew: 'externalized/bobby-ray-inventory-new.json',
   bobbyRayUsed: 'externalized/bobby-ray-inventory-used.json',
@@ -124,7 +123,7 @@ export interface LaptopContent {
   readonly impQuiz: readonly (readonly (QuizEffect | null)[])[];
   readonly imp: ImpContent;
   readonly mercListings: readonly MercListing[];
-  readonly aimListings: readonly number[];
+  readonly aimOrder: readonly number[];
   readonly bobbyRayNew: ReadonlyMap<number, number>;
   readonly bobbyRayUsed: ReadonlyMap<number, number>;
   readonly destinations: readonly ShippingDestination[];
@@ -284,10 +283,8 @@ function parseMercListings(json: unknown, ids: ReadonlyMap<string, number>): Mer
   });
 }
 
-function parseAimListings(json: unknown, ids: ReadonlyMap<string, number>): number[] {
-  return asArray(json, 'mercs AIM listings').map((v, index) =>
-    profileId(ids, asObject(v, `mercs AIM listings[${index}]`).profile, `mercs AIM listings[${index}].profile`),
-  );
+function parseAimOrder(json: unknown): number[] {
+  return asArray(json, 'laptop tables.aimOrder').map((v, i) => asInt(v, `laptop tables.aimOrder[${i}]`));
 }
 
 function parseStoreMaxima(json: unknown, items: ItemTable, what: string): Map<number, number> {
@@ -373,7 +370,7 @@ export function parseLaptopContent(
     ),
     imp: parseImpContent(sources.imp, sources.policy, items),
     mercListings: parseMercListings(sources.mercListings, profileIds),
-    aimListings: parseAimListings(sources.aimListings, profileIds),
+    aimOrder: parseAimOrder(tables.aimOrder),
     bobbyRayNew: parseStoreMaxima(sources.bobbyRayNew, items, 'bobby ray inventory new'),
     bobbyRayUsed: parseStoreMaxima(sources.bobbyRayUsed, items, 'bobby ray inventory used'),
     destinations: parseDestinations(sources.destinations),

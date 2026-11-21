@@ -440,6 +440,34 @@ describe('the map screen inventory', () => {
     expect(c.drainEvents().filter((e) => e.type === 'itemDiscarded')).toHaveLength(2);
   });
 
+  it('swaps an ore placed onto another ore in the pool, merging only money, and leaves ores apart with their own status in a stack-and-sort (PlaceObjectInInventoryStash)', () => {
+    const c = onTheMap();
+    const ore = (name: string, status: number) => Object.assign(one(name), { status: [status], money: 0 });
+    stashAtTheMerc(c, [ore('GOLD', 80), ore('GOLD', 50), ore('SILVER', 70)], WorldItemFlags.REACHABLE);
+    const merc = mercIds(c)[0] as number;
+    expect(c.dispatch({ type: 'moveItem', soldier: merc, from: 'ground', item: 1, to: 'ground', stashIndex: 0 })).toMatchObject({
+      ok: true,
+      data: { item: 'GOLD', stashIndex: 0 },
+    });
+    const ores = () => stash(c).map((e) => [e.item, e.count, e.status]);
+    expect(ores()).toEqual(
+      expect.arrayContaining([
+        ['GOLD', 1, [80]],
+        ['GOLD', 1, [50]],
+        ['SILVER', 1, [70]],
+      ]),
+    );
+    expect(stash(c)).toHaveLength(3);
+    expect(c.dispatch({ type: 'stackAndSortStash', sector: 'A9' })).toMatchObject({ ok: true, data: { entries: 3 } });
+    expect(ores()).toEqual(
+      expect.arrayContaining([
+        ['GOLD', 1, [80]],
+        ['GOLD', 1, [50]],
+        ['SILVER', 1, [70]],
+      ]),
+    );
+  });
+
   it('stacks and sorts the pool as SHIFT+S does: guns unloaded and attachments taken off, rounds, kit charges and money poured into full objects, stacks filled to the per pocket count, then the pool order (StackAndSortMapInventoryPool)', () => {
     const c = onTheMap();
     const gun = one('GLOCK_17', 80);

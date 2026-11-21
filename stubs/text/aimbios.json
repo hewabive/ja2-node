@@ -1,6 +1,6 @@
 {
   "format": "ja2-node stub row text v1",
-  "note": "Invented biographies for the stub A.I.M. mercenaries, keyed by stub profile id and compiled by pnpm stubs into binarydata/aimbios.edt at each profile's bio row of externalized/mercs-AIM-listings.json (400 and 160 units: the biography and the additional information). Original writing for ja2-node.",
+  "note": "Invented biographies for the stub A.I.M. mercenaries, keyed by stub profile id and compiled by pnpm stubs into binarydata/aimbios.edt at each profile's bio row, his profile id in the A.I.M. order of tables/laptop.json (400 and 160 units: the biography and the additional information). Original writing for ja2-node.",
   "bios": {
     "0": [
       "Kestrel learned to shoot on a hill farm and never lost the habit of patience. She prefers the long view and the quiet approach.",

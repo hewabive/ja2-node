@@ -923,9 +923,10 @@ The page sends it with the pool's slots as the pool closes (deviation "Sector in
 `{"type":"stackAndSortStash","sector":"A9","order":[<index>...]}` is SHIFT+S (`StackAndSortMapInventoryPool`,
 `M:Map_Screen_Interface_Map_Inventory.cc:1164`; `src/sim/campaign/stash-repack.ts`) and
 `{"type":"refillFromStash","sector":"A9","item":<index>,"order":[<index>...]}` SHIFT+R over the pool item `item`
-(`RefillMercItemsFromMapInventoryPool`, `M:Map_Screen_Interface_Map_Inventory.cc:1291`). Both read the stash in `order` as `arrangeStash` does (without it, in
+(`RefillMercItemsFromMapInventoryPool`, `M:Map_Screen_Interface_Map_Inventory.cc:1291`), master's keys that v0.22.1
+lacks (deviation "Sector inventory layout"). Both read the stash in `order` as `arrangeStash` does (without it, in
 pool order); the page sends its slots. `stackAndSortStash` takes the reachable items apart (guns unloaded into a
-magazine of their own, attachments off), pours each item's rounds, kit charges or money on one level into full objects
+magazine of their own, attachments off), pours each item's rounds, kit charges or money (`MONEY` only) on one level into full objects
 and stacks them, and writes the stash back sorted, every index changed (`data.entries`); it needs a merc of ours standing
 in the sector (`noMercInSector`). `refillFromStash` tops up the mercs' objects of a magazine, kit or medical kit item
 (`notRefillable` otherwise) from that entry and then the item's other reachable entries in `order`; entries it empties

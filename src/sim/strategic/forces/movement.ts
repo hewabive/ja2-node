@@ -424,7 +424,7 @@ function updateArrivedPlayerGroup(ctx: StrategicContext, g: Group, arrival: Sect
         m.insertionCode = insertion.code;
         if (here) ctx.mercs.updateMercInSector(m.id, arrival);
       }
-    } else destroyed = handleHeliEnteringSector(ctx, arrival, neverLeft);
+    } else destroyed = handleHeliEnteringSector(ctx, arrival);
   }
   if (destroyed) return 'destroyed';
   announceArrival(ctx, g, arrival, final, neverLeft);
@@ -459,7 +459,7 @@ export function groupArrivedAtSector(ctx: StrategicContext, g: Group, checkForBa
   g.prev = g.sector;
   g.sector = arrival;
   g.next = { x: 0, y: 0, z: g.next.z };
-  if (g.player && !neverLeft) {
+  if (g.player) {
     if (!g.vehicle) awardExperienceForTravelling(ctx, g);
     else if (!isHelicopterGroup(ctx, g)) spendVehicleFuel(ctx, g, arrival);
   }

@@ -1,7 +1,7 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-16. See LICENSE (SFI-SCLA).
-// @src src/game/Strategic/Assignments.cc UpdateAssignments, BuildSectorsWithSoldiersList, RecordSleepStatusForPastHour,
-// @src IsThereASoldierInThisSector; Strategic/Hourly_Update.cc HandleHourlyUpdate, HandleQuarterHourUpdate, UpdateRegenCounters;
+// @src src/game/Strategic/Assignments.cc UpdateAssignments, BuildSectorsWithSoldiersList, IsThereASoldierInThisSector;
+// @src Strategic/Hourly_Update.cc HandleHourlyUpdate, HandleQuarterHourUpdate, UpdateRegenCounters;
 // @src Strategic/Game_Event_Hook.cc (HOURLY_UPDATE, QUARTER_HOUR_UPDATE, SETUP_MINE_INCOME, HANDLE_MINE_INCOME,
 // @src CHECK_IF_MINE_CLEARED, BANDAGE_BLEEDING_MERCS, ENRICO_MAIL).
 
@@ -32,18 +32,8 @@ export function buildSectorsWithSoldiers(ctx: EconomyContext): Set<number> {
   return new Set(ctx.crew.all().map((s) => sectorsWithSoldiersKey(s.sector)));
 }
 
-export function recordSleepStatusForPastHour(ctx: EconomyContext): Set<number> {
-  return new Set(
-    ctx.crew
-      .all()
-      .filter((s) => s.asleep)
-      .map((s) => s.id),
-  );
-}
-
 export function updateAssignments(ctx: EconomyContext): void {
   const sectorsWithSoldiers = buildSectorsWithSoldiers(ctx);
-  const sleptPastHour = recordSleepStatusForPastHour(ctx);
   handleNaturalHealing(ctx);
   checkForAndHandleHospitalPatients(ctx, sectorsWithSoldiers);
   reportTrainersTraineesWithoutPartners(ctx);
@@ -54,9 +44,9 @@ export function updateAssignments(ctx: EconomyContext): void {
       for (let z = 0; z < SECTORS_WITH_SOLDIERS_Z_LEVELS; z++) {
         const sector = { x, y, z };
         if (!sectorsWithSoldiers.has(sectorsWithSoldiersKey(sector))) continue;
-        handleDoctorsInSector(ctx, sector, sleptPastHour);
-        handleRepairmenInSector(ctx, sector, sleptPastHour);
-        handleTrainingInSector(ctx, sector, sleptPastHour);
+        handleDoctorsInSector(ctx, sector);
+        handleRepairmenInSector(ctx, sector);
+        handleTrainingInSector(ctx, sector);
       }
     }
   }

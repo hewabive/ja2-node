@@ -66,11 +66,26 @@ describe('stat training', () => {
       stats: { marksmanship: 60, wisdom: 80 },
     });
     student.trainStat = TrainStat.MARKSMANSHIP;
-    handleTrainingInSector(made.ctx, OMERTA, new Set());
+    handleTrainingInSector(made.ctx, OMERTA);
     expect(made.crew.statChanges).toEqual([{ id: 2, stat: StatAmt.MARKSMANSHIP, chances: 3, cause: StatCause.TRAINING }]);
     made.crew.statChanges.length = 0;
-    handleTrainingInSector(made.ctx, OMERTA, new Set([2]));
+    student.asleep = true;
+    handleTrainingInSector(made.ctx, OMERTA);
     expect(made.crew.statChanges).toEqual([]);
+  });
+
+  it('trains a student left without a trainer at his own rate though he has nothing to do (quirk)', () => {
+    const made = context();
+    const student = made.crew.add({
+      id: 0,
+      sector: OMERTA,
+      assignment: Assignment.TRAIN_BY_OTHER,
+      stats: { marksmanship: 60, wisdom: 80 },
+    });
+    student.trainStat = TrainStat.MARKSMANSHIP;
+    student.nothingToDo = true;
+    handleTrainingInSector(made.ctx, OMERTA);
+    expect(made.crew.statChanges).toEqual([{ id: 0, stat: StatAmt.MARKSMANSHIP, chances: 2, cause: StatCause.TRAINING }]);
   });
 
   it('flags instructors and students without a partner as done', () => {
@@ -99,7 +114,7 @@ describe('militia trainers', () => {
     made.crew.add({ id: 0, sector: C13, assignment: Assignment.TRAIN_TOWN, stats: { wisdom: 50, leadership: 50, expLevel: 2 } });
     made.crew.add({ id: 1, sector: C13, assignment: Assignment.TRAIN_TOWN, stats: { wisdom: 80, leadership: 70, expLevel: 4 } });
     sectorInfo(made.ctx.state.map, C13).militiaTrainingPercentDone = 95;
-    handleTrainingInSector(made.ctx, C13, new Set());
+    handleTrainingInSector(made.ctx, C13);
     expect(made.crew.statChanges.map((c) => c.id)).toEqual([1]);
     expect(sectorInfo(made.ctx.state.map, C13).militia).toEqual([10, 0, 0]);
   });

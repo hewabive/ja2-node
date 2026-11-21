@@ -18,8 +18,8 @@ Paths are under `src/sim/`; `economy/` is `strategic/economy/`.
 new game: town loyalty and mines (draws), starting cash       economy/init.ts, campaign/new-game.ts
 HOURLY_UPDATE → handleHourlyUpdate                              economy/update.ts
   └ updateAssignments
-     note who slept through the past hour; natural healing,     rest.ts, doctor.ts, training.ts
-     hospital, partnerless trainers; rest, fatigue, sleep
+     natural healing, hospital, partnerless trainers; rest,     rest.ts, doctor.ts, training.ts
+     fatigue, sleep
      each sector with mercs, x outer, then y, z: doctors,       doctor.ts, repair.ts, training.ts → militia.ts
      repairmen, students, militia trainers
      healed patients, continue-training prompts, nothing to do  doctor.ts, militia.ts, assignment-done.ts
@@ -94,9 +94,10 @@ re-evaluates at once, where the original raises the flag for the map screen it r
 swap or a stack clean-up without a cursor item raises nothing. The militia panel's cursor lives in the client: the
 server takes the town's final state at Done, checked as a whole, and AUTO (deviation "Militia redistribution").
 
-**Work is paid for the hour that ended.** The hourly update notes who slept through the past hour before the rest step
-puts mercs to bed or wakes them, and every payout reads that note; nothing pays in the first 45 minutes of an
-assignment. In turn-based combat the clock stands still, so assignments make no progress (`10`).
+**Work is paid by the sleep state the rest step leaves.** The hourly update puts mercs to bed or wakes them before the
+payouts, which read who is asleep now, as the original does (quirk below); nothing pays in the first 45 minutes of an
+assignment, which still tires the merc. In turn-based combat the clock stands still, so assignments make no progress
+(`10`).
 
 **A vehicle's condition is its soldier's.** A mechanic repairs the life of the vehicle soldier: a vehicle of ours
 through the crew port wherever it is, any other through the `loadedSectorSoldier` hook, since such a vehicle is in the
@@ -171,6 +172,9 @@ Each looks like a bug and is the original's behaviour. Tests are in `economy/` u
 | A day with a progress or setback mail is not inactive; a day with a creature or progress mail keeps all its new sectors | `inactivity.test.ts` |
 | The Queen depletes a mine only once it produced for the player; an emptied mine shrinks the income share of progress | `mines.test.ts` |
 | An attack on a neutral head miner only lists him to turn hostile and leaves his mine running: `IsProfileAHeadMiner` sits in the branch for targets that are no longer neutral, so the mine shuts at the next attack | `tactical/narrative/civ-hostility.test.ts`, `campaign/narrative-port.test.ts` |
+| The hour is paid by the sleep state the rest step has just set: a merc it wakes is paid for the hour he slept, one it puts to bed is not paid for the hour he worked (`Strategic/Assignments.cc:935-955`) | `assignments.test.ts` "pays the hour by the sleep state …" |
+| A merc in the first 45 minutes of an assignment is worn out as if he worked, though the hour pays him nothing (`Strategic/Assignments.cc:6753-6773`) | `assignments.test.ts` "wears out a merc in the first 45 minutes …" |
+| A student whose trainer is gone, done with nothing to do, still trains at his own rate (`Strategic/Assignments.cc:2063`) | `training.test.ts` "trains a student left without a trainer …" |
 | Doctors heal other doctors and themselves | `assignments.test.ts` |
 | Below OKLIFE an odd healing point is spent without effect; kits are used from the last object of a stack | `assignments.test.ts` |
 | Bandaging uses the doctor's first kit of either kind, though only a medical kit makes him a doctor | `training.test.ts` |

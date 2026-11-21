@@ -68,7 +68,6 @@ export interface LaptopViewText {
 
 const NO_TEXT: LaptopViewText = { texts: null, labels: null };
 const NO_ITEM = 0;
-const AIM_PROFILES = 40;
 const BOBBY_GUNS = ItemClass.GUN | ItemClass.LAUNCHER;
 const BOBBY_MISC =
   ItemClass.GRENADE |
@@ -117,20 +116,17 @@ function kit(flow: LaptopFlow, p: ProfileProgress): { readonly items: readonly L
 }
 
 export interface AimListingSource {
-  readonly aimListings: readonly number[];
+  readonly aimOrder: readonly number[];
   mercType(id: number): number | undefined;
 }
 
 export function aimListingOrder(source: AimListingSource): number[] {
-  const isAim = (id: number) => source.mercType(id) === MercType.AIM;
-  const listed = source.aimListings.filter(isAim);
-  const rest = Array.from({ length: AIM_PROFILES }, (_, id) => id).filter((id) => isAim(id) && !listed.includes(id));
-  return [...new Set(listed), ...rest];
+  return source.aimOrder.filter((id) => source.mercType(id) === MercType.AIM);
 }
 
 function aimView(flow: LaptopFlow): AimMercView[] {
   const out: AimMercView[] = [];
-  for (const id of aimListingOrder({ aimListings: flow.content.aimListings, mercType: (id) => flow.mercType(id) })) {
+  for (const id of aimListingOrder({ aimOrder: flow.content.aimOrder, mercType: (id) => flow.mercType(id) })) {
     const p = flow.profile(id);
     const record = flow.profileRecord(id);
     if (!p || !record) continue;

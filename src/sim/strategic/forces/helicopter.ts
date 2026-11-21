@@ -407,13 +407,13 @@ function airspaceCost(ctx: StrategicContext, s: Sector): number {
   return unsafe ? ctx.content.travel.airspaceCostUnsafe : ctx.content.travel.airspaceCostSafe;
 }
 
-export function handleHeliEnteringSector(ctx: StrategicContext, s: Sector, neverLeft: boolean): boolean {
+export function handleHeliEnteringSector(ctx: StrategicContext, s: Sector): boolean {
   const v = requireHelicopter(ctx);
   const heli = heliState(ctx);
   const endOfPath = v.path.length < 2;
-  if (!neverLeft && handleSamSiteAttackOfHelicopterInSector(ctx, s)) return true;
+  if (handleSamSiteAttackOfHelicopterInSector(ctx, s)) return true;
   const enemies = numEnemiesInSector(ctx, s);
-  if (enemies > 0 && !neverLeft && whatPlayerKnowsAboutEnemiesInSector(ctx, s) === EnemyKnowledge.NOTHING) {
+  if (enemies > 0 && whatPlayerKnowsAboutEnemiesInSector(ctx, s) === EnemyKnowledge.NOTHING) {
     if (doesSkyriderNoticeEnemiesInSector(ctx, enemies)) {
       if (!endOfPath) {
         stop(ctx);
@@ -428,7 +428,7 @@ export function handleHeliEnteringSector(ctx: StrategicContext, s: Sector, never
       ctx.helicopter.emit({ type: 'enemiesSpottedFromAir', sector: name(s) });
     }
   }
-  if (!heli.returningToBase && !neverLeft) heli.totalCost = i32(heli.totalCost + airspaceCost(ctx, s));
+  if (!heli.returningToBase) heli.totalCost = i32(heli.totalCost + airspaceCost(ctx, s));
   if (!endOfPath) return false;
   startHoverTime(ctx, s);
   if (enemies === 0 || heli.returningToBase) {

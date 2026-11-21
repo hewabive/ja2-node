@@ -25,7 +25,7 @@ import { Assignment } from '../strategic/forces/constants.ts';
 import { WorldItemFlags } from '../tactical/world-items.ts';
 import type { CampaignSim } from './campaign-sim.ts';
 import type { RosterMerc } from './roster.ts';
-import { type PoolItem, poolOrder, type StashEntry } from './stash.ts';
+import { isMoneyItem, type PoolItem, poolOrder, type StashEntry } from './stash.ts';
 
 const KIT_POINTS = 100;
 const NOT_REFILLABLE = 0;
@@ -113,7 +113,7 @@ function poured(total: number, capacity: number): number[] {
 function repackGroup(items: ItemTable, group: readonly PoolItem[], packed: PoolItem[]): void {
   const first = group[0] as PoolItem;
   const def = items.byIndex.get(first.object.item);
-  const money = def?.itemClass === ItemClass.MONEY;
+  const money = isMoneyItem(items, first.object.item);
   const capacity = money ? MAX_MONEY_PER_SLOT : refillablePoints(items, first.object.item);
   const perSlot = money ? 1 : sectorStackLimit(def);
   if (capacity === 0 && perSlot < 2) {

@@ -8,6 +8,7 @@ import {
   type BloodCatSpawn,
   type CacheSectors,
   type MapSecret,
+  MILITIA_MAPS_PATH,
   type MovementCosts,
   parseBloodCatPlacements,
   parseBloodCatSpawns,
@@ -42,6 +43,7 @@ export const STRATEGIC_CONTENT_PATHS = {
   traversability: 'externalized/strategic-map-traversibility-ratings.json',
   movementCosts: 'externalized/strategic-map-movement-costs.json',
   towns: 'externalized/strategic-map-towns.json',
+  militiaMaps: MILITIA_MAPS_PATH,
   sectorDescriptions: 'externalized/strategic-map-sectors-descriptions.json',
   underground: 'externalized/strategic-map-underground-sectors.json',
   samSites: 'externalized/strategic-map-sam-sites.json',
@@ -91,7 +93,7 @@ export function parseStrategicContent(sources: StrategicContentSources): Strateg
   const terrain = parseTraversabilityMap(sources.traversability);
   return {
     movementCosts: parseMovementCosts(sources.movementCosts, terrain),
-    towns: parseTowns(sources.towns),
+    towns: parseTowns(sources.towns, sources.militiaMaps),
     sectorDescriptions: parseSectorDescriptions(sources.sectorDescriptions, terrain),
     underground: parseUndergroundTemplates(sources.underground),
     samSites: parseSamSites(sources.samSites),

@@ -27,8 +27,6 @@ import { clockReading, contractIsExpiring, contractIsGoingToExpireSoon } from '.
 import type { RefusalReason } from './events.ts';
 import { precedentBitMask, Quote, type QuoteName } from './quotes.ts';
 
-const MIN_BLEEDING_THRESHOLD = 12;
-
 export interface Refusal {
   readonly quote: QuoteName;
   readonly subject?: number;
@@ -187,7 +185,7 @@ export function canExtendContractForSoldier(m: RosterMerc): boolean {
 }
 
 export type ExtensionChoice = 'day' | 'week' | 'twoWeeks';
-export type ContractOptionReason = 'notAimMerc' | 'tooBadlyHurt' | 'notEnoughMoney' | 'inCombat' | 'bleeding';
+export type ContractOptionReason = 'notAimMerc' | 'tooBadlyHurt' | 'notEnoughMoney' | 'inCombat';
 
 export interface ContractOption {
   readonly choice: ExtensionChoice | 'dismiss' | 'letGo';
@@ -213,9 +211,7 @@ function extensionOption(ctx: ContractContext, m: RosterMerc, choice: ExtensionC
 }
 
 export function dismissRefusal(m: RosterMerc, inCombat: boolean): ContractOptionReason | null {
-  if (inCombat && m.inSector) return 'inCombat';
-  if (m.bleeding > MIN_BLEEDING_THRESHOLD) return 'bleeding';
-  return null;
+  return inCombat && m.inSector ? 'inCombat' : null;
 }
 
 export function contractOptions(ctx: ContractContext, m: RosterMerc, inCombat: boolean): ContractOption[] {

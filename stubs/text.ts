@@ -171,7 +171,7 @@ async function buildAimHistory(out: string, layouts: EdtLayouts): Promise<string
 
 async function buildAimBios(out: string, layouts: EdtLayouts): Promise<string> {
   const tables = parseProfilePresentationTables({
-    aimListings: await dataJson(PROFILE_PRESENTATION_PATHS.aimListings),
+    laptopTables: await dataJson(PROFILE_PRESENTATION_PATHS.laptopTables),
     mercListings: await dataJson(PROFILE_PRESENTATION_PATHS.mercListings),
     smallFaces: await dataJson(PROFILE_PRESENTATION_PATHS.smallFaces),
     profileInfo: await dataJson(PROFILE_PRESENTATION_PATHS.profileInfo),
@@ -239,7 +239,7 @@ async function buildBobbyRayText(out: string, layouts: EdtLayouts): Promise<stri
 
 async function buildMercBios(out: string, layouts: EdtLayouts): Promise<string> {
   const tables = parseProfilePresentationTables({
-    aimListings: await dataJson(PROFILE_PRESENTATION_PATHS.aimListings),
+    laptopTables: await dataJson(PROFILE_PRESENTATION_PATHS.laptopTables),
     mercListings: await dataJson(PROFILE_PRESENTATION_PATHS.mercListings),
     smallFaces: await dataJson(PROFILE_PRESENTATION_PATHS.smallFaces),
     profileInfo: await dataJson(PROFILE_PRESENTATION_PATHS.profileInfo),

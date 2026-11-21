@@ -155,7 +155,6 @@ const CONTRACT_REFUSAL_TEXT: RefusalTexts<ContractRefusal> = {
   tooBadlyHurt: 'the merc is too badly hurt to talk about his contract',
   notEnoughMoney: 'not enough money',
   inCombat: 'the merc is in combat',
-  bleeding: 'the merc is bleeding',
 };
 
 export function contractRefusal(token: ContractRefusal): CommandRefused {

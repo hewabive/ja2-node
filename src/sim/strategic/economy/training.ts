@@ -32,22 +32,17 @@ export function trainSoldierWithPts(ctx: EconomyContext, s: CrewMember, points: 
   ctx.crew.statChange(s.id, stat, points, StatCause.TRAINING);
 }
 
-function isActiveThisHour(ctx: EconomyContext, s: CrewMember, sleptPastHour: ReadonlySet<number>): boolean {
-  return enoughTimeOnAssignment(ctx, s) && !sleptPastHour.has(s.id);
+function isActiveThisHour(ctx: EconomyContext, s: CrewMember): boolean {
+  return enoughTimeOnAssignment(ctx, s) && !s.asleep;
 }
 
-export function bestInstructors(
-  ctx: EconomyContext,
-  sector: Sector,
-  gunRange: boolean,
-  sleptPastHour: ReadonlySet<number>,
-): (CrewMember | null)[] {
+export function bestInstructors(ctx: EconomyContext, sector: Sector, gunRange: boolean): (CrewMember | null)[] {
   const best: (CrewMember | null)[] = new Array<CrewMember | null>(NUM_TRAINABLE_STATS).fill(null);
   for (let stat = 0; stat < NUM_TRAINABLE_STATS; stat++) {
     let bestPoints = -1;
     for (const t of ctx.crew.all()) {
       if (!sameSector(t.sector, sector) || t.assignment !== Assignment.TRAIN_TEAMMATE || t.trainStat !== stat) continue;
-      if (!isActiveThisHour(ctx, t, sleptPastHour)) continue;
+      if (!isActiveThisHour(ctx, t)) continue;
       const points = getBonusTrainingPtsDueToInstructor(ctx, t, null, stat, gunRange).points;
       if (points > bestPoints) {
         best[stat] = t;
@@ -58,12 +53,12 @@ export function bestInstructors(
   return best;
 }
 
-function trainStudents(ctx: EconomyContext, sector: Sector, gunRange: boolean, sleptPastHour: ReadonlySet<number>): void {
-  const instructors = bestInstructors(ctx, sector, gunRange, sleptPastHour);
+function trainStudents(ctx: EconomyContext, sector: Sector, gunRange: boolean): void {
+  const instructors = bestInstructors(ctx, sector, gunRange);
   for (const s of ctx.crew.all()) {
     if (!sameSector(s.sector, sector)) continue;
     if (s.assignment !== Assignment.TRAIN_SELF && s.assignment !== Assignment.TRAIN_BY_OTHER) continue;
-    if (!isActiveThisHour(ctx, s, sleptPastHour) || s.nothingToDo) continue;
+    if (!isActiveThisHour(ctx, s)) continue;
     let points = getSoldierTrainingPts(s, s.trainStat, gunRange).points;
     const instructor = s.assignment === Assignment.TRAIN_BY_OTHER ? instructors[s.trainStat] : null;
     if (instructor) points += getBonusTrainingPtsDueToInstructor(ctx, instructor, s, s.trainStat, gunRange).points;
@@ -80,21 +75,21 @@ export function sortTownTrainers(trainers: readonly TownTrainer[]): TownTrainer[
   return [...trainers].sort((a, b) => b.points - a.points);
 }
 
-function trainMilitia(ctx: EconomyContext, sector: Sector, sleptPastHour: ReadonlySet<number>): void {
+function trainMilitia(ctx: EconomyContext, sector: Sector): void {
   const trainers: TownTrainer[] = [];
   for (const t of ctx.crew.all()) {
-    if (!sameSector(t.sector, sector) || t.assignment !== Assignment.TRAIN_TOWN || !isActiveThisHour(ctx, t, sleptPastHour)) continue;
+    if (!sameSector(t.sector, sector) || t.assignment !== Assignment.TRAIN_TOWN || !isActiveThisHour(ctx, t)) continue;
     const points = getTownTrainPtsForCharacter(ctx, t).points;
     if (points > 0) trainers.push({ soldier: t, points });
   }
   for (const t of sortTownTrainers(trainers)) if (t.points > 0 && trainTownInSector(ctx, t.soldier, sector, t.points)) break;
 }
 
-export function handleTrainingInSector(ctx: EconomyContext, sector: Sector, sleptPastHour: ReadonlySet<number>): void {
+export function handleTrainingInSector(ctx: EconomyContext, sector: Sector): void {
   if (sector.z !== 0 || !sectorOursAndPeaceful(ctx, sector)) return;
   const gunRange = sameSector(sector, GUN_RANGE_SECTOR);
-  trainStudents(ctx, sector, gunRange, sleptPastHour);
-  if (canSectorContainMilitia(ctx, sector)) trainMilitia(ctx, sector, sleptPastHour);
+  trainStudents(ctx, sector, gunRange);
+  if (canSectorContainMilitia(ctx, sector)) trainMilitia(ctx, sector);
 }
 
 export function reportTrainersTraineesWithoutPartners(ctx: EconomyContext): void {

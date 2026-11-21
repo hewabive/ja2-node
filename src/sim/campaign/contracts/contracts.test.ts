@@ -333,7 +333,7 @@ describe('the two-hour warning and the renewal sequence', () => {
 });
 
 describe('the contract menu', () => {
-  it('shades extensions by kind, life and money and dismissal by combat and bleeding', () => {
+  it('shades extensions by kind, life and money and dismissal only by combat, not by bleeding', () => {
     const cc = landed([{ profile: STUB.kestrel }, { profile: STUB.brack, kind: MercKind.MERC }]);
     const kestrel = merc(cc, 0);
     cc.campaign.state.finances.balance = 1000;
@@ -350,7 +350,7 @@ describe('the contract menu', () => {
       contractOptions(cc.flow, kestrel, false)
         .slice(0, 4)
         .map((o) => o.reason),
-    ).toEqual(['tooBadlyHurt', 'tooBadlyHurt', 'tooBadlyHurt', 'bleeding']);
+    ).toEqual(['tooBadlyHurt', 'tooBadlyHurt', 'tooBadlyHurt', undefined]);
     expect(contractOptions(cc.flow, merc(cc, 1), false)[0]).toMatchObject({ enabled: false, reason: 'notAimMerc' });
   });
 
@@ -752,8 +752,6 @@ describe('contract commands', () => {
     const c = cc.campaign;
     expect(c.dispatch({ type: 'extendContract', soldier: 1, length: 'day' })).toEqual(contractRefusal('notAimMerc'));
     merc(cc, 0).soldier.bleeding = 20;
-    expect(c.dispatch({ type: 'dismiss', soldier: 0 })).toEqual(contractRefusal('bleeding'));
-    merc(cc, 0).soldier.bleeding = 0;
     expect(c.dispatch({ type: 'contractOptions', soldier: 0 })).toMatchObject({ ok: true, data: { options: expect.any(Array) } });
     expect(c.dispatch({ type: 'dismiss', soldier: 0 }).ok).toBe(true);
     expect(c.state.battle.prompt).toMatchObject({ kind: 'mercDeparture', soldier: 0, choices: ['here', 'rehire'] });

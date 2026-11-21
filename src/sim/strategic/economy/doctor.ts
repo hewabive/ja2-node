@@ -121,14 +121,10 @@ export function healCharacters(ctx: EconomyContext, doctor: CrewMember): void {
   else assignmentDone(ctx, doctor, true, true);
 }
 
-export function handleDoctorsInSector(
-  ctx: EconomyContext,
-  sector: { x: number; y: number; z: number },
-  sleptPastHour: ReadonlySet<number>,
-): void {
+export function handleDoctorsInSector(ctx: EconomyContext, sector: { x: number; y: number; z: number }): void {
   const kits = kitItems(ctx.items);
   for (const s of ctx.crew.all()) {
-    if (!sameSector(s.sector, sector) || s.assignment !== Assignment.DOCTOR || sleptPastHour.has(s.id)) continue;
+    if (!sameSector(s.sector, sector) || s.assignment !== Assignment.DOCTOR || s.asleep) continue;
     makeSureMedKitIsInHand(s.inv, kits);
     if (!canCharacterDoctor(ctx, s) || !enoughTimeOnAssignment(ctx, s)) continue;
     healCharacters(ctx, s);

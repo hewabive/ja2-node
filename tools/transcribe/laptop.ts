@@ -6,7 +6,6 @@ const SENDER_ENUM_MARKER = 'MAIL_ENRICO=0';
 const QUIZ_FUNCTION = 'static void CompileQuestionsInStatsAndWhatNot(void)';
 const QUIZ_QUESTIONS = 16;
 const NAMED_PROFILES = [
-  'NAILS',
   'BIFF',
   'FLO',
   'BUBBA',
@@ -26,6 +25,9 @@ const NAMED_PROFILES = [
   'CARLO',
 ];
 const TERRORIST_FUNCTION = 'static TerroristInfo const g_terrorist_infos[] =';
+const AIM_SORT_FUNCTION = 'void EnterAimSort()';
+const AIM_ORDER_LOOP =
+  /for\s*\(\s*UINT8\s+i\s*=\s*0\s*;\s*i\s*<\s*MAX_NUMBER_MERCS\s*;\s*\+\+i\s*\)\s*\{\s*AimMercArray\[i\]\s*=\s*i\s*;\s*\}/;
 
 type QuizList = 'skill' | 'attitude' | 'personality';
 type QuizEffect =
@@ -106,6 +108,18 @@ function quizQuestions(src: string, enums: Readonly<Record<QuizList, ReadonlyMap
   return questions;
 }
 
+function defineValue(src: string, name: string): number {
+  const m = new RegExp(`#define\\s+${name}\\s+(\\d+)`).exec(src);
+  if (!m?.[1]) throw new Error(`#define ${name} not found`);
+  return Number(m[1]);
+}
+
+function aimOrder(header: string, sort: string): number[] {
+  const at = sort.indexOf(AIM_SORT_FUNCTION);
+  if (at < 0 || !AIM_ORDER_LOOP.test(stripCComments(sort.slice(at)))) throw new Error('the A.I.M. order loop not found');
+  return Array.from({ length: defineValue(header, 'MAX_NUMBER_MERCS') }, (_, i) => i);
+}
+
 const profileTypes = readSource('game/Tactical/Soldier_Profile_Type.h');
 const enums = {
   skill: sequentialEnum(profileTypes, 'SkillTrait'),
@@ -118,17 +132,19 @@ const senders = anonymousEnum(emailHeader, SENDER_ENUM_MARKER, 'EmailSenders');
 const questions = quizQuestions(readSource('game/Laptop/IMP_Personality_Quiz.cc'), enums);
 const profileIds = sequentialEnum(readSource('game/Tactical/Soldier_Profile.h'), 'NPCIDs');
 const terrorists = terroristInfos(readSource('game/Tactical/Soldier_Profile.cc'), profileIds);
+const aim = aimOrder(readSource('game/Laptop/AIM.h'), readSource('game/Laptop/AIMSort.cc'));
 
 const out = {
-  source: `JA2 Stracciatella ${STRACCIATELLA_COMMIT}: src/game/Laptop/EMail.h (mail offsets, lengths and senders), src/game/Laptop/IMP_Personality_Quiz.cc CompileQuestionsInStatsAndWhatNot`,
+  source: `JA2 Stracciatella ${STRACCIATELLA_COMMIT}: src/game/Laptop/EMail.h (mail offsets, lengths and senders), src/game/Laptop/IMP_Personality_Quiz.cc CompileQuestionsInStatsAndWhatNot, src/game/Laptop/AIMSort.cc EnterAimSort and AIM.h MAX_NUMBER_MERCS (the A.I.M. order)`,
   license: 'Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA). See LICENSE.',
   format:
-    'mail: every email.edt record define (offsets and lengths) by name; senders: the sender ids; impQuiz: per question the effect of each answer (null = none; skill, attitude or personality with its enum value, or a skill that depends on the sex); profiles: the profile ids the laptop code names; terrorists: g_terrorist_infos in order (profile, the five candidate sectors, null = preplaced)',
+    'mail: every email.edt record define (offsets and lengths) by name; senders: the sender ids; impQuiz: per question the effect of each answer (null = none; skill, attitude or personality with its enum value, or a skill that depends on the sex); profiles: the profile ids the laptop code names; terrorists: g_terrorist_infos in order (profile, the five candidate sectors, null = preplaced); aimOrder: the profile ids of the A.I.M. listing before a sort, AimMercArray[i] = i, each the row of his aimbios.edt bio',
   mail: Object.fromEntries(mail),
   senders: Object.fromEntries(senders),
   impQuiz: questions.map((answers) => Array.from({ length: answers.length }, (_, k) => answers[k] ?? null)),
   profiles: Object.fromEntries(NAMED_PROFILES.map((name) => [name, lookup(profileIds, name)])),
   terrorists,
+  aimOrder: aim,
 };
 const target = join(REPO_ROOT, 'data/tables/laptop.json');
 writeTable(target, out);

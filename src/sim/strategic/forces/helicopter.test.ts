@@ -52,6 +52,7 @@ import {
 } from './helicopter.ts';
 import type { HelicopterEventWithoutTick } from './helicopter-events.ts';
 import { RefuelSiteId } from './helicopter-state.ts';
+import { groupArrivedAtSector } from './movement.ts';
 import { addCharacterToSquad, initSquads, initVehicles } from './squads.ts';
 
 let content: EconomyTestContent;
@@ -249,19 +250,29 @@ describe('flying', () => {
     );
   });
 
-  it('charges 1000 per sector in enemy airspace and nothing while returning to base or never leaving', () => {
+  it('charges 1000 per sector in enemy airspace and nothing while returning to base', () => {
     const w = withHelicopter();
     const s = S('C13');
     const e = w.ctx.state.map.elements[strategicIndex(s)];
     if (e) e.enemyAirControlled = true;
     helicopterVehicle(w.ctx)?.path.push(strategicIndex(S('B13')), strategicIndex(s), strategicIndex(S('D13')));
-    handleHeliEnteringSector(w.ctx, s, false);
-    expect(heliState(w.ctx).totalCost).toBe(1000);
-    handleHeliEnteringSector(w.ctx, s, true);
+    handleHeliEnteringSector(w.ctx, s);
     expect(heliState(w.ctx).totalCost).toBe(1000);
     heliState(w.ctx).returningToBase = true;
-    handleHeliEnteringSector(w.ctx, s, false);
+    handleHeliEnteringSector(w.ctx, s);
     expect(heliState(w.ctx).totalCost).toBe(1000);
+  });
+
+  it('charges a move cancelled before the helicopter left, whose arrival back in its own sector counts as a flight there (quirk)', () => {
+    const w = withHelicopter();
+    const g = helicopterGroup(w.ctx);
+    if (!g) throw new Error('no helicopter group');
+    const heli = helicopterVehicle(w.ctx);
+    heli?.path.push(strategicIndex(S('B13')), strategicIndex(S('C13')));
+    Object.assign(g, { sector: S('C13'), next: S('B13'), betweenSectors: true, arrivalTime: worldTotalMinutes(w.ctx.state.clock) });
+    groupArrivedAtSector(w.ctx, g, true, true);
+    const fare = w.ctx.content.travel.airspaceCostSafe;
+    expect(w.ctx.state.finances.ledger.at(-1)).toMatchObject({ code: FinanceCode.PAYMENT_TO_NPC, secondCode: SKYRIDER, amount: -fare });
   });
 
   it('caps the SAM chance at 33 and is destroyed by the third hit', () => {
@@ -272,15 +283,15 @@ describe('flying', () => {
     const heli = helicopterVehicle(w.ctx);
     if (heli) heli.sector = s;
     heli?.path.push(strategicIndex(s), strategicIndex(s));
-    handleHeliEnteringSector(w.ctx, s, false);
+    handleHeliEnteringSector(w.ctx, s);
     expect(heliState(w.ctx).hitsTaken).toBe(0);
-    handleHeliEnteringSector(w.ctx, s, false);
+    handleHeliEnteringSector(w.ctx, s);
     expect(heliState(w.ctx).hitsTaken).toBe(1);
     expect(quotes(w).at(-1)).toBe(SkyriderQuote.HELI_TOOK_MINOR_DAMAGE);
-    handleHeliEnteringSector(w.ctx, s, false);
+    handleHeliEnteringSector(w.ctx, s);
     expect(heliState(w.ctx)).toMatchObject({ hitsTaken: 2, returningToBase: true });
     expect(quotes(w)).toContain(SkyriderQuote.HELI_TOOK_MAJOR_DAMAGE);
-    expect(handleHeliEnteringSector(w.ctx, s, false)).toBe(true);
+    expect(handleHeliEnteringSector(w.ctx, s)).toBe(true);
     expect(heliState(w.ctx)).toMatchObject({ destroyed: true, totalCost: 0 });
     expect(w.ctx.state.forces.helicopterVehicleId).toBe(-1);
     expect(w.killed).toEqual([0]);
@@ -294,7 +305,7 @@ describe('flying', () => {
     const e = w.ctx.state.map.elements[strategicIndex(s)];
     if (e) e.enemyAirControlled = true;
     helicopterVehicle(w.ctx)?.path.push(strategicIndex(s), strategicIndex(s));
-    handleHeliEnteringSector(w.ctx, s, false);
+    handleHeliEnteringSector(w.ctx, s);
     expect(heliState(w.ctx).hitsTaken).toBe(0);
   });
 
@@ -303,11 +314,11 @@ describe('flying', () => {
     const s = S('C13');
     sectorInfo(w.ctx.state.map, s).numTroops = 5;
     helicopterVehicle(w.ctx)?.path.push(strategicIndex(s), strategicIndex(S('D13')));
-    handleHeliEnteringSector(w.ctx, s, false);
+    handleHeliEnteringSector(w.ctx, s);
     expect(sectorInfo(w.ctx.state.map, s).flags & SectorFlag.SKYRIDER_NOTICED_ENEMIES_HERE).not.toBe(0);
     expect(quotes(w)).toEqual([SkyriderQuote.ENEMIES_SPOTTED_EN_ROUTE_IN_FRIENDLY_SECTOR_B]);
     sectorInfo(w.ctx.state.map, s).flags = 0;
-    handleHeliEnteringSector(w.ctx, s, false);
+    handleHeliEnteringSector(w.ctx, s);
     expect(sectorInfo(w.ctx.state.map, s).flags & SectorFlag.SKYRIDER_NOTICED_ENEMIES_HERE).toBe(0);
   });
 });

@@ -389,13 +389,13 @@ describe('reversal', () => {
     expect(mercs.get(0)?.path[0]).toBe(strategicIndex(S('B9')));
   });
 
-  it('arrives without experience when the group turns back before leaving', () => {
+  it('awards travel experience to a group that turns back before it left (quirk)', () => {
     const { ctx, mercs } = squadContext();
     const g = squadAt(ctx, mercs, S('A9'), [0]);
     giveRoute(ctx, mercs, g, route('A9', 'B9'));
     rebuildWayPointsForGroupPath(ctx, null, g);
     expect(g).toMatchObject({ sector: S('A9'), betweenSectors: false });
-    expect(mercs.experience).toEqual([]);
+    expect(mercs.experience).toEqual([{ id: 0, stat: 'health', points: 4 }]);
   });
 });
 

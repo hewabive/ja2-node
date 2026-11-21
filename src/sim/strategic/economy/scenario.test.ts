@@ -16,7 +16,7 @@ import { assignSoldiers } from './set-assignment.ts';
 
 const C13 = parseSectorString('C13');
 const START = NUM_SEC_IN_DAY + 8 * NUM_SEC_IN_HOUR;
-const HOURS = 9;
+const HOURS = 11;
 
 let content: EconomyTestContent;
 beforeAll(async () => {

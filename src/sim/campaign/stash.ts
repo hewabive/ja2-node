@@ -10,7 +10,7 @@
 // @src Tactical/Tactical_Save.cc AddItemsToUnLoadedSector (the first free record),
 // @src SaveWorldItemsToTempItemFile (the unseen records first, the flag of the temp file, the recount).
 
-import { ItemClass } from '../../content/items/items.ts';
+import type { ItemTable } from '../../content/items/items.ts';
 import { type Sector, sameSector } from '../../content/strategic/sector-ids.ts';
 import { u8 } from '../../core/int.ts';
 import {
@@ -47,6 +47,7 @@ import { isMapScreenWorldItemVisibleInMapInventory, synchronizeVisibleItemCount 
 import { sectorDiffOf } from './sector-loot.ts';
 
 const MONEY_STATUS = 100;
+const MONEY_ITEM = 'MONEY';
 const UNSET_GRIDNO = 0;
 
 export interface PoolItem {
@@ -86,10 +87,14 @@ function slotLimit(campaign: CampaignSim, item: number): number {
   return contentOf(campaign).items.byIndex.get(item)?.perPocket ?? 0;
 }
 
+export function isMoneyItem(items: ItemTable, item: number): boolean {
+  return items.byIndex.get(item)?.name === MONEY_ITEM;
+}
+
 function placeIntoStashSlot(campaign: CampaignSim, slot: ItemObject, cursor: ItemObject): void {
   const limit = slotLimit(campaign, cursor.item);
   if (cursor.item !== slot.item) swapObjects(cursor, slot);
-  else if (contentOf(campaign).items.byIndex.get(cursor.item)?.itemClass === ItemClass.MONEY) {
+  else if (isMoneyItem(contentOf(campaign).items, cursor.item)) {
     slot.status[0] = MONEY_STATUS;
     slot.money += cursor.money;
     deleteObject(cursor);
@@ -99,7 +104,7 @@ function placeIntoStashSlot(campaign: CampaignSim, slot: ItemObject, cursor: Ite
 
 export function takesWithoutSwap(campaign: CampaignSim, slot: ItemObject, cursor: ItemObject): boolean {
   if (cursor.item !== slot.item) return false;
-  if (contentOf(campaign).items.byIndex.get(cursor.item)?.itemClass === ItemClass.MONEY) return true;
+  if (isMoneyItem(contentOf(campaign).items, cursor.item)) return true;
   return slotLimit(campaign, cursor.item) >= 2;
 }
 

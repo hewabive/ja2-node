@@ -235,14 +235,10 @@ export function handleRepairBySoldier(ctx: EconomyContext, s: CrewMember): void 
   }
 }
 
-export function handleRepairmenInSector(
-  ctx: EconomyContext,
-  sector: { x: number; y: number; z: number },
-  sleptPastHour: ReadonlySet<number>,
-): void {
+export function handleRepairmenInSector(ctx: EconomyContext, sector: { x: number; y: number; z: number }): void {
   const kits = kitItems(ctx.items);
   for (const s of ctx.crew.all()) {
-    if (!sameSector(s.sector, sector) || s.assignment !== Assignment.REPAIR || sleptPastHour.has(s.id)) continue;
+    if (!sameSector(s.sector, sector) || s.assignment !== Assignment.REPAIR || s.asleep) continue;
     makeSureToolKitIsInHand(s.inv, kits);
     if (!canCharacterRepair(ctx, s) || !enoughTimeOnAssignment(ctx, s)) continue;
     handleRepairBySoldier(ctx, s);

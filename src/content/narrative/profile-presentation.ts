@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-19. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/Faces.cc InitFace, GetFaceRelativeCoordinates (the profile's face index, eye and mouth offsets,
 // @src blink and expression frequencies, the RPC small faces); src/externalized/mercs/RPCSmallFaceModel.cc,
-// @src AIMListingModel.cc, MERCListingModel.cc (the bio rows).
+// @src MERCListingModel.cc (the M.E.R.C. bio rows); src/game/Laptop/AIMMembers.cc UpdateMercInfo (the A.I.M. bio row is the
+// @src profile id).
 
 import type { MercProfile } from '../formats/prof.ts';
 import { asArray, asInt, asObject, asString } from '../strategic/json-fields.ts';
@@ -10,7 +11,7 @@ import { parseJsoncBytes } from '../strategic/jsonc.ts';
 import type { ReadFile } from '../world/tileset-loader.ts';
 
 export const PROFILE_PRESENTATION_PATHS = {
-  aimListings: 'externalized/mercs-AIM-listings.json',
+  laptopTables: 'tables/laptop.json',
   mercListings: 'externalized/mercs-MERC-listings.json',
   smallFaces: 'externalized/mercs-rpc-small-faces.json',
   profileInfo: 'externalized/mercs-profile-info.json',
@@ -81,6 +82,11 @@ function bioRows(json: unknown, ids: ReadonlyMap<string, number>, what: string):
   return rows;
 }
 
+function aimBioRows(laptopTables: unknown): Map<number, number> {
+  const order = asArray(asObject(laptopTables, 'laptop tables').aimOrder, 'laptop tables.aimOrder');
+  return new Map(order.map((v, i) => [asInt(v, `laptop tables.aimOrder[${i}]`), asInt(v, `laptop tables.aimOrder[${i}]`)]));
+}
+
 function smallFaces(json: unknown, ids: ReadonlyMap<string, number>): Map<number, FaceOffsets> {
   const faces = new Map<number, FaceOffsets>();
   asArray(json, 'rpc small faces').forEach((v, i) => {
@@ -96,7 +102,7 @@ export function parseProfilePresentationTables(
 ): ProfilePresentationTables {
   const ids = profileIds(sources.profileInfo);
   return {
-    aimBio: bioRows(sources.aimListings, ids, 'aim listings'),
+    aimBio: aimBioRows(sources.laptopTables),
     mercBio: bioRows(sources.mercListings, ids, 'merc listings'),
     smallFaces: smallFaces(sources.smallFaces, ids),
   };

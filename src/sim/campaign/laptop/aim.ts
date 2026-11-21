@@ -9,14 +9,12 @@
 import { MercType } from '../../../content/strategic/economy-content.ts';
 import { sectorFromId } from '../../../content/strategic/sector-ids.ts';
 import { i8, idiv } from '../../../core/int.ts';
-import { createItem } from '../../items/object.ts';
 import { Assignment } from '../../strategic/economy/constants.ts';
 import { InsertionCode } from '../../strategic/forces/constants.ts';
 import { Npc } from '../../strategic/narrative/npc-ids.ts';
 import { setProfileSector } from '../../strategic/narrative/presence.ts';
 import { EventKind } from '../../strategic/time/constants.ts';
 import { addStrategicEvent } from '../../strategic/time/event-queue.ts';
-import { InvSlot } from '../../tactical/inventory.ts';
 import { MercStatus, type ProfileProgress } from '../../tactical/profiles.ts';
 import { Quote, type QuoteName } from '../contracts/quotes.ts';
 import { addTransaction, FinanceCode } from '../finances.ts';
@@ -31,8 +29,6 @@ import { History } from './records.ts';
 export const AIM_CONTRACT_LENGTHS = [1, 7, 14] as const;
 export type AimContractLength = (typeof AIM_CONTRACT_LENGTHS)[number];
 export const DEFAULT_AIM_CONTRACT: AimContractLength = 7;
-const LEATHER_JACKET = 'LEATHER_JACKET';
-const FULL_STATUS = 100;
 const DAILY_DIE = 100;
 const ASSIGNMENT_CHANCE_PER_LEVEL = 5;
 const AWAY_DAYS_BASE = 6;
@@ -163,11 +159,6 @@ export function aimHireRefusal(ctx: LaptopContext, request: AimHireRequest): Aim
   return null;
 }
 
-function giveLeatherJacket(ctx: LaptopContext, m: RosterMerc): void {
-  const def = ctx.tactical.items.byName.get(LEATHER_JACKET);
-  if (def) m.soldier.inv[InvSlot.VEST] = createItem(ctx.tactical.items, def.index, FULL_STATUS);
-}
-
 export function aimHire(ctx: LaptopContext, request: AimHireRequest, hooks: HireHooks): AimHireResult {
   const refusal = aimHireRefusal(ctx, request);
   if (refusal) return refusal;
@@ -190,7 +181,6 @@ export function aimHire(ctx: LaptopContext, request: AimHireRequest, hooks: Hire
   if (outcome === 'failed') return { ok: false, reason: 'cannotHire' };
   if (outcome === 'teamFull') return { ok: false, reason: 'teamFull' };
   const { merc, arrival } = outcome;
-  if (!gear && request.profile === ctx.content.namedProfiles.NAILS) giveLeatherJacket(ctx, merc);
   if (gear) p.miscFlags |= ProfileMiscFlag.ALREADY_USED_ITEMS;
   const now = ctx.now();
   const f = ctx.state.finances;

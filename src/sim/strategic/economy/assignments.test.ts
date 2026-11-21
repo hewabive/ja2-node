@@ -395,6 +395,29 @@ describe('assigning and the hourly order', () => {
     expect(listed.assignment).toBe(Assignment.SQUAD_1);
   });
 
+  it('pays the hour by the sleep state the rest step has just set, so a trainer it wakes is paid for the hour he slept (quirk)', () => {
+    const made = context();
+    const now = worldTotalMinutes(made.ctx.state.clock);
+    const s = merc(made, { id: 0, assignment: Assignment.TRAIN_SELF, sector: OMERTA, lastAssignmentChangeMin: now - 60 });
+    s.trainStat = TrainStat.MEDICAL;
+    s.asleep = true;
+    s.breathMax = 100;
+    updateAssignments(made.ctx);
+    expect(s.asleep).toBe(false);
+    expect(made.crew.statChanges).toEqual([{ id: 0, stat: StatAmt.MEDICAL, chances: 1, cause: StatCause.TRAINING }]);
+  });
+
+  it('wears out a merc in the first 45 minutes of an assignment that pays him nothing yet (quirk)', () => {
+    const made = context();
+    const now = worldTotalMinutes(made.ctx.state.clock);
+    const s = merc(made, { id: 0, assignment: Assignment.TRAIN_SELF, sector: OMERTA, lastAssignmentChangeMin: now - 30 });
+    s.trainStat = TrainStat.MEDICAL;
+    s.breathMax = 80;
+    updateAssignments(made.ctx);
+    expect(made.crew.statChanges).toEqual([]);
+    expect(s.breathMax).toBeLessThan(80);
+  });
+
   it('pays nobody during the first 45 minutes and trains self-trainers afterwards', () => {
     const made = context();
     const now = worldTotalMinutes(made.ctx.state.clock);

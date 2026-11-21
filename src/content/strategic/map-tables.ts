@@ -2,7 +2,8 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/externalized/strategic/{MovementCostsModel,TraversibilityMapping,TownModel,SectorLandTypes,UndergroundSectorModel,
 // @src SamSiteModel,SamSiteAirControlModel,StrategicMapSecretModel,CacheSectorsModel,BloodCatPlacementsModel,BloodCatSpawnsModel}.cc;
-// @src src/game/Strategic/Strategic_Movement_Costs.cc InitStrategicMovementCosts.
+// @src src/game/Strategic/Strategic_Movement_Costs.cc InitStrategicMovementCosts; the militia map corners of vanilla's
+// @src sBaseSectorList (ja2/Build/Strategic/MapScreenInterfaceMap.c), through tables/militia-maps.json.
 
 import { i8, u8 } from '../../core/int.ts';
 import { FormatError } from '../binary/errors.ts';
@@ -30,6 +31,8 @@ const ADJACENCY_LETTERS: Readonly<Record<string, number>> = {
   S: AdjacentSector.SOUTH,
   W: AdjacentSector.WEST,
 };
+
+export const MILITIA_MAPS_PATH = 'tables/militia-maps.json';
 
 export type TraversabilityMap = ReadonlyMap<string, number>;
 
@@ -138,19 +141,29 @@ function parseTownPoint(value: unknown, i: number): { readonly x: number; readon
   return { x: asInt(o.x, `towns[${i}].townPoint.x`), y: asInt(o.y, `towns[${i}].townPoint.y`) };
 }
 
-export function parseTowns(json: unknown): Town[] {
+function militiaMapBaseSectors(json: unknown): number[] {
+  const corners = asArray(asObject(json, 'militia maps').baseSectors, 'militia maps.baseSectors');
+  return corners.map((s, i) => parseSectorId(asString(s, `militia maps.baseSectors[${i}]`)));
+}
+
+function militiaMapBaseSector(corners: readonly number[], townId: number): number {
+  const corner = corners[townId - 1];
+  if (corner === undefined) throw new FormatError(`militia maps: no base sector for town ${townId}`);
+  return corner;
+}
+
+export function parseTowns(json: unknown, militiaMaps: unknown): Town[] {
+  const corners = militiaMapBaseSectors(militiaMaps);
   return asArray(json, 'towns')
     .map((v, i) => {
       const o = asObject(v, `towns[${i}]`);
       const sectors = asArray(o.sectors, `towns[${i}].sectors`).map((s) => parseSectorId(asString(s, `towns[${i}].sectors`)));
+      const townId = asInt(o.townId, `towns[${i}].townId`);
       return {
-        townId: asInt(o.townId, `towns[${i}].townId`),
+        townId,
         internalName: asString(o.internalName, `towns[${i}].internalName`),
         sectors,
-        militiaMapBaseSector:
-          o.militiaMapBaseSector === undefined
-            ? (sectors[0] ?? 0)
-            : parseSectorId(asString(o.militiaMapBaseSector, 'militiaMapBaseSector')),
+        militiaMapBaseSector: militiaMapBaseSector(corners, townId),
         isMilitiaTrainingAllowed: asBool(o.isMilitiaTrainingAllowed, `towns[${i}].isMilitiaTrainingAllowed`),
         townPoint: parseTownPoint(o.townPoint, i),
       };

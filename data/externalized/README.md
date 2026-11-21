@@ -19,9 +19,12 @@ These files are still master `ae6bf01`'s, because ja2-node follows master there 
 | `items.json`, `weapons.json`, `magazines.json`, `calibres.json` | #112 (item containers without placeholders) |
 | `imp.json`, `mercs-profile-info.json` | #111 (six I.M.P.s, gear conditions, 200 profiles) |
 | `light-templates.json` (not in v0.22.1) | #105 (the shipped light templates) |
-| `mercs-AIM-listings.json` (not in v0.22.1) | #116 (the A.I.M. order) |
-| `strategic-map-towns.json` | #116 (`militiaMapBaseSector`, vanilla's militia map corners) |
 | `strings/tooltips-eng.json` (not in v0.22.1) | #114 (master's informative tooltips) |
+
+v0.22.1 has no `mercs-AIM-listings.json`: its A.I.M. order is `AimMercArray[i] = i`, which `../tables/laptop.json`
+transcribes (`aimOrder`). Its `strategic-map-towns.json` has no militia map corners, and v0.22.1 takes each town's
+smallest sector, which puts Balime's grid a row too low; vanilla's corners are in `../tables/militia-maps.json`
+(original-bugs "Militia map corners").
 
 `armours.json` is v0.22.1's, but the loader reads the Kevlar vest with Compound 18 at vanilla's wear of 15, not its
 25 (original-bugs "Compound 18 Kevlar vest wear", `src/content/items/items.ts`).

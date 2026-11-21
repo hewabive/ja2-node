@@ -14,15 +14,20 @@ import { detectDataVersion } from './data-version.ts';
 import { TextService } from './text-service.ts';
 
 const UTF16_BYTES = 2;
-const LISTINGS = { aim: 'externalized/mercs-AIM-listings.json', merc: 'externalized/mercs-MERC-listings.json' } as const;
+const MERC_LISTINGS = 'externalized/mercs-MERC-listings.json';
+const LAPTOP_TABLES = 'tables/laptop.json';
 
 async function projectJson(path: string): Promise<unknown> {
   return parseJsonc(await readFile(join(PROJECT_DATA_DIR, path), 'utf8'));
 }
 
-async function bioRows(path: string): Promise<number> {
-  const listings = (await projectJson(path)) as { bioIndex?: number }[];
+async function mercBioRows(): Promise<number> {
+  const listings = (await projectJson(MERC_LISTINGS)) as { bioIndex?: number }[];
   return Math.max(...listings.map((l) => l.bioIndex ?? 0)) + 1;
+}
+
+async function aimBioRows(): Promise<number> {
+  return ((await projectJson(LAPTOP_TABLES)) as { aimOrder: number[] }).aimOrder.length;
 }
 
 describe.skipIf(!ORIGINAL_DATA_DIR)('text on the original data', () => {
@@ -60,16 +65,16 @@ describe.skipIf(!ORIGINAL_DATA_DIR)('text on the original data', () => {
     expect(present).toBe(fixed.length);
   });
 
-  it('has one biography record per A.I.M. and M.E.R.C. listing', async () => {
-    for (const [file, listing] of [
-      ['binarydata/aimbios.edt', LISTINGS.aim],
-      ['binarydata/mercbios.edt', LISTINGS.merc],
+  it('has one biography record per A.I.M. profile, AimMercArray[i] = i, and M.E.R.C. listing', async () => {
+    for (const [file, rows] of [
+      ['binarydata/aimbios.edt', await aimBioRows()],
+      ['binarydata/mercbios.edt', await mercBioRows()],
     ] as const) {
       const layout = layouts.layoutOf(file);
       const bytes = await read(file);
       expect(layout && bytes).toBeTruthy();
       if (!layout || !bytes) continue;
-      expect(edtRowCount(bytes, edtRecordWidth(layout.columns)), file).toBe(await bioRows(listing));
+      expect(edtRowCount(bytes, edtRecordWidth(layout.columns)), file).toBe(rows);
     }
   });
 

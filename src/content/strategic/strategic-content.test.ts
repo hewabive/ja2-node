@@ -47,6 +47,13 @@ describe('strategic content from data/externalized', () => {
     ).toThrow();
   });
 
+  it("takes vanilla's militia map corners, Balime's a row above its smallest sector, where v0.22.1 takes the smallest", () => {
+    const balime = content.towns.find((t) => t.internalName === 'BALIME');
+    expect(balime?.sectors).toEqual([parseSectorId('L11'), parseSectorId('L12')]);
+    expect(balime?.militiaMapBaseSector).toBe(parseSectorId('K11'));
+    expect(content.towns.find((t) => t.internalName === 'DRASSEN')?.militiaMapBaseSector).toBe(parseSectorId('B13'));
+  });
+
   it('loads towns, underground templates, SAM sites, secrets and bloodcats', () => {
     expect(content.towns.map((t) => t.townId)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
     expect(content.towns[0]?.sectors).toEqual([parseSectorId('A9'), parseSectorId('A10')]);

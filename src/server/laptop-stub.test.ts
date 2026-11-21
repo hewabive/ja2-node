@@ -203,10 +203,10 @@ describe('the laptop view for the canvas pages', () => {
 });
 
 describe('the A.I.M. listing order', () => {
-  it('follows mercs-AIM-listings.json and appends the A.I.M. profiles it leaves out by id', () => {
+  it('lists the A.I.M. profiles of the laptop table in its order, AimMercArray[i] = i before a sort, without those of another kind', () => {
     const aim = new Set([0, 1, 2, 5, 7]);
     const mercType = (id: number) => (aim.has(id) ? MercType.AIM : undefined);
-    expect(aimListingOrder({ aimListings: [7, 2, 30, 0], mercType })).toEqual([7, 2, 0, 1, 5]);
+    expect(aimListingOrder({ aimOrder: [0, 1, 2, 3, 4, 5, 6, 7], mercType })).toEqual([0, 1, 2, 5, 7]);
   });
 });
 

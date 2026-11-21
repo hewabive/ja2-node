@@ -5,9 +5,15 @@ import { REPO_ROOT } from '../../src/node/repo.ts';
 
 export const STRACCIATELLA_COMMIT = 'v0.22.1';
 export const STRACCIATELLA_SRC = join(REPO_ROOT, 'reference/stracciatella/src');
+export const VANILLA_COMMIT = '8caa128';
+export const VANILLA_SRC = join(REPO_ROOT, 'reference/vanilla/ja2/Build');
 
 export function readSource(relativePath: string): string {
   return readFileSync(join(STRACCIATELLA_SRC, relativePath), 'latin1');
+}
+
+export function readVanillaSource(relativePath: string): string {
+  return readFileSync(join(VANILLA_SRC, relativePath), 'latin1');
 }
 
 export function stripCComments(src: string): string {

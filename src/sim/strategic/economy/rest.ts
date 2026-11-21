@@ -9,14 +9,7 @@
 import { clamp, i8, i16, idiv, u8 } from '../../../core/int.ts';
 import { MercQuote } from '../../tactical/narrative/merc-quotes.ts';
 import { getGroup } from '../forces/groups.ts';
-import {
-  canCharacterBeAwakened,
-  canCharacterSleep,
-  enoughTimeOnAssignment,
-  isCharacterInTransit,
-  isMechanical,
-  isOnSquad,
-} from './conditions.ts';
+import { canCharacterBeAwakened, canCharacterSleep, isCharacterInTransit, isMechanical, isOnSquad } from './conditions.ts';
 import {
   Assignment,
   BREATHMAX_ABSOLUTE_MINIMUM,
@@ -84,8 +77,7 @@ export function characterIsTakingItEasy(ctx: EconomyContext, s: CrewMember): boo
   if (!canCharacterSleep(ctx, s)) return false;
   if (isOnSquad(s) || s.assignment === Assignment.VEHICLE) return true;
   if (s.assignment === Assignment.PATIENT || s.assignment === Assignment.ASSIGNMENT_HOSPITAL) return true;
-  if (s.nothingToDo) return true;
-  return !enoughTimeOnAssignment(ctx, s);
+  return s.nothingToDo;
 }
 
 export function putMercInAsleepState(ctx: EconomyContext, s: CrewMember): void {
