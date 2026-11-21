@@ -12,7 +12,7 @@ import { createKeyObject } from './doors/keys.ts';
 import { AP_RELOAD_GUN, apsToReloadGunWithAmmo, InvSlot, itemIn } from './inventory.ts';
 import { attachmentsChanged } from './item-description-box.ts';
 import { AP } from './points.ts';
-import { type Soldier, Team } from './soldier.ts';
+import { OKBREATH, type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 
 let content: TacticalContent;
@@ -652,6 +652,23 @@ describe('items applied to a merc and dropped', () => {
     expect(ap - merc.actionPoints).toBe(AP.DRINK);
     expect(merc.breath).toBeGreaterThan(breath);
     expect(merc.inv[InvSlot.BIGPOCK1]?.status[0]).toBe(80);
+  });
+
+  it('lets a merc lying collapsed from breath alone drink whatever his APs, not one a sleep dart put down (original-bugs "Drink while collapsed")', () => {
+    const sim = newCombatSim(content);
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    merc.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('CANTEEN'), 100);
+    inCombat(sim);
+    merc.breath = OKBREATH;
+    merc.collapsed = true;
+    merc.actionPoints = 0;
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket1' })).toMatchObject({ ok: true, data: { item: 'CANTEEN' } });
+    expect(merc.breath).toBeGreaterThan(OKBREATH);
+    merc.sleepDrugCounter = 1;
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket1' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'notEnoughAP' },
+    });
   });
 
   it('drinks with the drinking sound of the profile’s sex, which the other applied items leave to the panel', () => {

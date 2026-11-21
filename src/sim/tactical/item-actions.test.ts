@@ -7,7 +7,7 @@ import { StructureFlags } from '../../content/world/structures.ts';
 import { syntheticStructure } from '../../content/world/synthetic.ts';
 import { Terrain } from '../../content/world/terrain.ts';
 import type { ItemsPickedUpEvent, SimEvent } from '../events.ts';
-import { createItem, emptyObject, ObjectFlags } from '../items/object.ts';
+import { createItem, createMoney, emptyObject, MAX_MONEY_PER_SLOT, ObjectFlags } from '../items/object.ts';
 import { AnimHeight, changeSoldierStance } from './animation.ts';
 import { autoBandageQuestionDue } from './auto-bandage.ts';
 import type { TacticalContent } from './content.ts';
@@ -275,6 +275,37 @@ describe('picking up and dropping items', () => {
     expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: pile })).toMatchObject({ ok: false, data: { refusal: 'notEnoughAP' } });
     merc.actionPoints = cost;
     expect(sim.dispatch({ type: 'pickUp', soldier: 0, gridNo: pile })).toEqual({ ok: true });
+  });
+
+  it('takes only the money a pocket has room for and leaves the rest on the ground, never a copy of the whole pile (original-bugs "Money over a pocket\'s limit")', () => {
+    const PILE = 15_000;
+    const SMALL_POCKET_LIMIT = 10_000;
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    for (let slot: number = InvSlot.SECOND_HAND; slot < InvSlot.SMALLPOCK8; slot++)
+      merc.inv[slot] = createItem(t.content.items, item('CLIP9_15'), 100);
+    addItemToPool(t, merc.gridNo, createMoney(t.content.items, PILE), Visibility.VISIBLE, 0);
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0 })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    const ground = t.worldItems.filter((wi) => wi.gridNo === merc.gridNo).map((wi) => wi.object.money);
+    expect([merc.inv[InvSlot.SMALLPOCK8]?.money, ground]).toEqual([SMALL_POCKET_LIMIT, [PILE - SMALL_POCKET_LIMIT]]);
+  });
+
+  it('tops up a pocket of money to its limit and leaves only the rest on the ground (original-bugs "Money over a pocket\'s limit")', () => {
+    const POCKET = 18_000;
+    const PILE = 5_000;
+    const sim = newCombatSim(content);
+    const t = sim.state;
+    const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
+    for (let slot: number = InvSlot.SECOND_HAND; slot <= InvSlot.SMALLPOCK8; slot++)
+      merc.inv[slot] = createItem(t.content.items, item('CLIP9_15'), 100);
+    merc.inv[InvSlot.BIGPOCK1] = createMoney(t.content.items, POCKET);
+    addItemToPool(t, merc.gridNo, createMoney(t.content.items, PILE), Visibility.VISIBLE, 0);
+    expect(sim.dispatch({ type: 'pickUp', soldier: 0 })).toEqual({ ok: true });
+    runUntilIdle(sim);
+    const ground = t.worldItems.filter((wi) => wi.gridNo === merc.gridNo).map((wi) => wi.object.money);
+    expect([merc.inv[InvSlot.BIGPOCK1]?.money, ground]).toEqual([MAX_MONEY_PER_SLOT, [POCKET + PILE - MAX_MONEY_PER_SLOT]]);
   });
 
   it('drops the hand item at the drop animation code and shows it to the squad', () => {

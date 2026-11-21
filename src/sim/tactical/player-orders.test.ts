@@ -133,6 +133,17 @@ describe('weapon modes (ChangeWeaponMode)', () => {
     expect(sim.dispatch({ type: 'weaponMode', soldier: 0, mode: 'launcher' }).data).toEqual({ weaponMode: 'launcher' });
   });
 
+  it('cycles a gun without burst between single and its launcher, as vanilla (original-bugs "Launcher mode without burst")', () => {
+    const sim = newCombatSim(content);
+    const s = spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST, { gun: 'MINI14' });
+    const hand = s.inv[InvSlot.HAND];
+    if (!hand) throw new Error('no gun');
+    expect(attachObject(content.items, hand, createItem(content.items, item('UNDER_GLAUNCHER'), 100))).toBe(true);
+    expect(attachObject(content.items, hand, createItem(content.items, item('GL_HE_GRENADE'), 100))).toBe(true);
+    expect(sim.dispatch({ type: 'weaponMode', soldier: 0 })).toEqual({ ok: true, data: { weaponMode: 'launcher' } });
+    expect(sim.dispatch({ type: 'weaponMode', soldier: 0 })).toEqual({ ok: true, data: { weaponMode: 'single' } });
+  });
+
   it('refuses a gun without burst or launcher with the original message', () => {
     const sim = newCombatSim(content);
     spawnSoldier(sim, 0, Team.OUR, ORIGIN, Direction.EAST, { gun: 'GLOCK_17' });
