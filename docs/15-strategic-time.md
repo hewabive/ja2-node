@@ -120,7 +120,8 @@ and `tacticalScreen` apply the original's rules (entering the map keeps a 5–60
 becomes X0; tactical is always X1: every way in from the map sets it, a sector load from the map too, as vanilla's
 does, deviation "Speed on a sector load from the map"). Leaving the map lifts the pause lock, whoever set it: the way
 back to the loaded sector also lifts any pause but the player's, and a sector load from the map stops compression before
-the load's own unpause (`EndMapScreen`, `Strategic/MapScreen.cc:3212-3223`, `M:Strategic/MapScreen.cc:3252-3256`; `campaign/screens.ts`). A load from the
+the load's own unpause (`EndMapScreen`, `Strategic/MapScreen.cc:3212-3223`; original-bugs "Tactical clock left paused by
+the map"; `campaign/screens.ts`). A load from the
 tactical screen sets no speed, and `HandleStrategicTurn`'s turn of `NOT_USING_TIME_COMPRESSION` into X1
 (`Strategic/Strategic_Turns.cc:47-50`) never runs: nothing sets that mode (`Strategic/Game_Clock.cc:466-485` have no
 callers). The map's own exits (`tacticalScreen`, `enterSector`, `openLaptop`) are refused while a lock holds, lines wait
