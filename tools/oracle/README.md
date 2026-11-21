@@ -269,12 +269,13 @@ ON/PRIME/NIGHT flags; fake merc lights skipped).
 
 `map-light-probes.ts [hour...]` writes, for every original map with light sprites, a load at each hour (default 22, 3
 and 12: prime and night lights, night lights only, always-on lights only), a hash-only `lights`, `ambient level=15` and
-a full `lights` dump. The sweep is not part of `compare-all.sh`:
+a full `lights` dump. The sweep is not part of `compare-all.sh`; its v0.22.1 recording is
+`~/ja2-oracle-v0221/map-lights.jsonl`, which every tile of the light walk must match:
 
 ```sh
-node tools/oracle/map-light-probes.ts > ~/ja2-oracle/map-lights.txt
-tools/oracle/run.sh ~/ja2-oracle/map-lights.txt ~/ja2-oracle/map-lights.jsonl
-node tools/oracle/compare.ts ~/ja2-oracle/map-lights.jsonl
+node tools/oracle/map-light-probes.ts > "$JA2_ORACLE_DIR/map-lights.txt"
+tools/oracle/run.sh "$JA2_ORACLE_DIR/map-lights.txt" "$JA2_ORACLE_DIR/map-lights.jsonl"
+node tools/oracle/compare.ts "$JA2_ORACLE_DIR/map-lights.jsonl"
 ```
 
 ### Savegames

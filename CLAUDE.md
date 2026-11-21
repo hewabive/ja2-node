@@ -4,7 +4,8 @@ ja2-node is a non-commercial TypeScript reimplementation of Jagged Alliance 2. T
 original's behaviour (formulas, constants, check order, integer truncation, PreRandom semantics),
 not a line-by-line port; the behaviour reference is JA2 Stracciatella v0.22.1 with default settings, pinned: later
 releases and master are not a reference (`docs/01` D1). `reference/stracciatella` holds v0.22.1; `M:` citations name
-master `ae6bf01` code that ja2-node still follows until its issue reverts it: do not port behaviour that v0.22.1 lacks.
+master `ae6bf01` code behind a later fix or client convenience that ja2-node keeps (`original-bugs.md`,
+`deviations.md`): do not port behaviour that v0.22.1 lacks without such a decision.
 The simulation is server-side (Node), the browser is a client, agents play through an API.
 
 ## Rules

@@ -7,8 +7,8 @@ the repository; §10 maps the other documents.
 
 **Conventions.** Paths into the original are relative to `reference/stracciatella/src/game/` (`sgp/…` and
 `externalized/…` to `reference/stracciatella/src/`), the release v0.22.1; `V:` is vanilla
-(`reference/vanilla/ja2/Build/`); `M:` is Stracciatella master `ae6bf01`, cited only for code v0.22.1 lacks that
-ja2-node still follows (§3.10).
+(`reference/vanilla/ja2/Build/`); `M:` is Stracciatella master `ae6bf01`, cited only for the later fixes and client
+conveniences v0.22.1 lacks that ja2-node keeps (`original-bugs.md`, `deviations.md`).
 
 ---
 
@@ -62,7 +62,7 @@ read-only and gitignored.
 
 | # | Decision | Why |
 |---|---|---|
-| D1 | **The behaviour reference is JA2 Stracciatella v0.22.1 with default settings, pinned**: vanilla 1.12 Gold mechanics plus its bug fixes (§3.10), its policy files with their shipped values (§3.9). Later releases and master are not a reference: a later Stracciatella change enters only as a decision of its own. Every deliberate difference is an entry in `deviations.md`, or in `original-bugs.md` for a bug of the original. The original's gameplay bugs stay, except those the maintainer decides on, those a design rule rules out and those the rare-bug rule fixes (`original-bugs.md` §2); bugs that Stracciatella itself brought into v0.22.1 are not reproduced. Where §3.10 marks a row **master**, ja2-node still follows master `ae6bf01` until the issue named moves the code (`M:` citations) | The goal is the game as played in Gold 1.12. A played release keeps that game where the 2004 source's release build does not (enemies climb roofs) and fixes bugs such as the movement-noise wraparound. From 2026, master reworks whole systems as fixes of vanilla bugs without weighing the balance (the lighting overhaul #105, suppression AP debt #107, heights #108), so later releases stop being the original. v0.22.0 lacks v0.22.1's one fix (merc relations read from `prof.dat`); v0.21.0 and older drop only a few local differences, but lack data files ja2-node reads (armours, explosion animations, smoke, NPC script records) and keep regressions that 0.22 fixed. A rare slip that only extra code would reproduce is not worth that code |
+| D1 | **The behaviour reference is JA2 Stracciatella v0.22.1 with default settings, pinned**: vanilla 1.12 Gold mechanics plus its bug fixes (§3.10), its policy files with their shipped values (§3.9). Later releases and master are not a reference: a later Stracciatella change enters only as a decision of its own. Every deliberate difference is an entry in `deviations.md`, or in `original-bugs.md` for a bug of the original. The original's gameplay bugs stay, except those the maintainer decides on, those a design rule rules out and those the rare-bug rule fixes (`original-bugs.md` §2); bugs that Stracciatella itself brought into v0.22.1 are not reproduced. A later Stracciatella fix or client convenience that ja2-node keeps is such an entry, citing master `ae6bf01` (`M:`) | The goal is the game as played in Gold 1.12. A played release keeps that game where the 2004 source's release build does not (enemies climb roofs) and fixes bugs such as the movement-noise wraparound. From 2026, master reworks whole systems as fixes of vanilla bugs without weighing the balance (the lighting overhaul #105, suppression AP debt #107, heights #108), so later releases stop being the original. v0.22.0 lacks v0.22.1's one fix (merc relations read from `prof.dat`); v0.21.0 and older drop only a few local differences, but lack data files ja2-node reads (armours, explosion animations, smoke, NPC script records) and keep regressions that 0.22 fixed. A rare slip that only extra code would reproduce is not worth that code |
 | D2 | **The simulation core is separate from presentation**: deterministic, no DOM and no Node API, no mutable module state (several sessions share a process), serializable: the snapshot codec (`src/sim/snapshot`) writes the whole session and restores it exactly. The client derives sound, music and video from events and view frames; the server computes the music mode outside `sim` (`src/protocol/music.ts`) | Tests, headless runs, comparison with the original, saves, replays |
 | D3 | **One game time: integer milliseconds on a fixed 5 ms tick** (`TICK_MS`, `src/sim/clock.ts`), the original's overhead pass; every timer of the original runs on ticks with its value (§3.3) | Outcomes independent of FPS and machine speed |
 | D4 | **Animations enter the simulation as data**: `ja2bin.dat` and `gAnimControl` become timelines; the simulation steps the logic timeline and runs the gameplay opcodes at their frames, the views take sprite frames and sound codes from the presentation timeline (§3.4). No sprite enters the simulation | The original resolves shots, deaths and doors on animation frames; durations are numbers the simulation computes instead of waiting |
@@ -321,11 +321,10 @@ serve mods only; the default game ships just `enums.lua`, so nothing is ported.
 
 ### 3.10 Where Stracciatella differs from vanilla
 
-ja2-node follows the Stracciatella column (D1) unless `deviations.md` says otherwise. A row marked **master** holds only on
-master `ae6bf01` (`M:` citations): v0.22.1 behaves as vanilla there, and ja2-node follows master until the issue named
-moves it. v0.22.1's own differences from vanilla stand. The maintainer reconsiders one only from play of the original.
-#118 lists the differences an audit of v0.22.1 found, with what play has shown so far: its major and medium rows that
-ja2-node follows are in this table, its minor rows only there.
+ja2-node follows the Stracciatella column (D1) unless `deviations.md` or `original-bugs.md` says otherwise. v0.22.1's own
+differences from vanilla stand. The maintainer reconsiders one only from play of the original. #118 lists the
+differences an audit of v0.22.1 found, with what play has shown so far: its major and medium rows that ja2-node follows
+are in this table, its minor rows only there.
 
 | Area | Vanilla | Stracciatella |
 |---|---|---|

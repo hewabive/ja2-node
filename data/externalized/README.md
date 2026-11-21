@@ -12,11 +12,8 @@ MD5 hashes, no game content. The server reads them at start (`src/server/data-ve
 Exception: `script-records-NPCs.json` is not copied, because its comments quote dialogue from the game data; its
 records without the comments are in `../tables/npc-script-records.json` (`tools/transcribe/npc-script-records.ts`).
 
-These files are still master `ae6bf01`'s, because ja2-node follows master there until the issue reverts it:
-
-| File | Issue |
-|---|---|
-| `strings/tooltips-eng.json` (not in v0.22.1) | #114 (master's informative tooltips) |
+`strings/tooltips-eng.json` is master `ae6bf01`'s, as v0.22.1 has none: it holds master's informative tooltips, which
+#114 keeps as a client text behind the `informative_tooltips` key, off as shipped (deviation "Game policy keys").
 
 v0.22.1 has no `light-templates.json` either: it reads the user's `.LHT` files (`20`).
 
