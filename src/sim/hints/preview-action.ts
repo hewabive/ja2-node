@@ -162,9 +162,9 @@ function walkTo(c: ActionContext, to: number) {
 
 type Arrival = Pick<Soldier, 'desiredDirection' | 'doorHandleCode'>;
 
-function menuOnArrival(c: ActionContext, base: number, arrival: Arrival, open: boolean, locked: boolean): DoorMenuOption[] | null {
+function menuOnArrival(c: ActionContext, arrival: Arrival, open: boolean, locked: boolean): DoorMenuOption[] | null {
   if (!open && !locked) return null;
-  return withTemporaryFields(c.s, arrival, () => (open ? closingDoorMenu(c.t, c.s) : doorMenu(c.t, c.s, base)));
+  return withTemporaryFields(c.s, arrival, () => (open ? closingDoorMenu(c.t, c.s) : doorMenu(c.t, c.s)));
 }
 
 function walkUpAndHandle(c: ActionContext, approach: DoorApproach | null, handleCode: number, gridNo: number, open: boolean): ActionPart {
@@ -204,7 +204,7 @@ function doorAction(c: ActionContext): ActionPart {
   });
   const open = has(door.flags, StructureFlags.OPEN);
   const locked = !open && findDoorInfo(t, base)?.perceivedLocked === PerceivedLock.LOCKED;
-  const menu = approach ? menuOnArrival(c, base, { desiredDirection: approach.direction, doorHandleCode: handleCode }, open, locked) : null;
+  const menu = approach ? menuOnArrival(c, { desiredDirection: approach.direction, doorHandleCode: handleCode }, open, locked) : null;
   return { ...walkUpAndHandle(c, approach, handleCode, base, open), ...(menu ? { menu } : {}) };
 }
 

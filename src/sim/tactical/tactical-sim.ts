@@ -436,7 +436,6 @@ const DOOR_REFUSALS: Readonly<Record<string, string>> = {
   noLockpickKit: 'the soldier has no lockpick kit',
   noShapedCharge: 'the soldier has no shaped charge',
   escortCannot: 'an escorted civilian cannot do that',
-  alreadyKnown: 'the trap is already known',
   diagonal: 'not possible from a diagonal position',
   notEnoughAp: 'not enough APs',
   noPath: 'cannot get next to the door',

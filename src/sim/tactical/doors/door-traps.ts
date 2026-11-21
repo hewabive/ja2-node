@@ -20,7 +20,6 @@ import {
   DoorTrapFlags,
   disarmDoorTrap,
   findDoorInfo,
-  HandleDoor,
   PerceivedLock,
   PerceivedTrap,
   trapFlags,
@@ -29,7 +28,7 @@ import {
 
 const TRAP_EXPLOSION_Z = 25;
 const MAX_MISC_NOISE_DURATION = 12;
-const UNTRAP_DIFFICULTY_PER_LEVEL = 7;
+const UNTRAP_BONUS_PER_LEVEL = 7;
 
 const ElectricShock = {
   [DoorTrap.ELECTRIC]: { life: 10, breath: 3 },
@@ -114,15 +113,15 @@ export function examineDoorForTraps(t: TacticalState, s: Soldier, gridNo: number
   const door = findDoorInfo(t, gridNo);
   if (!door) return false;
   if (door.trapId === DoorTrap.NONE) {
-    updateDoor(t, gridNo, { perceivedTrapped: PerceivedTrap.PERCEIVED_UNTRAPPED });
+    updateDoor(t, gridNo, { perceivedTrapped: PerceivedTrap.UNTRAPPED });
     return false;
   }
-  if (door.perceivedTrapped === PerceivedTrap.PROVED_TRAPPED) return true;
+  if (door.perceivedTrapped === PerceivedTrap.TRAPPED) return true;
   if (calcTrapDetectLevel(t, s, true) < door.trapLevel) {
-    updateDoor(t, gridNo, { perceivedTrapped: PerceivedTrap.PERCEIVED_UNTRAPPED });
+    updateDoor(t, gridNo, { perceivedTrapped: PerceivedTrap.UNTRAPPED });
     return false;
   }
-  updateDoor(t, gridNo, { perceivedTrapped: PerceivedTrap.PROVED_TRAPPED });
+  updateDoor(t, gridNo, { perceivedTrapped: PerceivedTrap.TRAPPED });
   return true;
 }
 
@@ -130,30 +129,18 @@ export function attemptToUntrapDoor(t: TacticalState, s: Soldier, gridNo: number
   const door = findDoorInfo(t, gridNo);
   if (!door) return false;
   const reason = door.trapId === DoorTrap.EXPLOSION ? SkillCheckReason.DISARM_TRAP : SkillCheckReason.DISARM_ELECTRONIC_TRAP;
-  const mod = i8(-door.trapLevel * UNTRAP_DIFFICULTY_PER_LEVEL);
+  const mod = i8(door.trapLevel * UNTRAP_BONUS_PER_LEVEL);
   if (skillCheck(t, s, reason, mod) <= 0) return false;
   disarmDoorTrap(t, gridNo);
   return true;
 }
 
-function perceivedTrapAfter(door: Door, action: number): number {
-  if (action === HandleDoor.UNTRAP) {
-    if (door.trapId === DoorTrap.NONE) return PerceivedTrap.PROVED_UNTRAPPED;
-    if (door.trapId !== DoorTrap.SILENT_ALARM) return PerceivedTrap.PROVED_TRAPPED;
-    return door.perceivedTrapped === PerceivedTrap.PROVED_TRAPPED ? door.perceivedTrapped : PerceivedTrap.PERCEIVED_UNTRAPPED;
-  }
-  if (action === HandleDoor.EXAMINE) return PerceivedTrap.PROVED_TRAPPED;
-  if (door.trapId === DoorTrap.SILENT_ALARM || door.trapId === DoorTrap.NONE)
-    return door.perceivedTrapped === PerceivedTrap.PROVED_TRAPPED ? door.perceivedTrapped : PerceivedTrap.PERCEIVED_UNTRAPPED;
-  return PerceivedTrap.PROVED_TRAPPED;
-}
-
-export function updateDoorPerceivedValue(t: TacticalState, gridNo: number, action: number): void {
+export function updateDoorPerceivedValue(t: TacticalState, gridNo: number): void {
   const door = findDoorInfo(t, gridNo);
   if (!door) return;
   updateDoor(t, gridNo, {
     perceivedLocked: door.locked ? PerceivedLock.LOCKED : PerceivedLock.UNLOCKED,
-    perceivedTrapped: perceivedTrapAfter(door, action),
+    perceivedTrapped: door.trapId === DoorTrap.NONE ? PerceivedTrap.UNTRAPPED : PerceivedTrap.TRAPPED,
   });
 }
 
@@ -161,14 +148,7 @@ export function doTrapCheckOnStartingMenu(t: TacticalState, s: Soldier, gridNo: 
   const door = findDoorInfo(t, gridNo);
   if (!door?.locked || door.trapId === DoorTrap.NONE || door.perceivedTrapped !== PerceivedTrap.UNKNOWN) return false;
   if (calcTrapDetectLevel(t, s, false) < door.trapLevel) return false;
-  updateDoorPerceivedValue(t, gridNo, HandleDoor.EXAMINE);
-  t.events.push({
-    type: 'doorResult',
-    soldier: s.id,
-    gridNo,
-    action: 'open',
-    result: 'trapNoticed',
-    trap: DOOR_TRAP_NAMES[door.trapId] ?? 'unknown',
-  });
+  updateDoorPerceivedValue(t, gridNo);
+  t.events.push({ type: 'doorResult', soldier: s.id, gridNo, action: 'open', result: 'trapNoticedAtMenu' });
   return true;
 }

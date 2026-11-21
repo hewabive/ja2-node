@@ -765,11 +765,12 @@ without one in his stance, a run of `stance` included, as `UIHandleCMoveMerc` se
 real-time order (`Tactical/Handle_UI.cc:1699-1703`): a run that has ended leaves a walk, and the cursor's order sends
 `run` where the original's click keeps a running merc fast (`Tactical/Real_Time_Input.cc:616-625`). The mode he walks
 in stays his, as after a `move`; one already at the door keeps his. `open` on a locked door answers the door menu as data after the start-of-menu trap check;
+a trap the merc notices there answers `{trapNoticed: true}` instead, with `doorResult {result: trapNoticedAtMenu}`, which
+names no trap, as the original prints nothing then.
 `openManually` is the menu's open button (deviation "Door menu"), the one action besides cancel a merc facing
-diagonally keeps; a `doorMenu` event says `diagonal` then, and `provedTrap {trapped, trap}` once the door's trap state
-is proved, which the examine button's help names. `close` by our merc answers vanilla's closing menu
+diagonally keeps; a `doorMenu` event says `diagonal` then. `close` by our merc at a door answers the closing menu
 (`{closed: false, options}` and a `doorMenu {closing: true}` event), where only `closeManually` is enabled; other
-soldiers close at once (deviation "Closing an open door"). A door swings for up to 375 ms after it changes; an order to
+soldiers, and our merc at a container or switch, close at once (deviation "Closing a container"). A door swings for up to 375 ms after it changes; an order to
 act on it meanwhile stops the merc (`{started: busy}`), as `InteractWithOpenableStruct` does, and advance may reach idle
 before the door stops. A door that changes out of the squad's sight raises no `doorChanged` and keeps its place in
 `openDoors` until a merc sees it. Containers and switches take `open` and `close` with the original's walk-up and

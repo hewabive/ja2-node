@@ -26,7 +26,7 @@ import { TacticalSim } from '../tactical-sim.ts';
 import { doorApCost, doorMenu, doorMenuNotes, handleOpenableStruct } from './door-actions.ts';
 import { isDoorBusy } from './door-status.ts';
 import { DoorTrap, findDoorInfo, HandleDoor, PerceivedLock, PerceivedTrap, removeDoorInfo, updateDoor } from './door-table.ts';
-import { handleDoorTrap } from './door-traps.ts';
+import { attemptToUntrapDoor, handleDoorTrap } from './door-traps.ts';
 import { keyRingView } from './door-view.ts';
 import { newKeyRing } from './key-ring.ts';
 import { attemptToBlowUpLock, attemptToCrowbarLock, attemptToSmashDoor, damageLock } from './lock-attempts.ts';
@@ -217,18 +217,16 @@ describe('the stub village door', () => {
     expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'examine' }).ok).toBe(true);
     const examined = runSimUntilIdle(sim);
     expect(resultsOf(examined)).toEqual(['examine:trapFound']);
-    expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ perceivedTrapped: PerceivedTrap.PROVED_TRAPPED });
+    expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ perceivedTrapped: PerceivedTrap.TRAPPED });
     expect(sim.doors()).toEqual([{ gridNo: DOOR, locked: 'locked', trap: 'electric' }]);
-    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'examine' })).toMatchObject({
-      ok: false,
-      data: { refusal: 'alreadyKnown' },
-    });
+    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'examine' }).ok).toBe(true);
+    expect(resultsOf(runSimUntilIdle(sim))).toEqual(['examine:trapFound']);
     s.stats.explosives = 90;
     s.stats.mechanical = 90;
     scripted(sim, [noise, 0], [], 0);
     expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'untrap' }).ok).toBe(true);
     expect(resultsOf(runSimUntilIdle(sim))).toEqual(['untrap:untrapped']);
-    expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ trapId: DoorTrap.NONE, perceivedTrapped: PerceivedTrap.PROVED_UNTRAPPED });
+    expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ trapId: DoorTrap.NONE, perceivedTrapped: PerceivedTrap.UNTRAPPED });
     const key = createItem(sim.state.content.items, sim.state.content.items.byName.get('KEY_1')?.index ?? 0, 100);
     key.keyId = 1;
     s.inv[InvSlot.BIGPOCK2] = key;
@@ -305,7 +303,7 @@ describe('the stub village door', () => {
     expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: OUTSIDE, action: 'open' }).data).toEqual({ refusal: 'noDoor' });
     sim.state.narrative = { ...NO_NARRATIVE_PORT, isEpc: () => true };
     expect(refusal('force')).toEqual({ refusal: 'escortCannot' });
-    expect(sim.dispatch({ type: 'door', soldier: s.id, gridNo: DOOR, action: 'untrap' }).ok).toBe(true);
+    expect(refusal('untrap')).toEqual({ refusal: 'escortCannot' });
     updateDoor(sim.state, DOOR, { locked: false });
     sim.state.narrative = NO_NARRATIVE_PORT;
     expect(refusal('force')).toEqual({ refusal: 'notLocked' });
@@ -322,7 +320,7 @@ describe('the stub village door', () => {
       ok: false,
       data: { refusal: 'badAction' },
     });
-    expect(doorMenu(sim.state, s, DOOR).map((o) => o.action)).not.toContain('lock');
+    expect(doorMenu(sim.state, s).map((o) => o.action)).not.toContain('lock');
     expect(findDoorInfo(sim.state, DOOR)?.locked).toBe(false);
   });
 
@@ -336,7 +334,35 @@ describe('the stub village door', () => {
     expect(handleOpenableStruct(sim.state, s, DOOR, doorStructure(sim))).toBe(false);
     expect(pre.requested).toEqual([3, 10]);
     expect(s.life).toBe(life - 14);
-    expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ trapId: DoorTrap.ELECTRIC, perceivedTrapped: PerceivedTrap.PROVED_TRAPPED });
+    expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ trapId: DoorTrap.ELECTRIC, perceivedTrapped: PerceivedTrap.TRAPPED });
+  });
+
+  it('shows a silent alarm the merc set off unnoticed as a trap: every door action shows any trap (Keys.cc:772-791)', () => {
+    const sim = village();
+    const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+    s.stats.wisdom = 30;
+    updateDoor(sim.state, DOOR, { trapId: DoorTrap.SILENT_ALARM, trapLevel: 10, perceivedTrapped: PerceivedTrap.UNKNOWN });
+    const missedBash = 99;
+    scripted(sim, [], [], missedBash);
+    s.doorHandleCode = HandleDoor.FORCE;
+    handleOpenableStruct(sim.state, s, DOOR, doorStructure(sim));
+    expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ trapId: DoorTrap.SILENT_ALARM, perceivedTrapped: PerceivedTrap.TRAPPED });
+    expect(sim.doors()).toContainEqual(expect.objectContaining({ gridNo: DOOR, trap: 'silentAlarm' }));
+  });
+
+  it('takes the trap level × 7 as a bonus to the untrap check, so a harder trap is easier to disarm (Keys.cc:442, :446)', () => {
+    const sim = village();
+    const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
+    s.stats.explosives = 0;
+    const ROLL = 20;
+    const untrapped = (level: number) => {
+      updateDoor(sim.state, DOOR, { trapId: DoorTrap.EXPLOSION, trapLevel: level });
+      scripted(sim, [ROLL]);
+      return attemptToUntrapDoor(sim.state, s, DOOR);
+    };
+    expect(untrapped(1)).toBe(false);
+    expect(untrapped(9)).toBe(true);
+    expect(findDoorInfo(sim.state, DOOR)).toMatchObject({ trapId: DoorTrap.NONE, trapLevel: 0 });
   });
 
   it('calls the computer teams to a silent alarm, each soldier putting on a gas mask he carries (Knowledge.cc CallAvailableTeamEnemiesTo)', () => {
@@ -669,7 +695,7 @@ describe('the door menu', () => {
     const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
     s.desiredDirection = 1;
     expect(
-      doorMenu(sim.state, s, DOOR)
+      doorMenu(sim.state, s)
         .filter((o) => o.enabled)
         .map((o) => o.action),
     ).toEqual(['openManually']);
@@ -677,35 +703,41 @@ describe('the door menu', () => {
     sim.state.inCombat = true;
     s.actionPoints = 6;
     expect(
-      doorMenu(sim.state, s, DOOR)
+      doorMenu(sim.state, s)
         .filter((o) => o.reason === 'notEnoughAp')
         .map((o) => o.action),
     ).toEqual(['force', 'untrap']);
   });
 
-  it('tells the menu of a diagonal stance and of a trap proved by examining the door', () => {
+  it('tells the menu of a diagonal stance, and keeps examine and untrap open whatever the merc knows of the trap', () => {
     const sim = village();
     const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
-    expect(doorMenuNotes(sim.state, s, DOOR)).toEqual({});
+    expect(doorMenuNotes(s)).toEqual({});
     s.desiredDirection = 1;
-    updateDoor(sim.state, DOOR, { trapId: DoorTrap.BROTHEL_SIREN, perceivedTrapped: PerceivedTrap.PROVED_TRAPPED });
-    expect(doorMenuNotes(sim.state, s, DOOR)).toEqual({ diagonal: true, provedTrap: { trapped: true, trap: 'siren' } });
+    expect(doorMenuNotes(s)).toEqual({ diagonal: true });
     s.desiredDirection = NORTH;
-    updateDoor(sim.state, DOOR, { perceivedTrapped: PerceivedTrap.PROVED_UNTRAPPED });
-    expect(doorMenuNotes(sim.state, s, DOOR)).toEqual({ provedTrap: { trapped: false, trap: 'siren' } });
+    for (const perceivedTrapped of [PerceivedTrap.TRAPPED, PerceivedTrap.UNTRAPPED]) {
+      updateDoor(sim.state, DOOR, { perceivedTrapped });
+      expect(
+        doorMenu(sim.state, s)
+          .filter((o) => o.action === 'examine' || o.action === 'untrap')
+          .every((o) => o.enabled),
+      ).toBe(true);
+    }
   });
 
-  it('lets an escort use a crowbar and untrap, as the original menu does', () => {
+  it('lets an escort use a crowbar, which alone has no escort check (Interface.cc PopupDoorOpenMenu)', () => {
     const sim = village();
     const s = spawnSoldier(sim, 0, Team.OUR, OUTSIDE, NORTH);
     sim.state.narrative = { ...NO_NARRATIVE_PORT, isEpc: () => true };
-    const reasons = Object.fromEntries(doorMenu(sim.state, s, DOOR).map((o) => [o.action, o.reason ?? 'on']));
+    s.inv[InvSlot.BIGPOCK1] = createItem(kit.content.items, kit.content.items.byName.get('CROWBAR')?.index ?? 0, 100);
+    const reasons = Object.fromEntries(doorMenu(sim.state, s).map((o) => [o.action, o.reason ?? 'on']));
     expect(reasons).toMatchObject({
       unlock: 'escortCannot',
-      crowbar: 'noCrowbar',
+      crowbar: 'on',
       examine: 'escortCannot',
       force: 'escortCannot',
-      untrap: 'on',
+      untrap: 'escortCannot',
     });
   });
 });

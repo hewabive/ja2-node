@@ -180,23 +180,12 @@ function menuOption(t: TacticalState, s: Soldier, action: DoorMenuAction, ap: nu
   return reason ? { action, ap: t.inCombat ? ap : 0, enabled: false, reason } : { action, ap: t.inCombat ? ap : 0, enabled: true };
 }
 
-export function doorMenuNotes(t: TacticalState, s: Soldier, gridNo: number): DoorMenuNotes {
-  const door = findDoorInfo(t, gridNo);
-  const proved = door?.perceivedTrapped === PerceivedTrap.PROVED_TRAPPED || door?.perceivedTrapped === PerceivedTrap.PROVED_UNTRAPPED;
-  return {
-    ...(facesDiagonally(s) ? { diagonal: true as const } : {}),
-    ...(door && proved
-      ? { provedTrap: { trapped: door.perceivedTrapped === PerceivedTrap.PROVED_TRAPPED, trap: DOOR_TRAP_NAMES[door.trapId] ?? 'unknown' } }
-      : {}),
-  };
+export function doorMenuNotes(s: Soldier): DoorMenuNotes {
+  return facesDiagonally(s) ? { diagonal: true } : {};
 }
 
-export function doorMenu(t: TacticalState, s: Soldier, gridNo: number): DoorMenuOption[] {
-  const door = findDoorInfo(t, gridNo);
-  const epc = t.narrative.isEpc(s);
-  const escort = epc ? 'escortCannot' : null;
-  const perceived = door?.perceivedTrapped ?? PerceivedTrap.UNKNOWN;
-  const examined = perceived === PerceivedTrap.PROVED_TRAPPED || perceived === PerceivedTrap.PROVED_UNTRAPPED;
+export function doorMenu(t: TacticalState, s: Soldier): DoorMenuOption[] {
+  const escort = t.narrative.isEpc(s) ? 'escortCannot' : null;
   const costs = menuCosts();
   const cost = (a: MenuCostAction) => costs[a];
   return [
@@ -205,9 +194,9 @@ export function doorMenu(t: TacticalState, s: Soldier, gridNo: number): DoorMenu
     menuOption(t, s, 'crowbar', cost('crowbar').ap, findCrowbar(t, s) === NO_SLOT ? 'noCrowbar' : null),
     menuOption(t, s, 'pickLock', cost('pickLock').ap, escort ?? (findLocksmithKit(t, s) === NO_SLOT ? 'noLockpickKit' : null)),
     menuOption(t, s, 'explode', cost('explode').ap, escort ?? (findShapedCharge(t, s) === NO_SLOT ? 'noShapedCharge' : null)),
-    menuOption(t, s, 'examine', cost('examine').ap, examined ? 'alreadyKnown' : escort),
+    menuOption(t, s, 'examine', cost('examine').ap, escort),
     menuOption(t, s, 'force', cost('force').ap, escort),
-    menuOption(t, s, 'untrap', cost('untrap').ap, perceived === PerceivedTrap.PROVED_UNTRAPPED ? 'alreadyKnown' : null),
+    menuOption(t, s, 'untrap', cost('untrap').ap, escort),
   ];
 }
 
@@ -239,7 +228,7 @@ export type InteractionOutcome = 'busy' | 'closing' | 'opening' | 'menu' | 'clos
 function offerToClose(t: TacticalState, s: Soldier, gridNo: number): InteractionOutcome {
   if (!s.collapsed) soldierGotoStationaryStance(t, s);
   if (doTrapCheckOnStartingMenu(t, s, gridNo)) return 'trapNoticed';
-  t.events.push({ type: 'doorMenu', soldier: s.id, gridNo, options: closingDoorMenu(t, s), closing: true, ...doorMenuNotes(t, s, gridNo) });
+  t.events.push({ type: 'doorMenu', soldier: s.id, gridNo, options: closingDoorMenu(t, s), closing: true, ...doorMenuNotes(s) });
   return 'closeMenu';
 }
 
@@ -275,8 +264,8 @@ export function interactWithOpenableStruct(
         type: 'doorMenu',
         soldier: s.id,
         gridNo: base.gridNo,
-        options: doorMenu(t, s, base.gridNo),
-        ...doorMenuNotes(t, s, base.gridNo),
+        options: doorMenu(t, s),
+        ...doorMenuNotes(s),
       });
       return 'menu';
     }
@@ -316,7 +305,7 @@ function checkLockedTrap(t: TacticalState, s: Soldier, gridNo: number, isDoor: b
     r.trap = DOOR_TRAP_NAMES[door.trapId] ?? 'unknown';
     proceed = false;
   } else if (springDoorTrap(t, s, gridNo)) proceed = false;
-  updateDoorPerceivedValue(t, gridNo, code);
+  updateDoorPerceivedValue(t, gridNo);
   if (!proceed) r.result ??= 'trapStopped';
   return proceed;
 }
@@ -344,7 +333,7 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
         r.handle = true;
         r.result = 'opened';
       }
-      updateDoorPerceivedValue(t, gridNo, HandleDoor.OPEN);
+      updateDoorPerceivedValue(t, gridNo);
       return;
     case HandleDoor.FORCE:
     case HandleDoor.CROWBAR: {
@@ -361,7 +350,7 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
         r.handle = true;
         r.result = 'opened';
       } else {
-        updateDoorPerceivedValue(t, gridNo, crowbar ? Number(door.trapId !== DoorTrap.SILENT_ALARM) : HandleDoor.FORCE);
+        updateDoorPerceivedValue(t, gridNo);
         r.result = 'failed';
       }
       processImplicationsOfPCMessingWithDoor(t, s);
@@ -380,7 +369,7 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
           r.handle = true;
           r.result = 'opened';
         } else {
-          updateDoorPerceivedValue(t, gridNo, HandleDoor.EXPLODE);
+          updateDoorPerceivedValue(t, gridNo);
           r.result = BLOW_UP_RESULT[outcome];
         }
       }
@@ -408,7 +397,7 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
         return;
       }
       if (examineDoorForTraps(t, s, gridNo)) {
-        updateDoorPerceivedValue(t, gridNo, HandleDoor.EXAMINE);
+        updateDoorPerceivedValue(t, gridNo);
         r.result = 'trapFound';
       } else r.result = 'noTrapFound';
       return;
@@ -421,7 +410,7 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
         return;
       }
       if (attemptToUnlockDoor(t, s, gridNo)) {
-        updateDoorPerceivedValue(t, gridNo, HandleDoor.UNLOCK);
+        updateDoorPerceivedValue(t, gridNo);
         playInteraction(t, s, isDoor, 'END_OPEN_DOOR');
         r.handle = true;
         r.result = 'opened';
@@ -444,12 +433,12 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
       }
       if (attemptToUntrapDoor(t, s, gridNo)) {
         playInteraction(t, s, isDoor, 'END_OPEN_DOOR');
-        updateDoorPerceivedValue(t, gridNo, HandleDoor.UNTRAP);
+        updateDoorPerceivedValue(t, gridNo);
         r.result = 'untrapped';
       } else {
         playInteraction(t, s, isDoor, 'END_OPEN_LOCKED_DOOR');
         springDoorTrap(t, s, gridNo);
-        updateDoorPerceivedValue(t, gridNo, HandleDoor.UNTRAP);
+        updateDoorPerceivedValue(t, gridNo);
         r.result = 'trapSprung';
       }
       return;
@@ -468,7 +457,7 @@ function resolveOurClosedDoor(t: TacticalState, s: Soldier, gridNo: number, isDo
         playInteraction(t, s, isDoor, 'END_OPEN_LOCKED_DOOR');
         r.result = 'wrongKey';
       }
-      updateDoorPerceivedValue(t, gridNo, HandleDoor.LOCK);
+      updateDoorPerceivedValue(t, gridNo);
       return;
   }
 }

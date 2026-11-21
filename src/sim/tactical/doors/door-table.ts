@@ -37,7 +37,7 @@ export const DOOR_TRAP_TABLE: readonly number[] = [
 ];
 
 export const PerceivedLock = { UNKNOWN: 0, LOCKED: 1, UNLOCKED: 2, BROKEN: 3 } as const;
-export const PerceivedTrap = { UNKNOWN: 0, PROVED_TRAPPED: 1, PERCEIVED_UNTRAPPED: 2, PROVED_UNTRAPPED: 3 } as const;
+export const PerceivedTrap = { UNKNOWN: 0, TRAPPED: 1, UNTRAPPED: 2 } as const;
 
 export type Door = MapDoor;
 

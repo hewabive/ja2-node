@@ -10,14 +10,12 @@
 // @src BtnDoorMenuCallback, DoorMenuBackregionCallback, RenderMovementMenu, RenderOpenDoorMenu.
 
 import { idiv } from '../../../core/int.ts';
-import { DOOR_TRAP_STRINGS } from '../../../protocol/door-trap-strings.ts';
-import type { DoorMenuAction, DoorMenuNotes, DoorMenuOption, MovementOptions, ProvedDoorTrap } from '../../../protocol/hints.ts';
+import type { DoorMenuAction, DoorMenuNotes, DoorMenuOption, MovementOptions } from '../../../protocol/hints.ts';
 import type { SoldierView } from '../../../protocol/view.ts';
 import type { DrawList } from '../../draw-list.ts';
 import { MouseReason, Priority } from '../../input/mouse.ts';
 import type { MouseRegion } from '../../input/regions.ts';
 import type { UiServices } from '../../services.ts';
-import { printf } from '../../text/printf.ts';
 import type { UiTextService } from '../../text/text-service.ts';
 import { type Button, buttonImage } from '../../widgets/button.ts';
 import type { MovementChoice } from './input/tactical-input.ts';
@@ -36,9 +34,6 @@ const POPUP_TABLE = 'pTacticalPopupButtonStrings';
 const TACTICAL_TABLE = 'TacticalStr';
 const NEW_STRINGS = 'new-strings';
 const NS_DIAGONALITY_WARNING = 4;
-const TRAP_NAME_TABLE = 'pDoorTrapStrings';
-const DOOR_LOCK_DESCRIPTION_STR = 3;
-const DOOR_LOCK_UNTRAPPED_STR = 5;
 const LOOK_CURSOR_POPUPTEXT = 60;
 const DRIVE_POPUPTEXT = 69;
 const NOT_APPLICABLE_POPUPTEXT = 70;
@@ -399,15 +394,8 @@ export class DoorMenu extends PopupMenu {
   }
 
   #warnings(spec: DoorButton, request: DoorMenuRequest): string {
-    const trap = spec.action === 'examine' ? request.provedTrap : undefined;
-    const trapLine = trap ? `\n${this.#provedTrapLine(trap)}` : '';
     const diagonal = request.diagonal && !DIAGONAL_EXEMPT.has(spec.action);
-    return trapLine + (diagonal ? (this.text.string(NEW_STRINGS, NS_DIAGONALITY_WARNING) ?? '') : '');
-  }
-
-  #provedTrapLine(trap: ProvedDoorTrap): string {
-    const name = this.text.string(TRAP_NAME_TABLE, DOOR_TRAP_STRINGS[trap.trap] ?? 0) ?? '';
-    return printf(this.tacticalText(trap.trapped ? DOOR_LOCK_DESCRIPTION_STR : DOOR_LOCK_UNTRAPPED_STR), [name]);
+    return diagonal ? (this.text.string(NEW_STRINGS, NS_DIAGONALITY_WARNING) ?? '') : '';
   }
 
   close(action: DoorMenuAction | null): void {

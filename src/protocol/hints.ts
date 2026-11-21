@@ -17,5 +17,5 @@ export type { PreviewHeliRoute } from '../sim/hints/preview-heli-route.ts';
 export type { MoveDestination, PreviewMove } from '../sim/hints/preview-move.ts';
 export type { PreviewRoute } from '../sim/hints/preview-route.ts';
 export type { TileCover, TileSight } from '../sim/tactical/display-cover.ts';
-export type { DoorMenuAction, DoorMenuEvent, DoorMenuNotes, DoorMenuOption, ProvedDoorTrap } from '../sim/tactical/doors/events.ts';
+export type { DoorMenuAction, DoorMenuEvent, DoorMenuNotes, DoorMenuOption } from '../sim/tactical/doors/events.ts';
 export type { Footstep } from '../sim/tactical/plot-path.ts';

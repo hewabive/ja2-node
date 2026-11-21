@@ -565,7 +565,7 @@ export class TacticalControls {
     if (answer.state === 'ok') this.movementMenu.useOptions(shown, answer.data);
   }
 
-  #openDoorMenu({ soldier, gridNo, options, closing, diagonal, provedTrap }: DoorMenuEvent): void {
+  #openDoorMenu({ soldier, gridNo, options, closing, diagonal }: DoorMenuEvent): void {
     const s = this.#view()?.soldiers.find((v) => v.id === soldier);
     if (!s || s.team !== OUR_TEAM) return;
     this.#screen.cancelItemPointer();
@@ -578,7 +578,6 @@ export class TacticalControls {
       options,
       closing: closing === true,
       ...(diagonal ? { diagonal } : {}),
-      ...(provedTrap ? { provedTrap } : {}),
       box: this.#env().world.soldierBox(soldier),
       inCombat: inCombat(this.#view()),
       viewportBottom: this.#screen.viewportBottom(),

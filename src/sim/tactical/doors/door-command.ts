@@ -39,7 +39,7 @@ import {
   stoppedAtBusyDoor,
 } from './door-actions.ts';
 import { type DoorApproach, findAdjacentGridExAdvanced } from './door-approach.ts';
-import { findDoorInfo, PerceivedTrap } from './door-table.ts';
+import { findDoorInfo } from './door-table.ts';
 import { doTrapCheckOnStartingMenu } from './door-traps.ts';
 import type { PendingDoorAction } from './key-ring.ts';
 import { soldierHasKey } from './keys.ts';
@@ -49,7 +49,7 @@ export type DoorCommandOutcome =
   | { readonly ok: false; readonly refusal: string }
   | { readonly ok: true; readonly data: Readonly<Record<string, unknown>> };
 
-const ESCORT_FORBIDDEN: ReadonlySet<DoorActionName> = new Set(['unlock', 'pickLock', 'explode', 'examine', 'force']);
+const ESCORT_FORBIDDEN: ReadonlySet<DoorActionName> = new Set(['unlock', 'pickLock', 'explode', 'examine', 'force', 'untrap']);
 
 function refuse(refusal: string): DoorCommandOutcome {
   return { ok: false, refusal };
@@ -77,20 +77,11 @@ function itemRefusal(t: TacticalState, s: Soldier, action: DoorActionName): stri
   }
 }
 
-function knowledgeRefusal(t: TacticalState, gridNo: number, action: DoorActionName): string | null {
-  const perceived = findDoorInfo(t, gridNo)?.perceivedTrapped ?? PerceivedTrap.UNKNOWN;
-  if (action === 'examine' && (perceived === PerceivedTrap.PROVED_TRAPPED || perceived === PerceivedTrap.PROVED_UNTRAPPED))
-    return 'alreadyKnown';
-  if (action === 'untrap' && perceived === PerceivedTrap.PROVED_UNTRAPPED) return 'alreadyKnown';
-  return null;
-}
-
 export function doorActionRefusal(t: TacticalState, s: Soldier, gridNo: number, open: boolean, action: DoorActionName): string | null {
   return (
     doorStateRefusal(t, gridNo, open, action) ??
     (ESCORT_FORBIDDEN.has(action) && t.narrative.isEpc(s) ? 'escortCannot' : null) ??
-    itemRefusal(t, s, action) ??
-    knowledgeRefusal(t, gridNo, action)
+    itemRefusal(t, s, action)
   );
 }
 
@@ -102,7 +93,7 @@ function doorAt(t: TacticalState, gridNo: number): StructureInstance | null {
 function openOrClose(t: TacticalState, s: Soldier, gridNo: number, direction: number): Record<string, unknown> {
   const outcome = interactWithDoorAt(t, s, gridNo, direction);
   if (outcome === 'closeMenu') return { closed: false, options: closingDoorMenu(t, s) };
-  if (outcome === 'menu') return { opened: false, locked: true, options: doorMenu(t, s, gridNo) };
+  if (outcome === 'menu') return { opened: false, locked: true, options: doorMenu(t, s) };
   if (outcome === 'trapNoticed') return { opened: false, locked: true, trapNoticed: true };
   return { started: outcome };
 }

@@ -84,9 +84,8 @@ const LOCK_BY_NAME: Readonly<Record<string, number>> = {
 
 function perceivedTrap(trap: string): number {
   if (trap === 'unknown') return PerceivedTrap.UNKNOWN;
-  if (trap === 'noneFound') return PerceivedTrap.PERCEIVED_UNTRAPPED;
-  if (trap === 'none') return PerceivedTrap.PROVED_UNTRAPPED;
-  return PerceivedTrap.PROVED_TRAPPED;
+  if (trap === 'noneFound') return PerceivedTrap.UNTRAPPED;
+  return PerceivedTrap.TRAPPED;
 }
 
 function projectedDoor(door: MapDoor, view: DoorView | undefined, guard: GuardOptions): MapDoor {

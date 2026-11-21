@@ -112,7 +112,9 @@ everyone else just stops being neutral and keeps his side, where vanilla also se
 
 **Doors.** The `door` command returns the menu as data and, like the original's menu, cannot lock a door; the
 `HANDLE_DOOR_LOCK` branch of `handleOpenableStruct` stays, reached by the door oracle's probes alone. Our merc gets
-vanilla's menu before closing an open door (deviations "Door menu", "Closing an open door"). A trap check before a menu
+the closing menu before closing an open door, not a container (deviations "Door menu", "Closing a container"). What the
+squad knows of a trap is all or nothing: any door action that updates the door shows its trap, a silent alarm too, and
+examine and untrap stay in the menu once it is known (`Tactical/Keys.cc:772-791`). A trap check before a menu
 action charges the open-door APs where the original reads past its table (original-bugs "Trap check cost of menu
 actions"). An order to open or close a door, container or switch records the structure's ID when it starts
 (`TileEngine/Interactive_Tiles.cc:78`), and the opening codes 494 and 495 handle only the structure of that ID on its
@@ -167,7 +169,9 @@ otherwise:
 | Hostile rebels stay allied with the army: only Conrad and the General change side | `narrative/civ-hostility.test.ts` |
 | The death checks of a team change during a hit stay armed once the hit soldier has changed team: every later team change runs them for the old soldier until the next fall from a hit, so a standing recruit turned hostile kneels | `narrative/team-change.test.ts` |
 | An electric trap's breath loss is `3 + 1000 × PreRandom(3)`, drawn before the life roll | `doors/doors.test.ts` |
-| Escorts may use a crowbar and untrap: the untrap button's disable flag replaces the escort flag | `doors/doors.test.ts` |
+| Escorts may use a crowbar: its button alone has no escort check | `doors/doors.test.ts` "lets an escort use a crowbar …" |
+| The untrap check takes the trap level × 7 as a bonus, so a harder trap is easier to disarm (`Tactical/Keys.cc:442`, `:446`) | `doors/doors.test.ts` "takes the trap level × 7 as a bonus …" |
+| A silent alarm set off unnoticed shows as a trap: every action's update shows any trap the door has | `doors/doors.test.ts` "shows a silent alarm the merc set off unnoticed …" |
 | Our merc opens a door that has a lock entry for free; only a door without one costs the opening APs | `doors/doors.test.ts` |
 | A bash that misses by 10 to 39 never earns the token strength point: the failed check has just stored the merc's tile | `doors/doors.test.ts` |
 | An NPC told to open a door drops it on arrival during his own team's turn in combat: the interface is locked then | `narrative/npc-actions/open-thing.test.ts` |

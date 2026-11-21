@@ -2850,6 +2850,24 @@ function addStatChanges(snapshot: Readonly<Record<string, unknown>>): Record<str
   return { ...snapshot, graph: { ...graph, sections } };
 }
 
+const PERCEIVED_TRAPPED_KEY = 'perceivedTrapped';
+const PROVED_UNTRAPPED = 3;
+const PERCEIVED_UNTRAPPED = 2;
+
+function withoutProvedUntrappedDoors(value: Json): Json {
+  if (Array.isArray(value)) return value.map((v: Json) => withoutProvedUntrappedDoors(v));
+  if (!isObject(value)) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withoutProvedUntrappedDoors(v);
+  return mapped[PERCEIVED_TRAPPED_KEY] === PROVED_UNTRAPPED ? { ...mapped, [PERCEIVED_TRAPPED_KEY]: PERCEIVED_UNTRAPPED } : mapped;
+}
+
+function forgetProvedUntrappedDoors(snapshot: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  const graph = snapshot.graph as EncodedGraph;
+  const sections = graph.sections.map(([name, value]): Section => [name, withoutProvedUntrappedDoors(value)]);
+  return { ...snapshot, graph: { ...graph, sections } };
+}
+
 export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<Record<number, SnapshotMigration>> {
   return {
     1: unifyGameOptions,
@@ -2952,5 +2970,6 @@ export function snapshotMigrations(context: SnapshotMigrationContext): Readonly<
     98: addLoadScreen,
     99: restoreProfiledPatrolGrids,
     100: addStatChanges,
+    101: forgetProvedUntrappedDoors,
   };
 }

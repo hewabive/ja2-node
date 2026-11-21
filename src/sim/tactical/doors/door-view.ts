@@ -35,9 +35,8 @@ const LOCK_NAMES: Readonly<Record<number, PerceivedLockName>> = {
 };
 
 function trapName(perceived: number, trapId: number): string {
-  if (perceived === PerceivedTrap.PROVED_TRAPPED) return DOOR_TRAP_NAMES[trapId] ?? 'unknown';
-  if (perceived === PerceivedTrap.PROVED_UNTRAPPED) return 'none';
-  if (perceived === PerceivedTrap.PERCEIVED_UNTRAPPED) return 'noneFound';
+  if (perceived === PerceivedTrap.TRAPPED) return DOOR_TRAP_NAMES[trapId] ?? 'unknown';
+  if (perceived === PerceivedTrap.UNTRAPPED) return 'noneFound';
   return 'unknown';
 }
 

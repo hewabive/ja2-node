@@ -19,6 +19,7 @@ import { sectorInfo } from '../sim/strategic/map/sectors.ts';
 import { CompressMode } from '../sim/strategic/time/constants.ts';
 import { newSoldierCreate, tacticalCreateSoldier } from '../sim/tactical/creation.ts';
 import type { DoorStatusEntry } from '../sim/tactical/doors/door-status.ts';
+import { DoorTrap, PerceivedTrap, updateDoor } from '../sim/tactical/doors/door-table.ts';
 import { handleDoorChangeFromGridNo, isDoorOpenAt } from '../sim/tactical/doors.ts';
 import { newSmokeEffect } from '../sim/tactical/explosions/smoke.ts';
 import { createHelicopterDrop } from '../sim/tactical/helicopter-drop-state.ts';
@@ -4728,5 +4729,44 @@ describe("snapshot version 96 (Carmen's slay-only attitude was 6) migrates to th
     expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
     const restored = await restoreSession(JSON.parse(JSON.stringify({ ...current, sim: legacy })), kit.read, exists);
     expect(JSON.stringify(snapshotSession(restored))).toBe(JSON.stringify(current));
+  });
+});
+
+const VERSION_101_PROVED_UNTRAPPED = 3;
+
+function withVersion101ProvedUntrapped(value: Json): Json {
+  if (Array.isArray(value)) return value.map(withVersion101ProvedUntrapped);
+  if (typeof value !== 'object' || value === null) return value;
+  const mapped: Record<string, Json> = {};
+  for (const [key, v] of Object.entries(value)) mapped[key] = withVersion101ProvedUntrapped(v);
+  return mapped.perceivedTrapped === PerceivedTrap.UNTRAPPED ? { ...mapped, perceivedTrapped: VERSION_101_PROVED_UNTRAPPED } : mapped;
+}
+
+function versionHundredOne(snapshot: SimSnapshot): SimSnapshot {
+  const sections = snapshot.graph.sections.map(([name, value]): readonly [string, Json] => [name, withVersion101ProvedUntrapped(value)]);
+  return { ...snapshot, version: 101, graph: { ...snapshot.graph, sections } };
+}
+
+describe("snapshot version 101 (master's proved-untrapped doors) migrates to v0.22.1's perceived untrapped", () => {
+  let kit: StubSectorKit;
+
+  beforeAll(async () => {
+    kit = await loadStubSectorKit();
+  });
+
+  afterAll(async () => {
+    await kit.dispose();
+  });
+
+  it('a sandbox whose door a merc untrapped', async () => {
+    const sandbox = await createSandboxSession(kit.read, false, 5);
+    const t = sandbox.sim.state;
+    const [door] = t.world.mapDoors.values();
+    if (!door) throw new Error('no door in the sandbox');
+    updateDoor(t, door.gridNo, { trapId: DoorTrap.NONE, trapLevel: 0, perceivedTrapped: PerceivedTrap.UNTRAPPED });
+    const current = snapshotSession(sandbox);
+    const legacy = versionHundredOne(current.sim);
+    expect(JSON.stringify(legacy)).toContain(`"perceivedTrapped":${VERSION_101_PROVED_UNTRAPPED}`);
+    expect(snapshotJson(migrateSnapshot(JSON.parse(JSON.stringify(legacy))))).toBe(snapshotJson(current.sim));
   });
 });

@@ -2495,7 +2495,7 @@ export class TacticalInput {
       const door = this.#view()?.doors?.find((d) => d.gridNo === gridNo);
       if (door) {
         const state =
-          door.trap !== 'unknown' && door.trap !== 'none' && door.trap !== 'noneFound'
+          door.trap !== 'unknown' && door.trap !== 'noneFound'
             ? DOOR_TRAPPED_MOUSE_DESCRIPTION
             : door.locked === 'locked'
               ? DOOR_LOCKED_MOUSE_DESCRIPTION
