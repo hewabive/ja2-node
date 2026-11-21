@@ -303,7 +303,7 @@ describe('findBestPath for multi-tile bodies', () => {
   });
 });
 
-describe('findBestPath around known mines', () => {
+describe('findBestPath and the mine flags', () => {
   const mined = gridNo(81, 80);
   const beyond = gridNo(82, 80);
   const passes = (steps: readonly number[]) => steps.some((_, k) => walk(START, steps.slice(0, k + 1)) === mined);
@@ -314,37 +314,23 @@ describe('findBestPath around known mines', () => {
     return { ...env(), mineFlags };
   }
 
-  it('keeps our merc off a tile with the player mine flag on the way, yet lets him end his path on it', () => {
-    const e = minedEnv(MineFlag.PLAYER);
-    const around = findBestPath(e, soldier(START), beyond, 0);
-    expect(walk(START, around.steps)).toBe(beyond);
-    expect(passes(around.steps)).toBe(false);
-    expect(findBestPath(e, soldier(START), mined, 0).steps).toEqual([EAST]);
+  it('walks the friendly side over the player mine flag: the check for it is commented out (PathAI.cc:1016-1039)', () => {
+    const e = minedEnv(MineFlag.PLAYER | MineFlag.ENEMY);
+    expect(findBestPath(e, soldier(START), beyond, 0).steps).toEqual([EAST, EAST]);
+    expect(findBestPath(e, soldier(START, { team: Team.MILITIA }), beyond, 0).steps).toEqual([EAST, EAST]);
   });
 
-  it('keeps the rest of the friendly side off the tile even as their destination: only our team may step on its mine', () => {
-    const e = minedEnv(MineFlag.PLAYER);
-    const militia = soldier(START, { team: Team.MILITIA });
-    expect(passes(findBestPath(e, militia, beyond, 0).steps)).toBe(false);
-    expect(findBestPath(e, militia, mined, 0).length).toBe(0);
-  });
-
-  it('keeps the other sides off the enemy mine flag alone, the player flag means nothing to them', () => {
+  it('keeps the other sides off the enemy mine flag, even as their destination; the player flag means nothing to them (PathAI.cc:1010-1014)', () => {
     const enemy = soldier(START, { team: Team.ENEMY, side: Side.ENEMY });
     expect(passes(findBestPath(minedEnv(MineFlag.ENEMY), enemy, beyond, 0).steps)).toBe(false);
     expect(findBestPath(minedEnv(MineFlag.ENEMY), enemy, mined, 0).length).toBe(0);
     expect(findBestPath(minedEnv(MineFlag.PLAYER), enemy, beyond, 0).steps).toEqual([EAST, EAST]);
   });
 
-  it('walks our merc over a tile only the enemy knows to hold a mine', () => {
-    expect(findBestPath(minedEnv(MineFlag.ENEMY), soldier(START), beyond, 0).steps).toEqual([EAST, EAST]);
-  });
-
-  it('floods a dummy soldier around the player mine flag: a value-initialised soldier is on the friendly side', () => {
-    const e = minedEnv(MineFlag.PLAYER);
+  it('floods a dummy soldier over the enemy mine flag: a value-initialised soldier is on the friendly side', () => {
+    const e = minedEnv(MineFlag.ENEMY);
     const dummy = soldier(START, { team: Team.ENEMY });
     const flood = findBestPath(e, dummy, NOWHERE, 0, { copy: PathCopy.REACHABLE, flags: PathFlags.THROUGH_PEOPLE, distLimit: 3 });
-    expect(flood.reachable?.[beyond]).toBe(1);
-    expect(flood.reachable?.[mined]).toBe(0);
+    expect(flood.reachable?.[mined]).toBe(1);
   });
 });

@@ -73,9 +73,10 @@ which auto-bandage's patient search raises on `PathEnv.globalFlags` around its l
 which the walk-in of a cave lowers on `PathEnv.pathThroughObstacles`. A heap pops in the original's skip-list order
 without its draws (deviation "Pathfinder RNG"). The pool of 1022 open nodes and the trail limit are kept, so long
 searches fail where the original's do, and a flood that runs out keeps the tiles it reached; reachability floods pass the
-larger limit the original configures for them. Paths hold 30 steps, and a long walk plans again every 30 tiles. A step onto a tile
-its side knows to hold a mine is skipped: the friendly side keeps off the player's mine flag, which our team may end its
-path on, the others off the enemy's (`12` §6). Players path with the perceived door state and never through a closed
+larger limit the original configures for them. Paths hold 30 steps, and a long walk plans again every 30 tiles. A
+soldier off the friendly side never steps onto a tile marked with the enemy's mine flag, nor ends his path there; the
+friendly side's check is commented out, so our team and the militia path over the player's mine flags, and only a blue
+flag's structure keeps them off its tile (`12` §6). Players path with the perceived door state and never through a closed
 door; others go through a closed door that is unlocked, has no record in the map's door table or opens with their keys.
 A door changed out of the squad's sight keeps its perceived state until a merc sees it, and after a load the structure
 others path through may follow that state until then (`35`). The oracle's `path` probe compares length, directions and
@@ -178,8 +179,8 @@ Each looks like a bug and is the original's behaviour. Pinned by tests in `src/c
 | A merc who waited on a squad mate keeps the mate's speed after he arrives, so he breathes at the mate's pace until a stop on his final tile clears it | `movement.test.ts` "keeps the mate's speed once he arrives …" |
 | A stop while a merc kneels up into a walk (`KNEEL_UP`, an `ANIM_STATIONARY` animation) only moves his final destination to his tile: he takes his step all the same and, his path run out short of that tile, walks back to it (`StopSoldier`, `Tactical/Soldier_Control.cc:3590-3603`; `Overhead.cc:988-1023`) | `stop-soldier.test.ts` "only moves the final destination of a merc kneeling up …" |
 | A soldier who goes under mid-step takes that step again from the tile he entered (his swim starts as a new move), so on a diagonal he swims a tile off his path and plans again; coming up does the same | `swimming.test.ts` "takes the step he went under on again …" |
-| Our merc may end a path on a tile marked for the player as holding a mine, though no path of his passes one; a militia soldier may not even end there | `pathfinding.test.ts` "keeps our merc off a tile with the player mine flag …", "keeps the rest of the friendly side off the tile …" |
-| The dummy soldier of a reachability flood is on the friendly side whatever its team, so the floods for sweet spots, edgepoints and items keep off the player's marked mines, never the enemy's | `pathfinding.test.ts` "floods a dummy soldier around the player mine flag …" |
+| The friendly side paths over the player's mine flags: `FindBestPath`'s check for them is commented out, only the AI's check of the enemy flag runs (`Tactical/PathAI.cc:1010-1039`) | `pathfinding.test.ts` "walks the friendly side over the player mine flag …" |
+| The dummy soldier of a reachability flood is on the friendly side whatever its team, so the floods for sweet spots, edgepoints and items cross the enemy's marked mines | `pathfinding.test.ts` "floods a dummy soldier over the enemy mine flag …" |
 | A fence hop locks the pending action counter, and only the walk on past its landing unlocks it: a merc whose walk ends on the landing stays locked, so the animation changes of his next walk-up neither count nor drop its melee | `combat/melee.test.ts` "keeps the pending action counter locked after a hop whose landing ends the walk …" |
 | A passenger has no tile to stay on, so `setSoldierGridNo` never short-cuts for him: each placement of his vehicle, on its own tile too, tests his gas again; he leaves no smell and counts no step | `vehicle-passengers.test.ts` "tests his tile's gas again …", "leaves no smell …", "takes no step …" |
 

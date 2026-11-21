@@ -2,7 +2,7 @@
 // Modified for ja2-node: reimplemented in TypeScript, 2026-10-15. See LICENSE (SFI-SCLA).
 // @src src/game/Tactical/PathAI.cc FindBestPath, IsDoorObstacleIfClosed, GetDoorState; Overhead.cc NewOKDestination,
 // @src NewOKDestinationAndDirection, IsDestinationBlocked; TileEngine/WorldMan.cc WhoIsThere2, Water.
-// @src 2026-11-04: FindBestPath's mine checks (MAPELEMENT_ENEMY_MINE_PRESENT, MAPELEMENT_PLAYER_MINE_PRESENT).
+// @src 2026-11-04: FindBestPath's AI check for mines (MAPELEMENT_ENEMY_MINE_PRESENT).
 // @src 2026-11-06: FindBestPath's gubGlobalPathFlags.
 // @src 2026-11-18: FindBestPath's gfPathAroundObstacles and gfPlotDirectPath.
 
@@ -408,11 +408,8 @@ export function aiPathCostIndex(dx: number, dy: number): number {
   return (AI_PATHCOST_RADIUS + dx) * AI_PATHCOST_SIZE + AI_PATHCOST_RADIUS + dy;
 }
 
-function knownMineBlocks(env: PathEnv, s: PathSoldier, loc: number, destination: number): boolean {
-  const flags = env.mineFlags?.[loc] ?? 0;
-  if (s.side !== Side.FRIENDLY) return (flags & MineFlag.ENEMY) !== 0;
-  if (s.team === Team.OUR && loc === destination) return false;
-  return (flags & MineFlag.PLAYER) !== 0;
+function aiKnowsMineAt(env: PathEnv, s: PathSoldier, loc: number): boolean {
+  return s.side !== Side.FRIENDLY && ((env.mineFlags?.[loc] ?? 0) & MineFlag.ENEMY) !== 0;
 }
 
 export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, level: number, options: PathOptions = {}): PathResult {
@@ -537,7 +534,7 @@ export function findBestPath(env: PathEnv, s: PathSoldier, destination: number, 
     if (visitOnce && used[newLoc] === 1) return EXPANDED;
     if (world.heights[newLoc] !== world.heights[curLoc]) return EXPANDED;
     if (distLimit && (options.circular ? pythSpacesAway(org, newLoc) : spacesAway(org, newLoc)) > distLimit) return EXPANDED;
-    if (knownMineBlocks(env, s, newLoc, dest)) return EXPANDED;
+    if (aiKnowsMineAt(env, s, newLoc)) return EXPANDED;
 
     let nextCost = env.pathThroughObstacles ? TravelCost.FLAT : admissionCost(newLoc, dir);
     if (nextCost >= TravelCost.BLOCKED) return EXPANDED;

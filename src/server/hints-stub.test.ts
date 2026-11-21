@@ -18,7 +18,7 @@ import { sessionAdapter, stubSessionSources } from '../../tests/support/session-
 import { ViewMirror } from '../../tests/support/view-mirror.ts';
 import { DIRECTION_INCREMENT } from '../content/world/grid.ts';
 import { Npc } from '../sim/strategic/narrative/npc-ids.ts';
-import { MineFlag, setMineFlag } from '../sim/tactical/bombs/mine-flags.ts';
+import { addBlueFlag } from '../sim/tactical/bombs/mine-flags.ts';
 import { NpcActionCode } from '../sim/tactical/narrative/npc-actions/codes.ts';
 import { findBestPath } from '../sim/tactical/pathfinding.ts';
 import { Team } from '../sim/tactical/soldier.ts';
@@ -53,7 +53,7 @@ describe('cursor hints on the stub sandbox, client against server', () => {
     expect(report.answered).toBeGreaterThan(50);
   });
 
-  it('agree on a move preview past a known mine, which the hint walks around as the order does (knownMines)', async () => {
+  it('agree on a move preview past a blue flag, whose structure the hint walks around as the order does (knownMines, tileChanges)', async () => {
     const session = await sandbox(1);
     const t = tacticalOf(session).state;
     const merc = teamMembers(t, Team.OUR)[0];
@@ -63,7 +63,7 @@ describe('cursor hints on the stub sandbox, client against server', () => {
     const tilesOf = (steps: readonly number[]) =>
       steps.map((_, k) => steps.slice(0, k + 1).reduce((g, d) => g + (DIRECTION_INCREMENT[d] ?? 0), merc.gridNo));
     expect(tilesOf(findBestPath(t.pathEnv, merc, to, merc.level).steps)).toContain(mined);
-    setMineFlag(t, mined, MineFlag.PLAYER);
+    addBlueFlag(t, mined, merc.level);
     const view = serialisedView(session);
     expect(view.knownMines).toEqual([mined]);
     const query = { type: 'previewMove', soldier: merc.id, to } as const;

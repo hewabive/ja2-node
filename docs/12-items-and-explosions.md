@@ -312,7 +312,8 @@ trigger's frequency box at the frame of `USE_REMOTE` (code 484); the bomb cursor
   tile.
 - The view's `knownMines` lists the tiles with the player flag, which the original's path cursor reveals anyway; the
   enemy flag, trap levels, timers and owners never reach the view (D16, `29` §7). The knowledge projection rebuilds the
-  player flags from it, so a hint paths around a mine as the order does.
+  player flags from it; paths ignore them, and a blue flag's structure, which the view's tile changes carry, blocks its
+  tile for the hint as for the order (`07`).
 - The bomb queue (`TacticalState.explosionQueue`) holds bomb slot indices with their due times on the tactical clock
   (`clockMs`), at most 40, as the original's array: a set-off spaces the explosive bombs it queues
   `1000 + Random(500)` ms apart in slot order and queues action items with no gap and no draw. The count shrinks only
