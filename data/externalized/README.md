@@ -23,5 +23,8 @@ These files are still master `ae6bf01`'s, because ja2-node follows master there 
 | `strategic-map-towns.json` | #116 (`militiaMapBaseSector`, vanilla's militia map corners) |
 | `strings/tooltips-eng.json` (not in v0.22.1) | #114 (master's informative tooltips) |
 
+`armours.json` is v0.22.1's, but the loader reads the Kevlar vest with Compound 18 at vanilla's wear of 15, not its
+25 (original-bugs "Compound 18 Kevlar vest wear", `src/content/items/items.ts`).
+
 Master's `STR_LOSES_1_HP` line, which ja2-node keeps (deviation "Max life lost while dying", #114), is not in v0.22.1's
 translations: `../strings/kept-master-lines.json` holds it in every language.

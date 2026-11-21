@@ -63,6 +63,12 @@ describe('item table', async () => {
     expect(get('MINE').explosive?.pressureTriggered).toBe(true);
   });
 
+  it('wears the Kevlar vest with Compound 18 at vanilla\'s 15 %, not the 25 of armours.json (original-bugs "Compound 18 Kevlar vest wear")', () => {
+    expect(get('KEVLAR_VEST_18').armour).toMatchObject({ protection: 19, degradePercentage: 15 });
+    expect(get('KEVLAR_VEST').armour?.degradePercentage).toBe(20);
+    expect(get('KEVLAR_VEST_Y').armour?.degradePercentage).toBe(10);
+  });
+
   it('chooses the hand animation class from item class and handedness', () => {
     expect(handClass(table, itemIndex(table, 'GLOCK_17'))).toBe('pistol');
     expect(handClass(table, itemIndex(table, 'FNFAL'))).toBe('rifle');

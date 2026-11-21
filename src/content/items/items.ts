@@ -392,6 +392,8 @@ function magazineItem(o: Json, calibres: ReadonlyMap<string, number>, ammoTypes:
   return { ...baseItem(o, ItemClass.AMMO, ItemCursor.INVALID), ...EMPTY_KINDS, magazine };
 }
 
+const VANILLA_DEGRADE_PERCENTAGES: Readonly<Record<string, number>> = { KEVLAR_VEST_18: 15 };
+
 function armourItem(o: Json): ItemDef {
   const armourClass = ArmourClass[(str(o, 'armourClass') === 'CREATURE' ? 'MONST' : str(o, 'armourClass')) as keyof typeof ArmourClass];
   if (armourClass === undefined) throw new Error(`bad armour ${str(o, 'internalName')}`);
@@ -400,7 +402,7 @@ function armourItem(o: Json): ItemDef {
     armourClass,
     protection,
     explosivesProtection: num(o, 'explosivesProtection', protection),
-    degradePercentage: num(o, 'degradePercentage'),
+    degradePercentage: VANILLA_DEGRADE_PERCENTAGES[str(o, 'internalName')] ?? num(o, 'degradePercentage'),
     ignoreForMaxProtection: bool(o, 'ignoreForMaxProtection'),
   };
   return { ...baseItem(o, ItemClass.ARMOUR, ItemCursor.INVALID), ...EMPTY_KINDS, armour };
