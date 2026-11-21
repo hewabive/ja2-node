@@ -34,7 +34,8 @@
 // @src a box up in the frame, auto-bandage's failure box at its end included, is the pause the frame's UpdateClock meets
 // @src (2026-11-14); Turn_Based_Input.cc ESC and Interface_Items.cc ItemDescCallbackPrimary (the item description box
 // @src closed, not under the interface lock), ItemDescAttachmentsCallbackPrimary (a click in the box selects nobody,
-// @src 2026-11-15).
+// @src 2026-11-15); Interface_Panels.cc SMInvClickCamoCallback (an item applied on the portrait of a merc lying
+// @src collapsed, whom no cursor of the map gives an order, 2026-11-21).
 
 import { AnimFlags } from '../../content/anim/tables.ts';
 import { type PresentationTimeline, spriteFrameAt, timelineLoops } from '../../content/anim/timelines.ts';
@@ -413,6 +414,10 @@ const ATTACK_REFUSAL_TOKENS: Readonly<Record<number, string>> = {
   [ItemHandle.REFUSAL]: 'refusesOrder',
 };
 
+function outOfBreath(s: Soldier): boolean {
+  return s.breath < OKBREATH && (s.collapsed || s.breathCollapsed);
+}
+
 function noAmmoRefusal(t: TacticalState, s: Soldier): CommandResult {
   return refuse(
     ATTACK_REFUSAL_TOKENS[ItemHandle.NOAMMO] ?? 'noAmmo',
@@ -774,14 +779,14 @@ export class TacticalSim {
     return this.state.prompt !== null || (this.interruptOpen() && this.isIdle());
   }
 
-  actRefusal(s: Soldier): Refusal | null {
+  actRefusal(s: Soldier, onPortrait = false): Refusal | null {
     const t = this.state;
     if (t.pathEnv.autoBandage) return AUTO_BANDAGING;
     if (!s.placed || s.team !== Team.OUR) return { token: 'noSuchSoldier', reason: 'no such soldier of yours' };
     const crew = crewRefusal(t, s);
     if (crew) return crew;
     if (s.life < OKLIFE) return { token: 'cannotAct', reason: 'soldier cannot act' };
-    if (s.breath < OKBREATH && (s.collapsed || s.breathCollapsed)) return { token: 'outOfBreath', reason: 'soldier is out of breath' };
+    if (outOfBreath(s) && !(onPortrait && s.collapsed)) return { token: 'outOfBreath', reason: 'soldier is out of breath' };
     if (uncontrolledRobot(t, s)) return { token: 'uncontrolledRobot', reason: UNCONTROLLED_ROBOT };
     if (!t.inCombat) return null;
     const locked = this.#combatLock();
@@ -1119,7 +1124,7 @@ export class TacticalSim {
   #inventory(cmd: TacticalCommand): CommandResult {
     const s = this.soldier(cmd.soldier);
     if (!s) return refuse('noSuchSoldier', 'no such soldier of yours');
-    const refusal = this.actRefusal(s);
+    const refusal = this.actRefusal(s, cmd.type === 'applyItem');
     if (refusal) return refused(refusal);
     if (cmd.type === 'moveItem' && cmd.to === 'ground') return this.#drop({ ...cmd, type: 'drop', slot: cmd.from });
     if (!clickInsideItemDescription(this.state, s, cmd)) selectOrderedMerc(this.state, s);

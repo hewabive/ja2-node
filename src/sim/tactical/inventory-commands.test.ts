@@ -12,7 +12,7 @@ import { createKeyObject } from './doors/keys.ts';
 import { AP_RELOAD_GUN, apsToReloadGunWithAmmo, InvSlot, itemIn } from './inventory.ts';
 import { attachmentsChanged } from './item-description-box.ts';
 import { AP } from './points.ts';
-import { OKBREATH, type Soldier, Team } from './soldier.ts';
+import { type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 
 let content: TacticalContent;
@@ -655,15 +655,26 @@ describe('items applied to a merc and dropped', () => {
   });
 
   it('lets a merc lying collapsed from breath alone drink whatever his APs, not one a sleep dart put down (original-bugs "Drink while collapsed")', () => {
+    const OUT_OF_BREATH = 0;
     const sim = newCombatSim(content);
     const merc = spawnSoldier(sim, 0, Team.OUR, gridNo(80, 80), Direction.SOUTH);
     merc.inv[InvSlot.BIGPOCK1] = createItem(content.items, item('CANTEEN'), 100);
+    merc.inv[InvSlot.BIGPOCK2] = createItem(content.items, item('CAMOUFLAGEKIT'), 100);
     inCombat(sim);
-    merc.breath = OKBREATH;
+    merc.breath = OUT_OF_BREATH;
     merc.collapsed = true;
     merc.actionPoints = 0;
+    expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket2' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'notEnoughAP' },
+    });
+    expect(sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket1', to: 'hand' })).toMatchObject({
+      ok: false,
+      data: { refusal: 'outOfBreath' },
+    });
     expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket1' })).toMatchObject({ ok: true, data: { item: 'CANTEEN' } });
-    expect(merc.breath).toBeGreaterThan(OKBREATH);
+    expect(merc.breath).toBeGreaterThan(OUT_OF_BREATH);
+    merc.breath = OUT_OF_BREATH;
     merc.sleepDrugCounter = 1;
     expect(sim.dispatch({ type: 'applyItem', soldier: 0, slot: 'bigPocket1' })).toMatchObject({
       ok: false,

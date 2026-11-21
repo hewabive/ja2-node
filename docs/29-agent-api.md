@@ -890,7 +890,9 @@ the `compatibleItems` hint with `rule: attachment` (`Interface_Items.cc:1948-196
 cursor and never see the hint; the command is there for the page.
 
 `applyItem` is the cursor dropped on the single merc panel's portrait (`SMInvClickCamoCallback`): one object of the
-stack, `index` for the one the stack popup picks, `count: 'all'` for the SHIFT stack (`BeginItemPointer`). Drugs and
+stack, `index` for the one the stack popup picks, `count: 'all'` for the SHIFT stack (`BeginItemPointer`). The portrait
+checks only consciousness, so it takes the order of a merc lying collapsed out of breath, whom `outOfBreath` refuses
+every other order; the item's own AP check then refuses what costs APs (original-bugs "Drink while collapsed"). Drugs and
 drinks cost no AP (`src/sim/tactical/drugs.ts`, `12` §5); syringes are no drug (`cannotApply`). As with `combineStack`,
 `data.left` counts the objects still in the cursor, which the original keeps for the next click, and one object left
 goes back on top of its stack, at `data.index`. `itemApplied` names the canteen's drinking sound by the drinker's
