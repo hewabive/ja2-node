@@ -19,6 +19,7 @@ import { InvSlot } from '../../../tactical/inventory.ts';
 import { Body } from '../../../tactical/soldier.ts';
 import { EncounterCode } from '../constants.ts';
 import { attackTarget, calcHitAccuracy, chooseTarget, fireAShot } from './attack.ts';
+import { targetHit } from './landing.ts';
 import { type ArCell, CellFlag, combatContext } from './state.ts';
 
 let content: TacticalContent;
@@ -153,6 +154,17 @@ describe('attackTarget', () => {
     expect(target.hitDamage[2]).toBeGreaterThan(7);
   });
 
+  it('lands the damage left in a slot by its earlier bullet when a later bullet reserving the slot misses (quirk Q35)', () => {
+    const { ar, attacker, target } = duel();
+    target.hitDamage[0] = 7;
+    const lifeBefore = target.soldier.life;
+    attackTarget(arEnv(content, { pre: scripted([0, 499, 100]) }), ar, attacker, target);
+    expect(target.nextHit[0]).toBe(150);
+    expect(target.hitDamage[0]).toBe(7);
+    targetHit(arEnv(content, { main: scripted([], 0) }), ar, target, 0);
+    expect(target.soldier.life).toBe(lifeBefore - 7);
+  });
+
   it('misses a conscious target without pre(5) and hits an unconscious one 4 times in 5', () => {
     const miss = duel();
     const preMiss = scripted([0, 499, 0], 0);
@@ -249,7 +261,7 @@ describe('attackTarget', () => {
 });
 
 describe('calcHitAccuracy', () => {
-  it('adds pre(rolled − rated defence) only when the roll exceeds the rating, and clamps at 0', () => {
+  it('adds pre(rolled − rated defence), drawing nothing when the roll equals the rating', () => {
     const { target } = duel();
     target.defence = 600;
     const none = scripted([]);
@@ -258,7 +270,22 @@ describe('calcHitAccuracy', () => {
     const some = scripted([49]);
     expect(calcHitAccuracy(arEnv(content, { pre: some }), 700, 650, target)).toBe(9);
     expect(some.requested).toEqual([50]);
-    expect(calcHitAccuracy(arEnv(content, { pre: scripted([0]) }), 300, 700, target)).toBe(0);
+  });
+
+  it('wraps a negative margin through UINT32 and UINT8, so a forced hit on an unconscious target lands with a high accuracy (quirk Q36)', () => {
+    const { target } = duel();
+    target.defence = 600;
+    const marginOf = (m: number) => (Math.trunc((2 ** 32 + m) / 10) & 0xff) >>> 0;
+    expect(calcHitAccuracy(arEnv(content, { pre: scripted([0]) }), 300, 700, target)).toBe(marginOf(-400));
+    expect(marginOf(-400)).toBe(113);
+  });
+
+  it('draws over the wrapped range when the rolled defence falls below a rating above 950 (quirk Q36)', () => {
+    const { target } = duel();
+    target.defence = 980;
+    const pre = scripted([5]);
+    expect(calcHitAccuracy(arEnv(content, { pre }), 990, 960, target)).toBe(3);
+    expect(pre.requested).toEqual([2 ** 32 - 20]);
   });
 });
 

@@ -146,6 +146,9 @@ Each looks like a bug and is the original's behaviour. Ids stay stable; `tools/o
 | Q31 | Bandaging clears the bleeding warning only while healing a patient out of dying, before the rest of his bleeding is stopped | `autoresolve/close.test.ts` |
 | Q32 | A placement click with no edge point of the merc's side near writes NOWHERE into his insertion data even while his piece stands placed, so Done enters him from it (`TileEngine/Tactical_Placement_GUI.cc:798-808`) | `src/sim/campaign/tactical-placement.test.ts` "writes NOWHERE into the insertion data …" |
 | Q34 | A sleeping merc drawn for the enemy-presence line is woken for it and put back to sleep as the panel opens, right after the panel woke everyone involved: his back-to-sleep event follows the line in the queue (`Strategic_Movement.cc:592-599`, `PreBattle_Interface.cc:303`, `Dialogue_Control.cc:414-419`) | `src/sim/campaign/enemy-presence-line.test.ts` "puts a sleeping speaker back to sleep …" |
+| Q35 | A bullet whose slot is reserved but that misses lands with the damage the slot's earlier bullet left there (`Strategic/Auto_Resolve.cc:2894-2897`, `:3093`) | `autoresolve/attack.test.ts` "lands the damage left in a slot …" |
+| Q36 | The hit accuracy wraps a negative margin through `UINT32` and `UINT8`, so a forced hit on an unconscious target lands with a high accuracy, and a rolled defence below a rating above 950 draws `PreRandom` over the wrapped range (`Strategic/Auto_Resolve.cc:2940`, `:2963`) | `autoresolve/attack.test.ts` "wraps a negative margin …", "draws over the wrapped range …" |
+| Q37 | The enemy cells take the bonus of the player's leader, not their own leader's (`Strategic/Auto_Resolve.cc:2598`) | `autoresolve/ratings.test.ts` "rates the enemy cells with the player's leader's bonus …" |
 
 Not pinned yet:
 - Q10: `bulletImpact` reads the ammo type from the attacking hand, not the slot that fired, and the throwing-knife test

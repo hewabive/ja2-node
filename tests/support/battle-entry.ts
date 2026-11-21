@@ -33,7 +33,7 @@ export type BattleVariant = (typeof BattleVariant)[keyof typeof BattleVariant];
 export const BATTLE_FORCES: Readonly<Record<BattleVariant, EnemyForce>> = {
   victory: { admins: 0, troops: 6, elites: 0 },
   defeat: { admins: 0, troops: 0, elites: 10 },
-  retreat: { admins: 0, troops: 12, elites: 0 },
+  retreat: { admins: 6, troops: 2, elites: 1 },
 };
 
 const WEAK_LIFE = 15;

@@ -257,7 +257,7 @@ glyphs blockfont 14,38 n=7 fg=130
 glyphs blockfont 109,38 n=5 fg=130
 glyphs blockfont 191,38 n=7 fg=130
 glyphs font10arial 70,17 n=24 fg=145
-glyphs font14arial 63,36 n=2 fg=145
+glyphs font14arial 66,36 n=1 fg=145
 glyphs font14arial 151,36 n=1 fg=145
 glyphs font14arial 236,36 n=1 fg=145
 glyphs blockfont2 23,114 n=7 fg=145

@@ -64,6 +64,27 @@ describe('calculateAttackValues', () => {
     expect(ar.playerDefence).toBe(438 + (ar.militia[0]?.defence ?? 0));
   });
 
+  it("rates the enemy cells with the player's leader's bonus, not their own leader's (quirk Q37)", () => {
+    const enemy = enemySoldier(content, { ...strong, leadership: 100 });
+    const ar = arState({
+      encounter: EncounterCode.ENEMY_ENCOUNTER,
+      mercs: [{ soldier: arSoldier(content, { ...strong, leadership: 0 }) }],
+      enemies: [{ soldier: enemy }],
+    });
+    determineTeamLeaders(ar);
+    expect([ar.playerLeadership, ar.enemyLeadership]).toEqual([0, 100]);
+    calculateAttackValues(scripted([], 0), ar);
+    const unbonused = arState({
+      encounter: EncounterCode.ENEMY_ENCOUNTER,
+      mercs: [{ soldier: arSoldier(content, { ...strong, leadership: 0 }) }],
+      enemies: [{ soldier: enemySoldier(content, { ...strong, leadership: 0 }) }],
+    });
+    determineTeamLeaders(unbonused);
+    calculateAttackValues(scripted([], 0), unbonused);
+    expect(ar.enemies[0]?.attack).toBe(unbonused.enemies[0]?.attack);
+    expect(ar.enemies[0]?.defence).toBe(unbonused.enemies[0]?.defence);
+  });
+
   it('gives EPCs attack 0 and defence 1000, so they draw fire (quirk Q18)', () => {
     const ar = arState({
       encounter: EncounterCode.ENEMY_ENCOUNTER,

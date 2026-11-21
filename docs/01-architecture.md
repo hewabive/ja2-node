@@ -337,7 +337,7 @@ ja2-node follows are in this table, its minor rows only there.
 | Carried weight | Strength halved with integer division | Minor fix (`Items.cc:845`) |
 | PD placement pass | `AddSoldierInitListEnemyDefenceSoldiers` examines every priority-and-detailed node (`V:Tactical/SoldierInitList.c:787-806`) | Every second one: the body advances `curr` as well as `FOR_EACH` (`Tactical/Soldier_Init_List.cc:718-749`; confirmed by the oracle `defence` probes on A9, `17`) |
 | Enemy elites | Capped by difficulty like the others | Clamped to 6..10 (`enemy_elite_*`) and exempt from the cap: stronger elites (`Soldier_Create.cc:1125, 2146`) |
-| Autoresolve | Stale damage; its replay helper restored the `PreRandom` index | Stale-damage fix (**master**, #110; `M:Auto_Resolve.cc:2918`); the index is saved but never restored |
+| Autoresolve | Its replay helper restored the `PreRandom` index | The index is saved but never restored |
 | Militia promotion | No fallback | Falls back to the next rank (`Town_Militia.cc:253, 289`) |
 | Sleep need | An integer bug always adds 4 | Fixed (`Assignments.cc:1928, 5527, 6753`) |
 | Flo's discount | Not on blades and launchers | Also on blades and launchers (`ShopKeeper_Interface.cc:2439, 2591`) |

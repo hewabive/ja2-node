@@ -4,7 +4,7 @@
 // @src CalcHitAccuracy, AttackTarget.
 
 import { ItemClass, NOTHING, WEAPON_CLASSES } from '../../../../content/items/items.ts';
-import { i8, idiv, u8, u16 } from '../../../../core/int.ts';
+import { i8, idiv, u8, u16, u32, udiv } from '../../../../core/int.ts';
 import { AUTORESOLVE_IMPACT, type CombatContext } from '../../../tactical/combat/context.ts';
 import { StatCause, statChange } from '../../../tactical/combat/experience.ts';
 import { bulletImpact } from '../../../tactical/combat/impact.ts';
@@ -165,8 +165,8 @@ export function targetHasLoadedGun(env: AutoresolveEnv, s: Soldier): boolean {
 }
 
 export function calcHitAccuracy(env: AutoresolveEnv, attack: number, defence: number, target: ArCell): number {
-  const margin = attack - defence + env.rng.pre.int(Math.max(defence - target.defence, 0));
-  return u8(idiv(Math.max(margin, 0), ACCURACY_DIVISOR));
+  const margin = u32(attack - defence + env.rng.pre.int(u32(defence - target.defence)));
+  return u8(udiv(margin, ACCURACY_DIVISOR));
 }
 
 function roll(env: AutoresolveEnv, rating: number): number {
@@ -178,7 +178,6 @@ function reserveBulletSlot(env: AutoresolveEnv, attacker: ArCell, target: ArCell
   if (slot === NO_BULLET_SLOT) return NO_BULLET_SLOT;
   target.nextHit[slot] = u16(BULLET_DELAY_MIN_MS + env.rng.pre.int(BULLET_DELAY_SPAN_MS));
   target.attackers[slot] = refOf(attacker);
-  target.hitDamage[slot] = 0;
   return slot;
 }
 

@@ -107,7 +107,7 @@ export function calculateAttackValues(pre: RandomStream, ar: AutoresolveState): 
   ar.enemyAttack = 0;
   ar.enemyDefence = 0;
   ar.enemies.forEach((c, i) => {
-    applyBonus(c, otherAttack(c.soldier), ar.enemyLeadership, ar.enemyDefenceAdvantage);
+    applyBonus(c, otherAttack(c.soldier), ar.playerLeadership, ar.enemyDefenceAdvantage);
     capRatings(c);
     ar.enemyAttack = u16(ar.enemyAttack + c.attack);
     ar.enemyDefence = u16(ar.enemyDefence + c.defence);
