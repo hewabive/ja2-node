@@ -2,9 +2,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { newCombatSim, spawnSoldier } from '../../../tests/support/combat.ts';
 import { loadTestContent } from '../../../tests/support/tactical.ts';
 import { Direction, gridNo } from '../../content/world/grid.ts';
-import { createItem } from '../items/object.ts';
+import { createItem, emptyObject } from '../items/object.ts';
 import type { TacticalContent } from './content.ts';
 import { InvSlot } from './inventory.ts';
+import { lightSetBaseLevel } from './lighting/lighting.ts';
+import { Opp } from './perception/opp.ts';
+import { distanceVisible } from './perception/sight.ts';
 import { type Soldier, Team } from './soldier.ts';
 import type { TacticalSim } from './tactical-sim.ts';
 
@@ -100,5 +103,38 @@ describe('the squad head gear of CTRL+N (SwitchHeadGear, Soldier::switchHeadGear
       ok: false,
       data: { refusal: 'uiLocked' },
     });
+  });
+});
+
+describe('sight after a change of face gear (v0.22.1: the next look, not the change, sees with it)', () => {
+  const NIGHT = 12;
+  const ENEMY_DISTANCE = 12;
+  const ENEMY_AT = ORIGIN + ENEMY_DISTANCE;
+
+  function nightWatch() {
+    const { sim, merc } = squad();
+    const t = sim.state;
+    lightSetBaseLevel(t, NIGHT);
+    const enemy = spawnSoldier(sim, 20, Team.ENEMY, ENEMY_AT, Direction.WEST);
+    const range = () => distanceVisible(t, merc, Direction.EAST, Direction.EAST, ENEMY_AT, 0);
+    const bare = range();
+    give(merc, InvSlot.HEAD1, 'NIGHTGOGGLES');
+    const goggled = range();
+    merc.inv[InvSlot.HEAD1] = emptyObject();
+    give(merc, InvSlot.BIGPOCK2, 'NIGHTGOGGLES');
+    expect(bare).toBeLessThan(ENEMY_DISTANCE);
+    expect(goggled).toBeGreaterThanOrEqual(ENEMY_DISTANCE);
+    return { sim, merc, enemy };
+  }
+
+  it('looks with night goggles put on a head slot or swapped on by CTRL+N only at the next look (Items.cc PlaceObject, Soldier.cc switchHeadGear)', () => {
+    const placed = nightWatch();
+    expect(placed.sim.dispatch({ type: 'moveItem', soldier: 0, from: 'bigPocket2', to: 'head1' })).toMatchObject({ ok: true });
+    expect(placed.merc.oppList[placed.enemy.id]).not.toBe(Opp.SEEN_CURRENTLY);
+    placed.sim.lookAround();
+    expect(placed.merc.oppList[placed.enemy.id]).toBe(Opp.SEEN_CURRENTLY);
+    const swapped = nightWatch();
+    expect(swapped.sim.dispatch({ type: 'switchHeadGear', soldiers: [0], gear: 'night' }).ok).toBe(true);
+    expect(swapped.merc.oppList[swapped.enemy.id]).not.toBe(Opp.SEEN_CURRENTLY);
   });
 });

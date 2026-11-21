@@ -11,7 +11,7 @@ import { setSoldierPosition } from '../movement.ts';
 import { createSoldier, type Soldier, Team } from '../soldier.ts';
 import { createTacticalState, registerSoldier, type TacticalState } from '../state.ts';
 import { RevealedFlags, revealedAtLoadRuns, revealedTileRuns, revealRoofsAndItems, setMapRevealedStatus } from './fov.ts';
-import { slantRoofCeilingTiles } from './slant-roofs.ts';
+import { SlantRoofSlots, slantRoofCeilingTiles } from './slant-roofs.ts';
 import { perceptionHooks } from './wiring.ts';
 
 const doorCosts = testDoorCosts();
@@ -148,6 +148,25 @@ describe('slanted roof ceilings (Render_Fun.cc ExamineGridNoForSlantRoofExtraGra
     loaded.fog.slantRoofCeilings.fill(1);
     setMapRevealedStatus(loaded, (g) => groundRevealed(played, g));
     expect(slantRoofCeilingTiles(loaded)).toEqual(roofTiles().slice(2));
+  });
+});
+
+describe('the slanted roof slots of one look (FOV.cc NUM_SLANT_ROOF_SLOTS)', () => {
+  it('examines no more than 200 slanted roofs a look saw, dropping the ones past them (FOV.cc:161, :172-186, :219-238)', () => {
+    const ROOFS_SEEN = 201;
+    const SLOTS = 200;
+    const bases = Array.from({ length: ROOFS_SEEN }, (_, k) => gridNo(20 + (k % 100), 20 + 2 * Math.trunc(k / 100)));
+    const t = tactical((s) => {
+      for (const g of bases) s.add(g, ROOF_LEVEL, slantedRoofRunningSouth(1));
+    });
+    const slots = new SlantRoofSlots();
+    for (const g of bases) slots.addSeenTile(t, g);
+    const examined: number[] = [];
+    slots.examine(t, (g) => {
+      examined.push(g);
+      return false;
+    });
+    expect(examined).toEqual(bases.slice(0, SLOTS));
   });
 });
 

@@ -5,7 +5,7 @@
 // @src OppList.cc FindUnusedWatchedLoc, FindWatchedLocWithLessThanXPointsLeft, FindWatchedLoc, GetWatchedLocPoints,
 // @src CommunicateWatchedLoc, IncrementWatchedLoc, SetWatchedLocAsUsed, WatchedLocLocationIsEmpty, DecayWatchedLocs.
 
-import { gridSquare, pythSpacesAway, spacesAway } from '../../../content/world/grid.ts';
+import { pythSpacesAway, spacesAway, WORLD_MAX, WORLD_ROWS } from '../../../content/world/grid.ts';
 import { i8, idiv, u8 } from '../../../core/int.ts';
 import { AnimHeight, height, states } from '../animation.ts';
 import { lightTrueLevel, NORMAL_LIGHTLEVEL_DAY } from '../lighting/lighting.ts';
@@ -139,9 +139,13 @@ export function clearWatchedLocIncrements(t: TacticalState, id: number): void {
 }
 
 function watchedLocIsEmpty(t: TacticalState, g: number, level: number, team: number): boolean {
-  for (const near of gridSquare(g, WATCHED_LOC_RADIUS)) {
-    const other = whoIsThere(t, near, level);
-    if (other && other.team !== team) return false;
+  for (let dy = -WATCHED_LOC_RADIUS; dy <= WATCHED_LOC_RADIUS; dy++) {
+    for (let dx = -WATCHED_LOC_RADIUS; dx <= WATCHED_LOC_RADIUS; dx++) {
+      const near = g + dx + dy * WORLD_ROWS;
+      if (near < 0 || near >= WORLD_MAX) continue;
+      const other = whoIsThere(t, near, level);
+      if (other && other.team !== team) return false;
+    }
   }
   return true;
 }

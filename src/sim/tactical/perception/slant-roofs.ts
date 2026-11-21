@@ -1,8 +1,9 @@
 // Derived from Jagged Alliance 2 source code (Strategy First SFI-SCLA) via JA2 Stracciatella.
 // Modified for ja2-node: reimplemented in TypeScript, 2026-11-04. See LICENSE (SFI-SCLA).
-// @src src/game/Tactical/FOV.cc AddSlantRoofFOVSlot, ExamineSlantRoofFOVSlots, RevealRoofsAndItems (the slanted roof
-// @src check); TileEngine/Render_Fun.cc ExamineGridNoForSlantRoofExtraGraphic, SetGridNoRevealedFlag (the slanted roofs
-// @src it hides, at a room reveal and at a load of the revealed tiles, 2026-11-09)
+// @src src/game/Tactical/FOV.cc NUM_SLANT_ROOF_SLOTS and GetFreeSlantRoof (2026-11-21), AddSlantRoofFOVSlot,
+// @src ExamineSlantRoofFOVSlots, RevealRoofsAndItems (the slanted roof check); TileEngine/Render_Fun.cc
+// @src ExamineGridNoForSlantRoofExtraGraphic, SetGridNoRevealedFlag (the slanted roofs it hides, at a room reveal and at
+// @src a load of the revealed tiles, 2026-11-09)
 
 import { WORLD_MAX } from '../../../content/world/grid.ts';
 import { has, StructureFlags, type StructureInstance } from '../../../content/world/structures.ts';
@@ -12,6 +13,7 @@ import type { TacticalState } from '../state.ts';
 const NO_ROOM = 0;
 const CEILING = 1;
 const NO_CEILING = 0;
+const NUM_SLANT_ROOF_SLOTS = 200;
 
 export class SlantRoofSlots {
   readonly #gridNos: number[] = [];
@@ -34,7 +36,8 @@ export class SlantRoofSlots {
   }
 
   #add(gridNo: number): void {
-    if (!this.#gridNos.includes(gridNo)) this.#gridNos.push(gridNo);
+    if (this.#gridNos.includes(gridNo) || this.#gridNos.length >= NUM_SLANT_ROOF_SLOTS) return;
+    this.#gridNos.push(gridNo);
   }
 }
 

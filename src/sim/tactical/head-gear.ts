@@ -7,8 +7,6 @@
 import { NOTHING } from '../../content/items/items.ts';
 import { type ItemObject, swapObjects } from '../items/object.ts';
 import { InvSlot, NUM_INV_SLOTS, wearsHeadGear } from './inventory.ts';
-import { SightFlags } from './perception/opp.ts';
-import { handleSight } from './perception/sight.ts';
 import type { Soldier } from './soldier.ts';
 import type { TacticalState } from './state.ts';
 
@@ -85,7 +83,6 @@ export function switchHeadGear(t: TacticalState, s: Soldier, gear: HeadGear): vo
     const optimal = inventoryObject(s, wanted);
     changed(t, s, optimal.item, true);
     swapObjects(optimal, current);
-    handleSight(t, s, SightFlags.LOOK);
     return;
   }
   if (current.item === NOTHING) return;
