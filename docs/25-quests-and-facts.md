@@ -302,7 +302,7 @@ says otherwise:
 | A computed fact writes its result into the store, so a direct read sees the last evaluation | `check-fact.test.ts` |
 | `PABLO_BRIBED` is the negation of `PABLOS_BRIBED`; `FACT_245` stays true once Miguel has joined | `check-fact.test.ts` |
 | The unpropositioned-female fact takes the source talker first and gives up if she was asked, without trying the other | `check-fact.test.ts` |
-| The wounded-merc facts count mercs within 9 tiles inclusive; the close and near facts count strictly under 3 and 5 | `check-fact.test.ts` |
+| The wounded-merc facts count mercs within 9 tiles inclusive, as the close and near facts count within 3 and 5 (original-bugs "Mercs near an NPC") | `check-fact.test.ts` |
 | Starting a done quest restarts it and ending one never started finishes it, both without history; Alma's prison quest can pass without any | `quests.test.ts` |
 | Ending the Maria quest clears Madame's counters, also when it never ran | `quests.test.ts` |
 | Merely wounding Pacos sets "Pacos killed" | `src/sim/tactical/combat/combat.test.ts` |

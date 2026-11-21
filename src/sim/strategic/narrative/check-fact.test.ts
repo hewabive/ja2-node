@@ -157,13 +157,13 @@ describe('CheckFact', () => {
     expect(factValue(f.n, Fact.DIMITRI_DEAD)).toBe(1);
   });
 
-  it('counts wounded mercs within 9 tiles inclusive, close mercs strictly under 3 and near mercs under 5', () => {
+  it("counts wounded mercs within 9 tiles, close mercs within 3 and near mercs within 5, all inclusive as vanilla's NumMercsNear", () => {
     const f = fixture();
     f.soldiers = [
       soldier(30, NPC, at(50, 50)),
       soldier(0, 1, at(59, 50), { ourTeam: true, life: 40 }),
       soldier(1, 2, at(60, 50), { ourTeam: true, life: 40 }),
-      soldier(2, 3, at(52, 50), { ourTeam: true }),
+      soldier(2, 3, at(53, 50), { ourTeam: true }),
       soldier(3, 4, at(55, 50), { ourTeam: true }),
     ];
     const ctx = context(f);
@@ -174,6 +174,8 @@ describe('CheckFact', () => {
     expect(checkFact(ctx, Fact.MULTIPLE_MERCS_CLOSE, NPC)).toBe(false);
     expect(checkFact(ctx, Fact.MERC_NEAR_NPC, NPC)).toBe(true);
     f.soldiers = f.soldiers.filter((s) => s.id !== 2);
+    expect(checkFact(context(f), Fact.MERC_NEAR_NPC, NPC)).toBe(true);
+    f.soldiers = f.soldiers.filter((s) => s.id !== 3);
     expect(checkFact(context(f), Fact.MERC_NEAR_NPC, NPC)).toBe(false);
   });
 

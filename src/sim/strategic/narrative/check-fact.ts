@@ -305,7 +305,7 @@ function numWoundedMercsNearby(ctx: FactContext, profile: number): number {
 function numMercsNear(ctx: FactContext, profile: number, range: number): number {
   const npc = soldier(ctx, profile);
   if (!npc) return 0;
-  return ctx.world.mercsInSector().filter((s) => s.ourTeam && s.life >= OKLIFE && pythSpacesAway(npc.gridNo, s.gridNo) < range).length;
+  return ctx.world.mercsInSector().filter((s) => s.ourTeam && s.life >= OKLIFE && pythSpacesAway(npc.gridNo, s.gridNo) <= range).length;
 }
 
 function npcIsEpc(ctx: FactContext, profile: number): boolean {
